@@ -2,6 +2,8 @@ package com.veterinaria.veterinaria.service;
 
 import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.repository.MascotaRepository;
+import com.veterinaria.veterinaria.repository.CitaRepository;
+import com.veterinaria.veterinaria.repository.HistoriaClinicaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,12 +11,20 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class MascotaService {
     
     @Autowired
     private MascotaRepository mascotaRepository;
+    
+    @Autowired
+    private CitaRepository citaRepository;
+    
+    @Autowired
+    private HistoriaClinicaRepository historiaClinicaRepository;
     
     public List<Mascota> findAll() {
         return mascotaRepository.findAll();
@@ -82,5 +92,38 @@ public class MascotaService {
     
     public long countByActivoTrue() {
         return mascotaRepository.countByActivoTrue();
+    }
+    
+    /**
+     * Obtiene las mascotas que ha atendido un veterinario específico.
+     * Combina las mascotas de citas e historias clínicas del veterinario.
+     */
+    public List<Mascota> findMascotasAtendidasByVeterinario(String veterinarioDocumento) {
+        // Obtener mascotas únicas de las citas del veterinario
+        List<Long> mascotaIdsFromCitas = citaRepository.findByVeterinarioDocumento(veterinarioDocumento)
+            .stream()
+            .map(cita -> cita.getMascota().getId())
+            .distinct()
+            .collect(Collectors.toList());
+        
+        // Obtener mascotas únicas de las historias clínicas del veterinario
+        List<Long> mascotaIdsFromHistorias = historiaClinicaRepository.findByVeterinarioDocumento(veterinarioDocumento)
+            .stream()
+            .map(historia -> historia.getMascota().getId())
+            .distinct()
+            .collect(Collectors.toList());
+        
+        // Combinar ambas listas sin duplicados
+        List<Long> mascotaIds = Stream.concat(
+            mascotaIdsFromCitas.stream(),
+            mascotaIdsFromHistorias.stream()
+        ).distinct().collect(Collectors.toList());
+        
+        // Obtener las mascotas por sus IDs
+        if (mascotaIds.isEmpty()) {
+            return List.of();
+        }
+        
+        return mascotaRepository.findAllById(mascotaIds);
     }
 }

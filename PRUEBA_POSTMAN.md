@@ -290,7 +290,7 @@ Content-Type: application/json
     "mascotaId": 1,
     "veterinarioDocumento": "{{vet_documento}}"
 }
-```
+```&
 
 #### **4. Ver Historias Clínicas**
 ```

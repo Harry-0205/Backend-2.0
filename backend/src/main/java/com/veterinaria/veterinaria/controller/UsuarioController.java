@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,8 +31,11 @@ public class UsuarioController {
     @Autowired
     private RolRepository rolRepository;
     
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
     public ResponseEntity<List<UsuarioResponse>> getAllUsuarios() {
         List<Usuario> usuarios = usuarioService.findAll();
         List<UsuarioResponse> response = usuarios.stream()
@@ -41,11 +45,60 @@ public class UsuarioController {
         return ResponseEntity.ok(response);
     }
     
+    @GetMapping("/veterinarios")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE') or hasRole('VETERINARIO')")
+    public ResponseEntity<List<UsuarioResponse>> getVeterinarios() {
+        System.out.println("=== DEBUG: Endpoint /veterinarios llamado");
+        List<Usuario> usuarios = usuarioService.findAll();
+        System.out.println("=== DEBUG: Total usuarios en DB: " + usuarios.size());
+        
+        List<UsuarioResponse> veterinarios = usuarios.stream()
+                .filter(usuario -> {
+                    boolean esVeterinario = usuario.getRoles().stream()
+                        .anyMatch(rol -> {
+                            String nombreRol = rol.getNombre();
+                            System.out.println("=== DEBUG: Revisando rol: " + nombreRol + " para usuario: " + usuario.getUsername());
+                            return nombreRol.equals("VETERINARIO");
+                        });
+                    if (esVeterinario) {
+                        System.out.println("=== DEBUG: Veterinario encontrado: " + usuario.getNombres() + " " + usuario.getApellidos());
+                    }
+                    return esVeterinario;
+                })
+                .filter(usuario -> usuario.getActivo() != null && usuario.getActivo()) // Solo veterinarios activos
+                .map(UsuarioResponse::new)
+                .collect(Collectors.toList());
+        System.out.println("=== DEBUG: Total veterinarios encontrados: " + veterinarios.size());
+        return ResponseEntity.ok(veterinarios);
+    }
+    
     @GetMapping("/debug/count")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> getDebugCount() {
         long count = usuarioService.count();
         return ResponseEntity.ok("Total usuarios en DB: " + count);
+    }
+    
+    @GetMapping("/veterinarios/public")
+    public ResponseEntity<List<UsuarioResponse>> getVeterinariosPublic() {
+        System.out.println("=== DEBUG: Endpoint público /veterinarios/public llamado");
+        List<Usuario> usuarios = usuarioService.findAll();
+        System.out.println("=== DEBUG: Total usuarios en DB: " + usuarios.size());
+        
+        List<UsuarioResponse> veterinarios = usuarios.stream()
+                .filter(usuario -> {
+                    boolean esVeterinario = usuario.getRoles().stream()
+                        .anyMatch(rol -> rol.getNombre().equals("VETERINARIO"));
+                    if (esVeterinario) {
+                        System.out.println("=== DEBUG: Veterinario encontrado: " + usuario.getNombres() + " " + usuario.getApellidos());
+                    }
+                    return esVeterinario;
+                })
+                .filter(usuario -> usuario.getActivo() != null && usuario.getActivo())
+                .map(UsuarioResponse::new)
+                .collect(Collectors.toList());
+        System.out.println("=== DEBUG: Total veterinarios públicos encontrados: " + veterinarios.size());
+        return ResponseEntity.ok(veterinarios);
     }
     
     @GetMapping("/pageable")
@@ -126,10 +179,9 @@ public class UsuarioController {
                 if (usuarioRequest.getTipoDocumento() != null) existing.setTipoDocumento(usuarioRequest.getTipoDocumento());
                 if (usuarioRequest.getFechaNacimiento() != null) existing.setFechaNacimiento(usuarioRequest.getFechaNacimiento());
                 if (usuarioRequest.getActivo() != null) existing.setActivo(usuarioRequest.getActivo());
-                
-                // Solo actualizar la contraseña si se proporciona una nueva (no vacía)
+                  // Solo actualizar la contraseña si se proporciona una nueva (no vacía)
                 if (usuarioRequest.getPassword() != null && !usuarioRequest.getPassword().trim().isEmpty()) {
-                    existing.setPassword(usuarioRequest.getPassword());
+                    existing.setPassword(passwordEncoder.encode(usuarioRequest.getPassword()));
                 }
                 
                 // Actualizar roles solo si se proporcionan
@@ -155,8 +207,7 @@ public class UsuarioController {
             return ResponseEntity.badRequest().build();
         }
     }
-    
-    // Método auxiliar para convertir UsuarioRequest a Usuario
+      // Método auxiliar para convertir UsuarioRequest a Usuario
     private Usuario convertToEntity(UsuarioRequest request) {
         Usuario usuario = new Usuario();
         usuario.setDocumento(request.getDocumento());
@@ -170,8 +221,9 @@ public class UsuarioController {
         usuario.setFechaNacimiento(request.getFechaNacimiento());
         usuario.setActivo(request.getActivo() != null ? request.getActivo() : true);
         
+        // Hashear la contraseña antes de guardarla
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
-            usuario.setPassword(request.getPassword());
+            usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         }
         
         // Convertir roles string a entidades Rol
