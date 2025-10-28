@@ -1,0 +1,381 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Alert,
+  Badge,
+  InputGroup,
+  Spinner
+} from 'react-bootstrap';
+import { Usuario } from '../types';
+import { 
+  getAllUsuarios, 
+  createUsuario, 
+  updateUsuario, 
+  deleteUsuario, 
+  activateUsuario, 
+  deactivateUsuario 
+} from '../services/userService';
+
+const initialForm: Usuario = {
+  documento: '',
+  username: '',
+  nombre: '',
+  apellido: '',
+  email: '',
+  telefono: '',
+  activo: true,
+  rol: '',
+  password: '',
+};
+
+const UserManagement: React.FC = () => {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<Usuario>(initialForm);
+  const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+
+  useEffect(() => {
+    fetchUsuarios();
+  }, []);
+
+  const fetchUsuarios = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getAllUsuarios();
+      console.log('Usuarios recibidos:', data);
+      setUsuarios(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error('Error al cargar usuarios:', error);
+      setError('Error al cargar los usuarios: ' + (error.response?.data?.message || error.message));
+      setUsuarios([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenModal = (usuario?: Usuario) => {
+    if (usuario) {
+      setForm(usuario);
+      setEditMode(true);
+    } else {
+      setForm(initialForm);
+      setEditMode(false);
+    }
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setForm(initialForm);
+    setEditMode(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+      if (editMode) {
+        await updateUsuario(form.documento, form);
+        setSuccess('Usuario actualizado correctamente');
+      } else {
+        await createUsuario(form);
+        setSuccess('Usuario creado correctamente');
+      }
+      await fetchUsuarios();
+      handleCloseModal();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Error al guardar usuario: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (documento: string) => {
+    if (!window.confirm('¿Estás seguro de eliminar este usuario?')) return;
+    try {
+      setLoading(true);
+      setError('');
+      await deleteUsuario(documento);
+      setSuccess('Usuario eliminado correctamente');
+      await fetchUsuarios();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Error al eliminar usuario: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivate = async (documento: string) => {
+    if (!window.confirm('¿Estás seguro de desactivar este usuario?')) return;
+    try {
+      setLoading(true);
+      setError('');
+      await deactivateUsuario(documento);
+      setSuccess('Usuario desactivado correctamente');
+      await fetchUsuarios();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Error al desactivar usuario: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleActivate = async (documento: string) => {
+    if (!window.confirm('¿Estás seguro de activar este usuario?')) return;
+    try {
+      setLoading(true);
+      setError('');
+      await activateUsuario(documento);
+      setSuccess('Usuario activado correctamente');
+      await fetchUsuarios();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Error al activar usuario: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="mt-4">
+      <Card.Header>
+        <div className="d-flex justify-content-between align-items-center">
+          <h3 className="mb-0">Gestión de Usuarios</h3>
+          <Button variant="primary" onClick={() => handleOpenModal()}>
+            + Crear Usuario
+          </Button>
+        </div>
+      </Card.Header>
+      <Card.Body>
+        {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
+        {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
+        
+        {loading && <div className="text-center my-3">Cargando...</div>}
+        
+        {!loading && usuarios.length === 0 && (
+          <Alert variant="info">No hay usuarios registrados</Alert>
+        )}
+        
+        {!loading && usuarios.length > 0 && (
+          <Table striped bordered hover responsive>
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usuarios.map((u) => (
+                <tr key={u.documento}>
+                  <td>{u.documento}</td>
+                  <td>{u.username}</td>
+                  <td>{u.nombre}</td>
+                  <td>{u.apellido}</td>
+                  <td>{u.email}</td>
+                  <td>{u.telefono || 'N/A'}</td>
+                  <td>
+                    <Badge bg={
+                      u.rol === 'ADMIN' ? 'danger' : 
+                      u.rol === 'VETERINARIO' ? 'success' : 
+                      u.rol === 'RECEPCIONISTA' ? 'warning' : 'info'
+                    }>
+                      {u.rol}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg={u.activo ? 'success' : 'secondary'}>
+                      {u.activo ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-2">
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm" 
+                        onClick={() => handleOpenModal(u)}
+                      >
+                        Editar
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => handleDelete(u.documento)}
+                      >
+                        Eliminar
+                      </Button>
+                      {u.activo ? (
+                        <Button 
+                          variant="outline-warning" 
+                          size="sm" 
+                          onClick={() => handleDeactivate(u.documento)}
+                        >
+                          Desactivar
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="outline-success" 
+                          size="sm" 
+                          onClick={() => handleActivate(u.documento)}
+                        >
+                          Activar
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card.Body>
+
+      <Modal show={modalOpen} onHide={handleCloseModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{editMode ? 'Editar Usuario' : 'Crear Usuario'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Documento</Form.Label>
+              <Form.Control
+                type="text"
+                name="documento"
+                value={form.documento}
+                onChange={handleChange}
+                placeholder="Ingrese documento"
+                required
+                disabled={editMode}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Usuario</Form.Label>
+              <Form.Control
+                type="text"
+                name="username"
+                value={form.username}
+                onChange={handleChange}
+                placeholder="Ingrese nombre de usuario"
+                required
+              />
+            </Form.Group>
+
+            {!editMode && (
+              <Form.Group className="mb-3">
+                <Form.Label>Contraseña</Form.Label>
+                <Form.Control
+                  type="password"
+                  name="password"
+                  value={form.password || ''}
+                  onChange={handleChange}
+                  placeholder="Ingrese contraseña"
+                  required={!editMode}
+                />
+              </Form.Group>
+            )}
+
+            <Form.Group className="mb-3">
+              <Form.Label>Nombre</Form.Label>
+              <Form.Control
+                type="text"
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                placeholder="Ingrese nombre"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Apellido</Form.Label>
+              <Form.Control
+                type="text"
+                name="apellido"
+                value={form.apellido}
+                onChange={handleChange}
+                placeholder="Ingrese apellido"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="Ingrese email"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Teléfono</Form.Label>
+              <Form.Control
+                type="tel"
+                name="telefono"
+                value={form.telefono}
+                onChange={handleChange}
+                placeholder="Ingrese teléfono"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Rol</Form.Label>
+              <Form.Select
+                name="rol"
+                value={form.rol}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Selecciona un rol</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="VETERINARIO">Veterinario</option>
+                <option value="RECEPCIONISTA">Recepcionista</option>
+                <option value="CLIENTE">Cliente</option>
+              </Form.Select>
+            </Form.Group>
+
+            <div className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={handleCloseModal}>
+                Cancelar
+              </Button>
+              <Button variant="primary" type="submit" disabled={loading}>
+                {loading ? 'Guardando...' : (editMode ? 'Actualizar' : 'Crear')}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+    </Card>
+  );
+};
+
+export default UserManagement;
