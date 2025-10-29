@@ -37,14 +37,14 @@ public class Reporte {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "generado_por", nullable = false)
     private Usuario generadoPor;
-    
-    // Enum para tipos de reporte
+      // Enum para tipos de reporte
     public enum TipoReporte {
         CITAS_DIARIAS,
         CITAS_MENSUALES,
         MASCOTAS_REGISTRADAS,
         HISTORIAS_CLINICAS,
         USUARIOS_ACTIVOS,
+        VETERINARIOS_ACTIVOS,
         INGRESOS,
         ESTADISTICAS_GENERALES
     }
