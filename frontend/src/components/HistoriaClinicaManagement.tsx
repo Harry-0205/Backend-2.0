@@ -217,13 +217,16 @@ const HistoriaClinicaManagement: React.FC = () => {
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
-      filtered = filtered.filter(historia =>
-        historia.motivoConsulta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        historia.diagnostico?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        historia.mascota?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        historia.veterinario?.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        historia.veterinario?.apellidos?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(historia => {
+        const veterinarioNombre = historia.veterinario && typeof historia.veterinario === 'object' 
+          ? `${historia.veterinario.nombres || ''} ${historia.veterinario.apellidos || ''}`
+          : '';
+        
+        return historia.motivoConsulta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          historia.diagnostico?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          historia.mascota?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          veterinarioNombre.toLowerCase().includes(searchTerm.toLowerCase());
+      });
     }
 
     // Filtrar por fecha
@@ -279,7 +282,9 @@ const HistoriaClinicaManagement: React.FC = () => {
         recomendaciones: historia.recomendaciones || '',
         proximaCita: historia.proximaCita ? historia.proximaCita.slice(0, 16) : '',
         mascotaId: historia.mascota?.id?.toString() || '',
-        veterinarioId: historia.veterinario?.documento || '',
+        veterinarioId: historia.veterinario && typeof historia.veterinario === 'object' 
+          ? historia.veterinario.documento || ''
+          : '',
         citaId: historia.cita?.id?.toString() || '',
         propietarioId: typeof historia.mascota?.propietario === 'string' 
           ? historia.mascota.propietario 
@@ -664,7 +669,7 @@ const HistoriaClinicaManagement: React.FC = () => {
                             }
                           </td>
                           <td>
-                            {historia.veterinario 
+                            {historia.veterinario && typeof historia.veterinario === 'object'
                               ? `Dr. ${historia.veterinario.nombres || ''} ${historia.veterinario.apellidos || ''}`
                               : '-'
                             }
@@ -731,7 +736,7 @@ const HistoriaClinicaManagement: React.FC = () => {
       </Row>
 
       {/* Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="xl">
+      <Modal show={showModal} onHide={handleCloseModal} size="xl" scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
             {modalMode === 'create' && '📋 Nueva Historia Clínica'}
@@ -739,8 +744,8 @@ const HistoriaClinicaManagement: React.FC = () => {
             {modalMode === 'view' && '📋 Detalles de Historia Clínica'}
           </Modal.Title>
         </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
+        <Modal.Body>
+          <Form onSubmit={handleSubmit} id="historiaClinicaForm">
             {error && <Alert variant="danger">{error}</Alert>}
             
             {/* Información General */}
@@ -769,22 +774,38 @@ const HistoriaClinicaManagement: React.FC = () => {
                     <Col md={4}>
                       <Form.Group className="mb-3">
                         <Form.Label>Propietario</Form.Label>
-                        <Form.Select
-                          name="propietarioId"
-                          value={formData.propietarioId}
-                          onChange={handleInputChange}
-                          disabled={modalMode === 'view'}
-                        >
-                          <option value="">Todos los propietarios</option>
-                          {propietarios.map(propietario => (
-                            <option key={propietario.documento} value={propietario.documento}>
-                              {`${propietario.nombres} ${propietario.apellidos} - ${propietario.documento}`}
-                            </option>
-                          ))}
-                        </Form.Select>
-                        <Form.Text className="text-muted">
-                          Filtre las mascotas por propietario
-                        </Form.Text>
+                        {modalMode === 'view' ? (
+                          <Form.Control
+                            type="text"
+                            value={
+                              selectedHistoria?.mascota?.propietario
+                                ? typeof selectedHistoria.mascota.propietario === 'string'
+                                  ? selectedHistoria.mascota.propietario
+                                  : `${selectedHistoria.mascota.propietario.nombres || ''} ${selectedHistoria.mascota.propietario.apellidos || ''} - ${selectedHistoria.mascota.propietario.documento || ''}`
+                                : 'No especificado'
+                            }
+                            disabled
+                            readOnly
+                          />
+                        ) : (
+                          <>
+                            <Form.Select
+                              name="propietarioId"
+                              value={formData.propietarioId}
+                              onChange={handleInputChange}
+                            >
+                              <option value="">Todos los propietarios</option>
+                              {propietarios.map(propietario => (
+                                <option key={propietario.documento} value={propietario.documento}>
+                                  {`${propietario.nombres} ${propietario.apellidos} - ${propietario.documento}`}
+                                </option>
+                              ))}
+                            </Form.Select>
+                            <Form.Text className="text-muted">
+                              Filtre las mascotas por propietario
+                            </Form.Text>
+                          </>
+                        )}
                       </Form.Group>
                     </Col>
                   )}
@@ -811,24 +832,37 @@ const HistoriaClinicaManagement: React.FC = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Veterinario *</Form.Label>
-                      <Form.Select
-                        name="veterinarioId"
-                        value={formData.veterinarioId}
-                        onChange={handleInputChange}
-                        required
-                        disabled={modalMode === 'view' || authService.isVeterinario()}
-                      >
-                        <option value="">Seleccione un veterinario</option>
-                        {veterinarios.map(veterinario => (
-                          <option key={veterinario.documento} value={veterinario.documento}>
-                            {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      {authService.isVeterinario() && (
-                        <Form.Text className="text-muted">
-                          Como veterinario, solo puede crear historias clínicas a su nombre
-                        </Form.Text>
+                      {modalMode === 'view' || authService.isCliente() ? (
+                        <Form.Control
+                          type="text"
+                          value={selectedHistoria?.veterinario && typeof selectedHistoria.veterinario === 'object'
+                            ? `Dr. ${selectedHistoria.veterinario.nombres || ''} ${selectedHistoria.veterinario.apellidos || ''}`
+                            : 'No especificado'}
+                          disabled
+                          readOnly
+                        />
+                      ) : (
+                        <>
+                          <Form.Select
+                            name="veterinarioId"
+                            value={formData.veterinarioId}
+                            onChange={handleInputChange}
+                            required
+                            disabled={authService.isVeterinario()}
+                          >
+                            <option value="">Seleccione un veterinario</option>
+                            {veterinarios.map(veterinario => (
+                              <option key={veterinario.documento} value={veterinario.documento}>
+                                {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {authService.isVeterinario() && (
+                            <Form.Text className="text-muted">
+                              Como veterinario, solo puede crear historias clínicas a su nombre
+                            </Form.Text>
+                          )}
+                        </>
                       )}
                     </Form.Group>
                   </Col>
@@ -838,19 +872,30 @@ const HistoriaClinicaManagement: React.FC = () => {
                   <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Cita Asociada (opcional)</Form.Label>
-                      <Form.Select
-                        name="citaId"
-                        value={formData.citaId}
-                        onChange={handleInputChange}
-                        disabled={modalMode === 'view' || !formData.mascotaId}
-                      >
-                        <option value="">Sin cita asociada</option>
-                        {getCitasByMascota().map(cita => (
-                          <option key={cita.id} value={cita.id}>
-                            {`${formatFechaHora(cita.fechaHora)} - ${cita.motivo || 'Sin motivo'} (${cita.estado})`}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      {modalMode === 'view' || authService.isCliente() ? (
+                        <Form.Control
+                          type="text"
+                          value={selectedHistoria?.cita 
+                            ? `${formatFechaHora(selectedHistoria.cita.fechaHora)} - ${selectedHistoria.cita.motivo || 'Sin motivo'} (${selectedHistoria.cita.estado})`
+                            : 'Sin cita asociada'}
+                          disabled
+                          readOnly
+                        />
+                      ) : (
+                        <Form.Select
+                          name="citaId"
+                          value={formData.citaId}
+                          onChange={handleInputChange}
+                          disabled={!formData.mascotaId}
+                        >
+                          <option value="">Sin cita asociada</option>
+                          {getCitasByMascota().map(cita => (
+                            <option key={cita.id} value={cita.id}>
+                              {`${formatFechaHora(cita.fechaHora)} - ${cita.motivo || 'Sin motivo'} (${cita.estado})`}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      )}
                     </Form.Group>
                   </Col>
                 </Row>
@@ -1053,20 +1098,20 @@ const HistoriaClinicaManagement: React.FC = () => {
                 <strong>Fecha de Creación del Registro:</strong> {formatFechaHora(selectedHistoria.fechaCreacion)}
               </Alert>
             )}
-          </Modal.Body>
+          </Form>
+        </Modal.Body>
           
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
-              {modalMode === 'view' ? 'Cerrar' : 'Cancelar'}
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModal}>
+            {modalMode === 'view' ? 'Cerrar' : 'Cancelar'}
+          </Button>
+          {modalMode !== 'view' && (
+            <Button variant="primary" type="submit" form="historiaClinicaForm" disabled={loading}>
+              {loading && <Spinner animation="border" size="sm" className="me-2" />}
+              {modalMode === 'create' ? 'Crear Historia Clínica' : 'Actualizar Historia Clínica'}
             </Button>
-            {modalMode !== 'view' && (
-              <Button variant="primary" type="submit" disabled={loading}>
-                {loading && <Spinner animation="border" size="sm" className="me-2" />}
-                {modalMode === 'create' ? 'Crear Historia Clínica' : 'Actualizar Historia Clínica'}
-              </Button>
-            )}
-          </Modal.Footer>
-        </Form>
+          )}
+        </Modal.Footer>
       </Modal>
     </Container>
   );
