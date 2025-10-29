@@ -105,4 +105,12 @@ public class UsuarioService {
                            (u.getUsername() != null && u.getUsername().toLowerCase().contains(query.toLowerCase())))
                 .toList();
     }
+    
+    public List<Usuario> findVeterinariosByVeterinariaId(Long veterinariaId) {
+        return usuarioRepository.findByVeterinaria_IdAndRoles_Nombre(veterinariaId, "ROLE_VETERINARIO");
+    }
+    
+    public List<Usuario> findVeterinariosActivos() {
+        return usuarioRepository.findByRoles_NombreAndActivoTrue("ROLE_VETERINARIO");
+    }
 }

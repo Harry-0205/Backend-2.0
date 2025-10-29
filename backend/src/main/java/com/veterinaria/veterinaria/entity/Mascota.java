@@ -3,6 +3,7 @@ package com.veterinaria.veterinaria.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -32,8 +33,8 @@ public class Mascota {
     @Column(name = "fecha_nacimiento")
     private LocalDate fechaNacimiento;
     
-    @Column
-    private Double peso;
+    @Column(columnDefinition = "DECIMAL(5,2)")
+    private BigDecimal peso;
     
     @Column(columnDefinition = "TEXT")
     private String color;
@@ -118,11 +119,11 @@ public class Mascota {
         this.fechaNacimiento = fechaNacimiento;
     }
     
-    public Double getPeso() {
+    public BigDecimal getPeso() {
         return peso;
     }
     
-    public void setPeso(Double peso) {
+    public void setPeso(BigDecimal peso) {
         this.peso = peso;
     }
     

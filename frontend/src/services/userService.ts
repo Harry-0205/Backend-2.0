@@ -56,6 +56,27 @@ export const getVeterinarios = async (): Promise<Usuario[]> => {
   }
 };
 
+export const getVeterinariosByVeterinaria = async (veterinariaId: number): Promise<Usuario[]> => {
+  try {
+    console.log('🚀 Llamando endpoint: /usuarios/veterinarios/por-veterinaria/' + veterinariaId);
+    const res = await apiClient.get(`/usuarios/veterinarios/por-veterinaria/${veterinariaId}`);
+    console.log('📥 Respuesta recibida:', res);
+    
+    // Si es string, parsearlo
+    let data = res.data;
+    if (typeof data === 'string') {
+      console.log('🔄 Parseando respuesta string...');
+      data = JSON.parse(data);
+    }
+    
+    console.log('✅ Veterinarios por veterinaria procesados:', data);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('❌ Error al obtener veterinarios por veterinaria:', error);
+    return [];
+  }
+};
+
 export const createUsuario = async (usuario: Usuario): Promise<Usuario> => {
   const res = await apiClient.post('/usuarios', usuario);
   return res.data;

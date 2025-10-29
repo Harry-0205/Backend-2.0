@@ -2,9 +2,11 @@ package com.veterinaria.veterinaria.controller;
 
 import com.veterinaria.veterinaria.entity.Usuario;
 import com.veterinaria.veterinaria.entity.Rol;
+import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.dto.UsuarioResponse;
 import com.veterinaria.veterinaria.dto.UsuarioRequest;
 import com.veterinaria.veterinaria.service.UsuarioService;
+import com.veterinaria.veterinaria.service.VeterinariaService;
 import com.veterinaria.veterinaria.repository.RolRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -33,6 +35,9 @@ public class UsuarioController {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private VeterinariaService veterinariaService;
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
@@ -188,14 +193,38 @@ public class UsuarioController {
                 if (usuarioRequest.getRoles() != null && !usuarioRequest.getRoles().isEmpty()) {
                     Set<Rol> roles = new HashSet<>();
                     for (String roleName : usuarioRequest.getRoles()) {
-                        Optional<Rol> role = rolRepository.findByNombre(roleName);
+                        // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
+                        String roleNameWithPrefix = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
+                        Optional<Rol> role = rolRepository.findByNombre(roleNameWithPrefix);
                         if (role.isPresent()) {
                             roles.add(role.get());
                         } else {
-                            System.err.println("Role not found during update: " + roleName);
+                            System.err.println("Role not found during update: " + roleNameWithPrefix);
                         }
                     }
                     existing.setRoles(roles);
+                }
+                
+                // Actualizar veterinaria si es veterinario y se proporciona veterinariaId
+                if (usuarioRequest.getVeterinariaId() != null) {
+                    boolean esVeterinario = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
+                    
+                    if (esVeterinario) {
+                        Optional<Veterinaria> veterinaria = veterinariaService.findById(usuarioRequest.getVeterinariaId());
+                        if (veterinaria.isPresent()) {
+                            existing.setVeterinaria(veterinaria.get());
+                        } else {
+                            System.err.println("Veterinaria not found: " + usuarioRequest.getVeterinariaId());
+                        }
+                    }
+                } else if (usuarioRequest.getVeterinariaId() == null) {
+                    // Si veterinariaId es null explícitamente, limpiar la veterinaria
+                    boolean esVeterinario = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
+                    if (!esVeterinario) {
+                        existing.setVeterinaria(null);
+                    }
                 }
                 
                 Usuario updatedUsuario = usuarioService.save(existing);
@@ -230,14 +259,31 @@ public class UsuarioController {
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
             Set<Rol> roles = new HashSet<>();
             for (String roleName : request.getRoles()) {
-                Optional<Rol> role = rolRepository.findByNombre(roleName);
+                // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
+                String roleNameWithPrefix = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
+                Optional<Rol> role = rolRepository.findByNombre(roleNameWithPrefix);
                 if (role.isPresent()) {
                     roles.add(role.get());
                 } else {
-                    System.err.println("Role not found: " + roleName);
+                    System.err.println("Role not found: " + roleNameWithPrefix);
                 }
             }
             usuario.setRoles(roles);
+        }
+        
+        // Asignar veterinaria si es veterinario y se proporciona veterinariaId
+        if (request.getVeterinariaId() != null) {
+            boolean esVeterinario = request.getRoles() != null && 
+                request.getRoles().stream().anyMatch(r -> r.equals("ROLE_VETERINARIO"));
+            
+            if (esVeterinario) {
+                Optional<Veterinaria> veterinaria = veterinariaService.findById(request.getVeterinariaId());
+                if (veterinaria.isPresent()) {
+                    usuario.setVeterinaria(veterinaria.get());
+                } else {
+                    System.err.println("Veterinaria not found: " + request.getVeterinariaId());
+                }
+            }
         }
         
         return usuario;
@@ -276,5 +322,20 @@ public class UsuarioController {
     public ResponseEntity<?> activateUsuario(@PathVariable String documento) {
         usuarioService.activate(documento);
         return ResponseEntity.ok().build();
+    }
+    
+    @GetMapping("/veterinarios/por-veterinaria/{veterinariaId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE')")
+    public ResponseEntity<List<UsuarioResponse>> getVeterinariosByVeterinaria(@PathVariable Long veterinariaId) {
+        try {
+            List<Usuario> veterinarios = usuarioService.findVeterinariosByVeterinariaId(veterinariaId);
+            List<UsuarioResponse> response = veterinarios.stream()
+                    .map(UsuarioResponse::new)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error getting veterinarios by veterinaria: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

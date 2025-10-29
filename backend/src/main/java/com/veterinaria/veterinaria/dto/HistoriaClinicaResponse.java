@@ -1,6 +1,7 @@
 package com.veterinaria.veterinaria.dto;
 
 import com.veterinaria.veterinaria.entity.HistoriaClinica;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class HistoriaClinicaResponse {
@@ -11,8 +12,8 @@ public class HistoriaClinicaResponse {
     private String diagnostico;
     private String tratamiento;
     private String medicamentos;
-    private Double peso;
-    private Double temperatura;
+    private BigDecimal peso;
+    private BigDecimal temperatura;
     private Integer frecuenciaCardiaca;
     private Integer frecuenciaRespiratoria;
     private String observaciones;
@@ -85,8 +86,8 @@ public class HistoriaClinicaResponse {
     public String getDiagnostico() { return diagnostico; }
     public String getTratamiento() { return tratamiento; }
     public String getMedicamentos() { return medicamentos; }
-    public Double getPeso() { return peso; }
-    public Double getTemperatura() { return temperatura; }
+    public BigDecimal getPeso() { return peso; }
+    public BigDecimal getTemperatura() { return temperatura; }
     public Integer getFrecuenciaCardiaca() { return frecuenciaCardiaca; }
     public Integer getFrecuenciaRespiratoria() { return frecuenciaRespiratoria; }
     public String getObservaciones() { return observaciones; }

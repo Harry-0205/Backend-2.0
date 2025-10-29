@@ -12,6 +12,8 @@ export interface Usuario {
   fechaRegistro?: string;
   tipoDocumento?: string;
   fechaNacimiento?: string;
+  veterinariaId?: number;
+  veterinariaNombre?: string;
   mascotas?: any[];
   citasComoCliente?: any[];
   citasComoVeterinario?: any[];

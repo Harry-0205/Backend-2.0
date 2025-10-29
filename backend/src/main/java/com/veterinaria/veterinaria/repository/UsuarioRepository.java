@@ -17,6 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
     Boolean existsByDocumento(String documento);
     List<Usuario> findByActivoTrue();
     List<Usuario> findByRoles_Nombre(String rolNombre);
+    List<Usuario> findByVeterinaria_IdAndRoles_Nombre(Long veterinariaId, String rolNombre);
+    List<Usuario> findByRoles_NombreAndActivoTrue(String rolNombre);
     
     // Métodos de conteo
     long countByActivoTrue();

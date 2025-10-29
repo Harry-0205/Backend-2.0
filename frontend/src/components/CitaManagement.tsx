@@ -16,7 +16,7 @@ import {
 import { Cita, EstadoCita } from '../types';
 import citaService from '../services/citaService';
 import mascotaService from '../services/mascotaService';
-import { getAllUsuarios, getVeterinarios } from '../services/userService';
+import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
 
@@ -299,10 +299,20 @@ const CitaManagement: React.FC = () => {
         veterinarioId: '' // Limpiar veterinario seleccionado
       }));
       
-      // Por ahora, mostrar todos los veterinarios disponibles
-      // TODO: Cuando se implemente la relación Usuario-Veterinaria en el backend,
-      // aquí se debe filtrar por veterinarios que trabajan en la veterinaria seleccionada
-      setFilteredVeterinarios(veterinarios);
+      // Filtrar veterinarios por veterinaria seleccionada
+      if (value) {
+        getVeterinariosByVeterinaria(parseInt(value))
+          .then(vetsFiltered => {
+            console.log('🏥 Veterinarios filtrados por veterinaria:', vetsFiltered);
+            setFilteredVeterinarios(vetsFiltered);
+          })
+          .catch(error => {
+            console.error('❌ Error al filtrar veterinarios:', error);
+            setFilteredVeterinarios([]);
+          });
+      } else {
+        setFilteredVeterinarios(veterinarios);
+      }
     } else {
       setFormData(prev => ({
         ...prev,
