@@ -1,18 +1,23 @@
 package com.veterinaria.veterinaria.controller;
 
 import com.veterinaria.veterinaria.entity.Veterinaria;
+import com.veterinaria.veterinaria.entity.Usuario;
 import com.veterinaria.veterinaria.dto.VeterinariaResponse;
+import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.service.VeterinariaService;
+import com.veterinaria.veterinaria.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @RestController
@@ -22,13 +27,44 @@ public class VeterinariaController {
     @Autowired
     private VeterinariaService veterinariaService;
     
+    @Autowired
+    private UsuarioService usuarioService;
+    
     @GetMapping
-    public ResponseEntity<List<VeterinariaResponse>> getAllVeterinarias() {
-        List<Veterinaria> veterinarias = veterinariaService.findAll();
+    public ResponseEntity<ApiResponse<List<VeterinariaResponse>>> getAllVeterinarias(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        List<Veterinaria> veterinarias;
+        
+        // Verificar si el usuario autenticado es veterinario
+        if (userDetails != null) {
+            boolean isVeterinario = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            
+            if (isVeterinario) {
+                // Si es veterinario, solo retornar la veterinaria donde trabaja
+                Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (veterinarioOpt.isPresent() && veterinarioOpt.get().getVeterinaria() != null) {
+                    veterinarias = List.of(veterinarioOpt.get().getVeterinaria());
+                    System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando su veterinaria: " + veterinarias.get(0).getNombre());
+                } else {
+                    veterinarias = new ArrayList<>();
+                    System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " no tiene veterinaria asignada");
+                }
+            } else {
+                // Admin, Recepcionista o Cliente pueden ver todas
+                veterinarias = veterinariaService.findAll();
+            }
+        } else {
+            // Usuario no autenticado (público)
+            veterinarias = veterinariaService.findAll();
+        }
+        
         List<VeterinariaResponse> response = veterinarias.stream()
                 .map(VeterinariaResponse::new)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        
+        return ResponseEntity.ok(
+            ApiResponse.success("Veterinarias obtenidas exitosamente", response)
+        );
     }
     
     @GetMapping("/pageable")
@@ -38,17 +74,68 @@ public class VeterinariaController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<VeterinariaResponse> getVeterinariaById(@PathVariable Long id) {
+    public ResponseEntity<VeterinariaResponse> getVeterinariaById(@PathVariable Long id, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         Optional<Veterinaria> veterinariaOpt = veterinariaService.findById(id);
-        if (veterinariaOpt.isPresent()) {
-            return ResponseEntity.ok(new VeterinariaResponse(veterinariaOpt.get()));
+        
+        if (!veterinariaOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+        
+        // Verificar si el usuario autenticado es veterinario
+        if (userDetails != null) {
+            boolean isVeterinario = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            
+            if (isVeterinario) {
+                // Si es veterinario, solo puede ver su propia veterinaria
+                Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (veterinarioOpt.isPresent() && veterinarioOpt.get().getVeterinaria() != null) {
+                    Long veterinariaIdDelVeterinario = veterinarioOpt.get().getVeterinaria().getId();
+                    if (!id.equals(veterinariaIdDelVeterinario)) {
+                        // Intentando ver una veterinaria que no es la suya
+                        return ResponseEntity.status(403).build();
+                    }
+                } else {
+                    // Veterinario sin veterinaria asignada
+                    return ResponseEntity.status(403).build();
+                }
+            }
+        }
+        
+        return ResponseEntity.ok(new VeterinariaResponse(veterinariaOpt.get()));
     }
     
     @GetMapping("/activas")
-    public ResponseEntity<List<VeterinariaResponse>> getVeterinariasActivas() {
-        List<Veterinaria> veterinarias = veterinariaService.findByActivoTrue();
+    public ResponseEntity<List<VeterinariaResponse>> getVeterinariasActivas(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        List<Veterinaria> veterinarias;
+        
+        // Verificar si el usuario autenticado es veterinario
+        if (userDetails != null) {
+            boolean isVeterinario = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            
+            if (isVeterinario) {
+                // Si es veterinario, solo retornar su veterinaria si está activa
+                Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (veterinarioOpt.isPresent() && veterinarioOpt.get().getVeterinaria() != null) {
+                    Veterinaria veterinariaDelVet = veterinarioOpt.get().getVeterinaria();
+                    if (veterinariaDelVet.getActivo() != null && veterinariaDelVet.getActivo()) {
+                        veterinarias = List.of(veterinariaDelVet);
+                    } else {
+                        veterinarias = new ArrayList<>();
+                    }
+                } else {
+                    veterinarias = new ArrayList<>();
+                }
+            } else {
+                // Admin, Recepcionista o Cliente pueden ver todas las activas
+                veterinarias = veterinariaService.findByActivoTrue();
+            }
+        } else {
+            // Usuario no autenticado (público)
+            veterinarias = veterinariaService.findByActivoTrue();
+        }
+        
         List<VeterinariaResponse> response = veterinarias.stream()
                 .map(VeterinariaResponse::new)
                 .collect(Collectors.toList());
@@ -66,21 +153,25 @@ public class VeterinariaController {
     
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Veterinaria> createVeterinaria(@Valid @RequestBody Veterinaria veterinaria) {
+    public ResponseEntity<ApiResponse<Veterinaria>> createVeterinaria(@Valid @RequestBody Veterinaria veterinaria) {
         try {
             System.out.println("=== Creando veterinaria: " + veterinaria.getNombre());
             Veterinaria nuevaVeterinaria = veterinariaService.save(veterinaria);
-            return ResponseEntity.ok(nuevaVeterinaria);
+            return ResponseEntity.ok(
+                ApiResponse.success("Veterinaria creada exitosamente", nuevaVeterinaria)
+            );
         } catch (Exception e) {
             System.err.println("❌ Error al crear veterinaria: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(
+                ApiResponse.error("Error al crear veterinaria", e.getMessage())
+            );
         }
     }
     
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Veterinaria> updateVeterinaria(@PathVariable Long id, @Valid @RequestBody Veterinaria veterinariaDetails) {
+    public ResponseEntity<ApiResponse<Veterinaria>> updateVeterinaria(@PathVariable Long id, @Valid @RequestBody Veterinaria veterinariaDetails) {
         Optional<Veterinaria> optionalVeterinaria = veterinariaService.findById(id);
         
         if (optionalVeterinaria.isPresent()) {
@@ -94,9 +185,13 @@ public class VeterinariaController {
             veterinaria.setServicios(veterinariaDetails.getServicios());
             
             Veterinaria veterinariaActualizada = veterinariaService.save(veterinaria);
-            return ResponseEntity.ok(veterinariaActualizada);
+            return ResponseEntity.ok(
+                ApiResponse.success("Veterinaria actualizada exitosamente", veterinariaActualizada)
+            );
         } else {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(
+                ApiResponse.error("Veterinaria no encontrada", "No existe una veterinaria con el ID: " + id)
+            );
         }
     }
     
@@ -132,14 +227,18 @@ public class VeterinariaController {
     
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteVeterinaria(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteVeterinaria(@PathVariable Long id) {
         Optional<Veterinaria> veterinaria = veterinariaService.findById(id);
         
         if (veterinaria.isPresent()) {
             veterinariaService.deleteById(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(
+                ApiResponse.success("Veterinaria eliminada exitosamente")
+            );
         } else {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(
+                ApiResponse.error("Veterinaria no encontrada", "No existe una veterinaria con el ID: " + id)
+            );
         }
     }
 }

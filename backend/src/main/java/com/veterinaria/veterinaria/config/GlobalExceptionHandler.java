@@ -1,6 +1,6 @@
 package com.veterinaria.veterinaria.config;
 
-import com.veterinaria.veterinaria.dto.ErrorResponse;
+import com.veterinaria.veterinaria.dto.ApiResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,83 +10,57 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Manejador global de excepciones para el sistema
+ * Proporciona respuestas estandarizadas con formato ApiResponse
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "Internal Server Error",
-            ex.getMessage(),
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-    
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleEntityNotFoundException(EntityNotFoundException ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.NOT_FOUND.value(),
-            "Not Found",
-            ex.getMessage(),
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
-    }
-    
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.BAD_REQUEST.value(),
-            "Bad Request",
-            ex.getMessage(),
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<ApiResponse<Object>> handleEntityNotFoundException(EntityNotFoundException ex) {
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error("Recurso no encontrado", ex.getMessage()));
     }
     
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.FORBIDDEN.value(),
-            "Forbidden",
-            "No tienes permisos para acceder a este recurso",
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    public ResponseEntity<ApiResponse<Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error("Acceso denegado", "No tienes permisos para acceder a este recurso"));
     }
     
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentialsException(BadCredentialsException ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.UNAUTHORIZED.value(),
-            "Unauthorized",
-            "Credenciales inválidas",
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Credenciales inválidas", "Usuario o contraseña incorrectos"));
     }
     
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.CONFLICT.value(),
-            "Conflict",
-            "Error de integridad de datos: " + ex.getMostSpecificCause().getMessage(),
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        String detalle = ex.getMostSpecificCause() != null ? 
+            ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("Error de integridad de datos", detalle));
+    }
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("Datos inválidos", ex.getMessage()));
     }
     
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
@@ -94,12 +68,15 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         
-        ErrorResponse errorResponse = new ErrorResponse(
-            HttpStatus.BAD_REQUEST.value(),
-            "Validation Failed",
-            "Errores de validación: " + errors.toString(),
-            request.getDescription(false).replace("uri=", "")
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("Errores de validación", errors.toString()));
+    }
+    
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Object>> handleGlobalException(Exception ex) {
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ApiResponse.error("Error interno del servidor", ex.getMessage()));
     }
 }

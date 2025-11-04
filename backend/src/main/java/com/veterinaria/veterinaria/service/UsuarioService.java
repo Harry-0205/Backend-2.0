@@ -113,4 +113,8 @@ public class UsuarioService {
     public List<Usuario> findVeterinariosActivos() {
         return usuarioRepository.findByRoles_NombreAndActivoTrue("ROLE_VETERINARIO");
     }
+    
+    public List<Usuario> findClientesAtendidosPorVeterinario(String veterinarioDocumento) {
+        return usuarioRepository.findClientesAtendidosPorVeterinario(veterinarioDocumento);
+    }
 }
