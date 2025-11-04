@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -70,20 +71,30 @@ public class MascotaService {
         mascotaRepository.deleteById(id);
     }
     
-    public void deactivate(Long id) {
-        Optional<Mascota> mascota = mascotaRepository.findById(id);
-        if (mascota.isPresent()) {
-            mascota.get().setActivo(false);
-            mascotaRepository.save(mascota.get());
+    @Transactional
+    public Mascota deactivate(Long id) {
+        Optional<Mascota> mascotaOpt = mascotaRepository.findById(id);
+        if (mascotaOpt.isPresent()) {
+            Mascota mascota = mascotaOpt.get();
+            mascota.setActivo(false);
+            Mascota saved = mascotaRepository.save(mascota);
+            System.out.println("=== Mascota id=" + id + " desactivada");
+            return saved;
         }
+        return null;
     }
-    
-    public void activate(Long id) {
-        Optional<Mascota> mascota = mascotaRepository.findById(id);
-        if (mascota.isPresent()) {
-            mascota.get().setActivo(true);
-            mascotaRepository.save(mascota.get());
+
+    @Transactional
+    public Mascota activate(Long id) {
+        Optional<Mascota> mascotaOpt = mascotaRepository.findById(id);
+        if (mascotaOpt.isPresent()) {
+            Mascota mascota = mascotaOpt.get();
+            mascota.setActivo(true);
+            Mascota saved = mascotaRepository.save(mascota);
+            System.out.println("=== Mascota id=" + id + " activada");
+            return saved;
         }
+        return null;
     }
     
     public long count() {

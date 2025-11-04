@@ -183,6 +183,10 @@ public class VeterinariaController {
             veterinaria.setCiudad(veterinariaDetails.getCiudad());
             veterinaria.setHorarioAtencion(veterinariaDetails.getHorarioAtencion());
             veterinaria.setServicios(veterinariaDetails.getServicios());
+            // Permitir que el administrador actualice el estado 'activo' si se envía
+            if (veterinariaDetails.getActivo() != null) {
+                veterinaria.setActivo(veterinariaDetails.getActivo());
+            }
             
             Veterinaria veterinariaActualizada = veterinariaService.save(veterinaria);
             return ResponseEntity.ok(
@@ -198,31 +202,21 @@ public class VeterinariaController {
     @PatchMapping("/{id}/activar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Veterinaria> activarVeterinaria(@PathVariable Long id) {
-        Optional<Veterinaria> optionalVeterinaria = veterinariaService.findById(id);
-        
-        if (optionalVeterinaria.isPresent()) {
-            Veterinaria veterinaria = optionalVeterinaria.get();
-            veterinaria.setActivo(true);
-            Veterinaria veterinariaActualizada = veterinariaService.save(veterinaria);
-            return ResponseEntity.ok(veterinariaActualizada);
-        } else {
-            return ResponseEntity.notFound().build();
+        Veterinaria actualizado = veterinariaService.activate(id);
+        if (actualizado != null) {
+            return ResponseEntity.ok(actualizado);
         }
+        return ResponseEntity.notFound().build();
     }
     
     @PatchMapping("/{id}/desactivar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Veterinaria> desactivarVeterinaria(@PathVariable Long id) {
-        Optional<Veterinaria> optionalVeterinaria = veterinariaService.findById(id);
-        
-        if (optionalVeterinaria.isPresent()) {
-            Veterinaria veterinaria = optionalVeterinaria.get();
-            veterinaria.setActivo(false);
-            Veterinaria veterinariaActualizada = veterinariaService.save(veterinaria);
-            return ResponseEntity.ok(veterinariaActualizada);
-        } else {
-            return ResponseEntity.notFound().build();
+        Veterinaria actualizado = veterinariaService.deactivate(id);
+        if (actualizado != null) {
+            return ResponseEntity.ok(actualizado);
         }
+        return ResponseEntity.notFound().build();
     }
     
     @DeleteMapping("/{id}")

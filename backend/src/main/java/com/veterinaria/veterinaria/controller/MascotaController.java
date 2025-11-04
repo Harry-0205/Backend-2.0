@@ -155,6 +155,10 @@ public class MascotaController {
             existingMascota.setPeso(mascota.getPeso());
             existingMascota.setColor(mascota.getColor());
             existingMascota.setObservaciones(mascota.getObservaciones());
+            // Permitir que ADMIN o RECEPCIONISTA actualicen el estado activo si se envía
+            if (mascota.getActivo() != null) {
+                existingMascota.setActivo(mascota.getActivo());
+            }
             
             // No cambiar el propietario ni el ID
             // existingMascota.setPropietario() - NO TOCAR
@@ -176,14 +180,20 @@ public class MascotaController {
     @PatchMapping("/{id}/desactivar")
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
     public ResponseEntity<?> deactivateMascota(@PathVariable Long id) {
-        mascotaService.deactivate(id);
-        return ResponseEntity.ok().build();
+        Mascota updated = mascotaService.deactivate(id);
+        if (updated != null) {
+            return ResponseEntity.ok(updated);
+        }
+        return ResponseEntity.notFound().build();
     }
     
     @PatchMapping("/{id}/activar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> activateMascota(@PathVariable Long id) {
-        mascotaService.activate(id);
-        return ResponseEntity.ok().build();
+        Mascota updated = mascotaService.activate(id);
+        if (updated != null) {
+            return ResponseEntity.ok(updated);
+        }
+        return ResponseEntity.notFound().build();
     }
 }
