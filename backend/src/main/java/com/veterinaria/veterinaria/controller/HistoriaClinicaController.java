@@ -5,6 +5,7 @@ import com.veterinaria.veterinaria.entity.Usuario;
 import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.entity.Cita;
 import com.veterinaria.veterinaria.dto.HistoriaClinicaResponse;
+import com.veterinaria.veterinaria.dto.HistoriaClinicaRequest;
 import com.veterinaria.veterinaria.service.HistoriaClinicaService;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import com.veterinaria.veterinaria.service.MascotaService;
@@ -14,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,7 +42,29 @@ public class HistoriaClinicaController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
     public ResponseEntity<List<HistoriaClinicaResponse>> getAllHistorias() {
-        List<HistoriaClinica> historias = historiaClinicaService.findAll();
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Verificar si el usuario tiene rol VETERINARIO
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        List<HistoriaClinica> historias;
+        
+        if (isVeterinario) {
+            // Si es veterinario, obtener solo sus historias clínicas
+            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
+            if (veterinario.isPresent()) {
+                historias = historiaClinicaService.findByVeterinarioDocumento(veterinario.get().getDocumento());
+            } else {
+                historias = List.of();
+            }
+        } else {
+            // Si es admin o recepcionista, obtener todas las historias
+            historias = historiaClinicaService.findAll();
+        }
+        
         List<HistoriaClinicaResponse> response = historias.stream()
                 .map(HistoriaClinicaResponse::new)
                 .collect(Collectors.toList());
@@ -77,18 +102,23 @@ public class HistoriaClinicaController {
         List<HistoriaClinica> historias = historiaClinicaService.findByVeterinarioDocumento(veterinarioDocumento);
         return ResponseEntity.ok(historias);
     }
-    
-    @PostMapping
+      @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
-    public ResponseEntity<HistoriaClinicaResponse> createHistoria(@RequestBody HistoriaClinica historia) {
+    public ResponseEntity<HistoriaClinicaResponse> createHistoria(@RequestBody HistoriaClinicaRequest request) {
         try {
+            System.out.println("=== Creando historia clínica ===");
+            System.out.println("MascotaId: " + request.getMascotaId());
+            System.out.println("VeterinarioDocumento: " + request.getVeterinarioDocumento());
+            
+            HistoriaClinica historia = new HistoriaClinica();
+            
             // Validar y obtener mascota (requerida)
-            if (historia.getMascota() != null && historia.getMascota().getId() != null) {
-                Optional<Mascota> mascota = mascotaService.findById(historia.getMascota().getId());
+            if (request.getMascotaId() != null) {
+                Optional<Mascota> mascota = mascotaService.findById(request.getMascotaId());
                 if (mascota.isPresent()) {
                     historia.setMascota(mascota.get());
                 } else {
-                    System.err.println("Mascota no encontrada con ID: " + historia.getMascota().getId());
+                    System.err.println("Mascota no encontrada con ID: " + request.getMascotaId());
                     return ResponseEntity.badRequest().build(); // Mascota no encontrada
                 }
             } else {
@@ -97,12 +127,12 @@ public class HistoriaClinicaController {
             }
             
             // Validar y obtener veterinario (requerido)
-            if (historia.getVeterinario() != null && historia.getVeterinario().getDocumento() != null) {
-                Optional<Usuario> veterinario = usuarioService.findById(historia.getVeterinario().getDocumento());
+            if (request.getVeterinarioDocumento() != null) {
+                Optional<Usuario> veterinario = usuarioService.findById(request.getVeterinarioDocumento());
                 if (veterinario.isPresent()) {
                     historia.setVeterinario(veterinario.get());
                 } else {
-                    System.err.println("Veterinario no encontrado con documento: " + historia.getVeterinario().getDocumento());
+                    System.err.println("Veterinario no encontrado con documento: " + request.getVeterinarioDocumento());
                     return ResponseEntity.badRequest().build(); // Veterinario no encontrado
                 }
             } else {
@@ -111,19 +141,32 @@ public class HistoriaClinicaController {
             }
             
             // Validar y obtener cita (opcional)
-            if (historia.getCita() != null && historia.getCita().getId() != null) {
-                Optional<Cita> cita = citaService.findById(historia.getCita().getId());
+            if (request.getCitaId() != null) {
+                Optional<Cita> cita = citaService.findById(request.getCitaId());
                 if (cita.isPresent()) {
                     historia.setCita(cita.get());
-                } else {
-                    historia.setCita(null); // Cita no encontrada, dejar nulo
                 }
             }
             
+            // Establecer todos los campos del request
+            historia.setFechaConsulta(request.getFechaConsulta());
+            historia.setMotivoConsulta(request.getMotivoConsulta());
+            historia.setSintomas(request.getSintomas());
+            historia.setDiagnostico(request.getDiagnostico());
+            historia.setTratamiento(request.getTratamiento());
+            historia.setMedicamentos(request.getMedicamentos());
+            historia.setPeso(request.getPeso());
+            historia.setTemperatura(request.getTemperatura());
+            historia.setFrecuenciaCardiaca(request.getFrecuenciaCardiaca());
+            historia.setFrecuenciaRespiratoria(request.getFrecuenciaRespiratoria());
+            historia.setObservaciones(request.getObservaciones());
+            historia.setRecomendaciones(request.getRecomendaciones());
+            
             HistoriaClinica nuevaHistoria = historiaClinicaService.save(historia);
+            System.out.println("✅ Historia clínica creada con ID: " + nuevaHistoria.getId());
             return ResponseEntity.ok(new HistoriaClinicaResponse(nuevaHistoria));
         } catch (Exception e) {
-            System.err.println("Error creating historia clinica: " + e.getMessage());
+            System.err.println("❌ Error creating historia clinica: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.badRequest().build();
         }

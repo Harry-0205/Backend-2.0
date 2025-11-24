@@ -70,7 +70,7 @@ const Register: React.FC = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #153372 0%, #2bc6a0 100%)',
       display: 'flex',
       alignItems: 'center',
       padding: '40px 0'
@@ -95,14 +95,14 @@ const Register: React.FC = () => {
                   }}>
                     <i className="fas fa-paw" style={{
                       fontSize: '2.5rem',
-                      color: '#2563eb',
-                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      color: '#2bc6a0',
+                      background: 'linear-gradient(135deg, #2bc6a0, #153372)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent'
                     }}></i>
                     <h1 style={{
                       margin: 0,
-                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      background: 'linear-gradient(135deg, #2bc6a0, #153372)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                       fontWeight: '700',
@@ -156,7 +156,7 @@ const Register: React.FC = () => {
                           color: '#374151',
                           marginBottom: '8px'
                         }}>
-                          <i className="fas fa-user me-2" style={{ color: '#6366f1' }}></i>
+                          <i className="fas fa-user me-2" style={{ color: '#2bc6a0' }}></i>
                           Nombres *
                         </Form.Label>
                         <Form.Control
@@ -174,7 +174,7 @@ const Register: React.FC = () => {
                             transition: 'all 0.3s ease'
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.borderColor = '#2bc6a0';
                             e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                           }}
                           onBlur={(e) => {
@@ -191,7 +191,7 @@ const Register: React.FC = () => {
                           color: '#374151',
                           marginBottom: '8px'
                         }}>
-                          <i className="fas fa-user me-2" style={{ color: '#6366f1' }}></i>
+                          <i className="fas fa-user me-2" style={{ color: '#2bc6a0' }}></i>
                           Apellidos *
                         </Form.Label>
                         <Form.Control
@@ -209,7 +209,7 @@ const Register: React.FC = () => {
                             transition: 'all 0.3s ease'
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.borderColor = '#2bc6a0';
                             e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                           }}
                           onBlur={(e) => {
@@ -227,7 +227,7 @@ const Register: React.FC = () => {
                       color: '#374151',
                       marginBottom: '8px'
                     }}>
-                      <i className="fas fa-at me-2" style={{ color: '#6366f1' }}></i>
+                      <i className="fas fa-at me-2" style={{ color: '#2bc6a0' }}></i>
                       Usuario *
                     </Form.Label>
                     <Form.Control
@@ -245,7 +245,7 @@ const Register: React.FC = () => {
                         transition: 'all 0.3s ease'
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.borderColor = '#2bc6a0';
                         e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                       }}
                       onBlur={(e) => {
@@ -261,7 +261,7 @@ const Register: React.FC = () => {
                       color: '#374151',
                       marginBottom: '8px'
                     }}>
-                      <i className="fas fa-envelope me-2" style={{ color: '#6366f1' }}></i>
+                      <i className="fas fa-envelope me-2" style={{ color: '#2bc6a0' }}></i>
                       Email *
                     </Form.Label>
                     <Form.Control
@@ -279,7 +279,7 @@ const Register: React.FC = () => {
                         transition: 'all 0.3s ease'
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.borderColor = '#2bc6a0';
                         e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                       }}
                       onBlur={(e) => {
@@ -295,7 +295,7 @@ const Register: React.FC = () => {
                       color: '#374151',
                       marginBottom: '8px'
                     }}>
-                      <i className="fas fa-lock me-2" style={{ color: '#6366f1' }}></i>
+                      <i className="fas fa-lock me-2" style={{ color: '#2bc6a0' }}></i>
                       Contraseña *
                     </Form.Label>
                     <Form.Control
@@ -314,7 +314,7 @@ const Register: React.FC = () => {
                         transition: 'all 0.3s ease'
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.borderColor = '#2bc6a0';
                         e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                       }}
                       onBlur={(e) => {
@@ -332,7 +332,7 @@ const Register: React.FC = () => {
                           color: '#374151',
                           marginBottom: '8px'
                         }}>
-                          <i className="fas fa-phone me-2" style={{ color: '#6366f1' }}></i>
+                          <i className="fas fa-phone me-2" style={{ color: '#2bc6a0' }}></i>
                           Teléfono
                         </Form.Label>
                         <Form.Control
@@ -349,7 +349,7 @@ const Register: React.FC = () => {
                             transition: 'all 0.3s ease'
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.borderColor = '#2bc6a0';
                             e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                           }}
                           onBlur={(e) => {
@@ -366,7 +366,7 @@ const Register: React.FC = () => {
                           color: '#374151',
                           marginBottom: '8px'
                         }}>
-                          <i className="fas fa-id-card me-2" style={{ color: '#6366f1' }}></i>
+                          <i className="fas fa-id-card me-2" style={{ color: '#2bc6a0' }}></i>
                           Cédula *
                         </Form.Label>
                         <Form.Control
@@ -384,7 +384,7 @@ const Register: React.FC = () => {
                             transition: 'all 0.3s ease'
                           }}
                           onFocus={(e) => {
-                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.borderColor = '#2bc6a0';
                             e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                           }}
                           onBlur={(e) => {
@@ -402,7 +402,7 @@ const Register: React.FC = () => {
                       color: '#374151',
                       marginBottom: '8px'
                     }}>
-                      <i className="fas fa-map-marker-alt me-2" style={{ color: '#6366f1' }}></i>
+                      <i className="fas fa-map-marker-alt me-2" style={{ color: '#2bc6a0' }}></i>
                       Dirección
                     </Form.Label>
                     <Form.Control
@@ -419,7 +419,7 @@ const Register: React.FC = () => {
                         transition: 'all 0.3s ease'
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.borderColor = '#2bc6a0';
                         e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                       }}
                       onBlur={(e) => {
@@ -436,7 +436,7 @@ const Register: React.FC = () => {
                     style={{
                       background: loading 
                         ? 'linear-gradient(135deg, #9ca3af, #6b7280)' 
-                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        : 'linear-gradient(135deg, #2bc6a0, #153372)',
                       border: 'none',
                       borderRadius: '12px',
                       padding: '14px 24px',
@@ -475,7 +475,7 @@ const Register: React.FC = () => {
                     <p style={{ color: '#64748b', margin: 0 }}>
                       ¿Ya tienes cuenta?{' '}
                       <Link to="/login" style={{
-                        color: '#3b82f6',
+                        color: '#2bc6a0',
                         textDecoration: 'none',
                         fontWeight: '600'
                       }}>

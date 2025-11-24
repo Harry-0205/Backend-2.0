@@ -11,6 +11,13 @@ import authService from '../services/authService';
 const Dashboard: React.FC = () => {
   const currentUser = authService.getCurrentUser();
   const [activeTab, setActiveTab] = React.useState('usuarios');
+  
+  // Debug: Ver qué hay en currentUser
+  React.useEffect(() => {
+    console.log('🔍 DEBUG Dashboard - currentUser:', currentUser);
+    console.log('🔍 DEBUG Dashboard - roles:', currentUser?.roles);
+    console.log('🔍 DEBUG Dashboard - localStorage:', localStorage.getItem('user'));
+  }, [currentUser]);
 
   const getRoleColor = (role: string) => {
     switch (role) {

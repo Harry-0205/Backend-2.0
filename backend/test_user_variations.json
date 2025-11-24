@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Cliente Nuevo",
+    "json": {
+      "documento": "11111111",
+      "username": "cliente_juan",
+      "password": "123456",
+      "nombres": "Juan Carlos",
+      "apellidos": "Pérez López",
+      "email": "juan.perez@gmail.com",
+      "telefono": "3001234567",
+      "direccion": "Calle 123 #45-67",
+      "tipoDocumento": "CC",
+      "fechaNacimiento": "1985-05-15",
+      "activo": true,
+      "roles": ["ROLE_CLIENTE"]
+    }
+  },
+  {
+    "name": "Veterinario",
+    "json": {
+      "documento": "22222222",
+      "username": "dr.martinez",
+      "password": "123456",
+      "nombres": "Ana María",
+      "apellidos": "Martínez Rodríguez",
+      "email": "ana.martinez@veterinaria.com",
+      "telefono": "3109876543",
+      "direccion": "Avenida Veterinaria 789",
+      "tipoDocumento": "CC",
+      "fechaNacimiento": "1982-03-20",
+      "activo": true,
+      "roles": ["ROLE_VETERINARIO"],
+      "veterinariaId": 1
+    }
+  },
+  {
+    "name": "Recepcionista",
+    "json": {
+      "documento": "33333333",
+      "username": "recepcion_maria",
+      "password": "123456",
+      "nombres": "María Fernanda",
+      "apellidos": "González Pérez",
+      "email": "maria.recepcion@veterinaria.com",
+      "telefono": "3207654321",
+      "direccion": "Centro Comercial 456",
+      "tipoDocumento": "CC",
+      "fechaNacimiento": "1990-08-10",
+      "activo": true,
+      "roles": ["ROLE_RECEPCIONISTA"]
+    }
+  }
+]

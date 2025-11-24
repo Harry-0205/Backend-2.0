@@ -12,6 +12,8 @@ export interface Usuario {
   fechaRegistro?: string;
   tipoDocumento?: string;
   fechaNacimiento?: string;
+  veterinariaId?: number;
+  veterinariaNombre?: string;
   mascotas?: any[];
   citasComoCliente?: any[];
   citasComoVeterinario?: any[];
@@ -110,7 +112,7 @@ export interface HistoriaClinica {
   proximaCita?: string;
   fechaCreacion: string;
   mascota: Mascota;
-  veterinario: Usuario;
+  veterinario: Usuario | string; // Puede ser objeto Usuario o string (DTO)
   cita?: Cita;
 }
 
