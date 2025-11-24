@@ -49,7 +49,9 @@ public class GestionReporteService {
     }
 
     public List<ReporteUsuarioDTO> getReporteUsuariosPorRol(String rol) {
-        List<Usuario> usuarios = usuarioRepository.findByRoles_Nombre(rol);
+        // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
+        String rolConPrefijo = rol.startsWith("ROLE_") ? rol : "ROLE_" + rol;
+        List<Usuario> usuarios = usuarioRepository.findByRoles_Nombre(rolConPrefijo);
         return usuarios.stream()
                 .map(usuario -> {
                     Long totalMascotas = mascotaRepository.countByPropietario(usuario);
@@ -72,10 +74,10 @@ public class GestionReporteService {
 
         // Contar usuarios por rol
         Map<String, Long> totalPorRol = new HashMap<>();
-        totalPorRol.put("ADMIN", (long) usuarioRepository.findByRoles_Nombre("ADMIN").size());
-        totalPorRol.put("VETERINARIO", (long) usuarioRepository.findByRoles_Nombre("VETERINARIO").size());
-        totalPorRol.put("RECEPCIONISTA", (long) usuarioRepository.findByRoles_Nombre("RECEPCIONISTA").size());
-        totalPorRol.put("CLIENTE", (long) usuarioRepository.findByRoles_Nombre("CLIENTE").size());
+        totalPorRol.put("ROLE_ADMIN", (long) usuarioRepository.findByRoles_Nombre("ROLE_ADMIN").size());
+        totalPorRol.put("ROLE_VETERINARIO", (long) usuarioRepository.findByRoles_Nombre("ROLE_VETERINARIO").size());
+        totalPorRol.put("ROLE_RECEPCIONISTA", (long) usuarioRepository.findByRoles_Nombre("ROLE_RECEPCIONISTA").size());
+        totalPorRol.put("ROLE_CLIENTE", (long) usuarioRepository.findByRoles_Nombre("ROLE_CLIENTE").size());
 
         estadisticas.setTotalPorRol(totalPorRol);
 
@@ -146,7 +148,7 @@ public class GestionReporteService {
         // Calcular promedio de peso
         Double promedioPeso = mascotas.stream()
                 .filter(m -> m.getPeso() != null)
-                .mapToDouble(Mascota::getPeso)
+                .mapToDouble(m -> m.getPeso().doubleValue())
                 .average()
                 .orElse(0.0);
         estadisticas.setPromedioPeso(promedioPeso);

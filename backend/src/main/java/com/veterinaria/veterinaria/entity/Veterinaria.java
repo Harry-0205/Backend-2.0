@@ -48,6 +48,9 @@ public class Veterinaria {
     @OneToMany(mappedBy = "veterinaria", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Cita> citas = new HashSet<>();
     
+    @OneToMany(mappedBy = "veterinaria", fetch = FetchType.LAZY)
+    private Set<Usuario> veterinarios = new HashSet<>();
+    
     // Constructores
     public Veterinaria() {}
     
@@ -152,5 +155,13 @@ public class Veterinaria {
     
     public void setCitas(Set<Cita> citas) {
         this.citas = citas;
+    }
+    
+    public Set<Usuario> getVeterinarios() {
+        return veterinarios;
+    }
+    
+    public void setVeterinarios(Set<Usuario> veterinarios) {
+        this.veterinarios = veterinarios;
     }
 }

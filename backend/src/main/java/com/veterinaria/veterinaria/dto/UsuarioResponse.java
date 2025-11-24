@@ -19,6 +19,8 @@ public class UsuarioResponse {
     private LocalDateTime fechaRegistro;
     private boolean activo;
     private List<String> roles;
+    private Long veterinariaId;
+    private String veterinariaNombre;
     
     // Constructor
     public UsuarioResponse(Usuario usuario) {
@@ -40,6 +42,12 @@ public class UsuarioResponse {
                 .map(role -> role.getNombre())
                 .collect(Collectors.toList()) : 
             List.of();
+        
+        // Información de la veterinaria (si es veterinario)
+        if (usuario.getVeterinaria() != null) {
+            this.veterinariaId = usuario.getVeterinaria().getId();
+            this.veterinariaNombre = usuario.getVeterinaria().getNombre();
+        }
     }
     
     // Getters
@@ -55,4 +63,6 @@ public class UsuarioResponse {
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public boolean isActivo() { return activo; }
     public List<String> getRoles() { return roles; }
+    public Long getVeterinariaId() { return veterinariaId; }
+    public String getVeterinariaNombre() { return veterinariaNombre; }
 }

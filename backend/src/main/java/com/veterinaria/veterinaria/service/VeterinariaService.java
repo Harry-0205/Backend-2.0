@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -58,5 +59,31 @@ public class VeterinariaService {
     
     public long countByActivoTrue() {
         return veterinariaRepository.findByActivoTrue().size();
+    }
+
+    @Transactional
+    public Veterinaria deactivate(Long id) {
+        Optional<Veterinaria> opt = veterinariaRepository.findById(id);
+        if (opt.isPresent()) {
+            Veterinaria v = opt.get();
+            v.setActivo(false);
+            Veterinaria saved = veterinariaRepository.save(v);
+            System.out.println("=== Veterinaria id=" + id + " desactivada");
+            return saved;
+        }
+        return null;
+    }
+
+    @Transactional
+    public Veterinaria activate(Long id) {
+        Optional<Veterinaria> opt = veterinariaRepository.findById(id);
+        if (opt.isPresent()) {
+            Veterinaria v = opt.get();
+            v.setActivo(true);
+            Veterinaria saved = veterinariaRepository.save(v);
+            System.out.println("=== Veterinaria id=" + id + " activada");
+            return saved;
+        }
+        return null;
     }
 }

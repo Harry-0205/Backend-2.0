@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -42,7 +44,29 @@ public class CitaController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
     public ResponseEntity<List<CitaResponse>> getAllCitas() {
-        List<Cita> citas = citaService.findAllWithRelations();
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Verificar si el usuario tiene rol VETERINARIO
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        List<Cita> citas;
+        
+        if (isVeterinario) {
+            // Si es veterinario, obtener solo sus citas
+            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
+            if (veterinario.isPresent()) {
+                citas = citaService.findByVeterinarioDocumento(veterinario.get().getDocumento());
+            } else {
+                citas = List.of();
+            }
+        } else {
+            // Si es admin o recepcionista, obtener todas las citas
+            citas = citaService.findAllWithRelations();
+        }
+        
         List<CitaResponse> response = citas.stream()
                 .map(CitaResponse::new)
                 .collect(Collectors.toList());
@@ -132,12 +156,20 @@ public class CitaController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE') or hasRole('VETERINARIO')")
     public ResponseEntity<?> createCita(@RequestBody Cita cita) {
         try {
             System.out.println("=== Creando cita ===");
             System.out.println("Cliente documento: " + (cita.getCliente() != null ? cita.getCliente().getDocumento() : "null"));
             System.out.println("Mascota ID: " + (cita.getMascota() != null ? cita.getMascota().getId() : "null"));
+            
+            // Obtener el usuario autenticado
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            
+            // Verificar si el usuario tiene rol VETERINARIO
+            boolean isVeterinario = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
             
             // Validar y obtener cliente
             if (cita.getCliente() == null || cita.getCliente().getDocumento() == null) {
@@ -161,10 +193,19 @@ public class CitaController {
             }
             cita.setMascota(mascotaOpt.get());
             
-            // Validar y obtener veterinario (opcional)
-            if (cita.getVeterinario() != null && cita.getVeterinario().getDocumento() != null) {
-                Optional<Usuario> veterinarioOpt = usuarioService.findById(cita.getVeterinario().getDocumento());
-                cita.setVeterinario(veterinarioOpt.orElse(null));
+            // Si es veterinario, asignarlo automáticamente
+            if (isVeterinario) {
+                Optional<Usuario> veterinario = usuarioService.findByUsername(username);
+                if (veterinario.isPresent()) {
+                    cita.setVeterinario(veterinario.get());
+                    System.out.println("=== Veterinario auto-asignado: " + veterinario.get().getNombres() + " " + veterinario.get().getApellidos());
+                }
+            } else {
+                // Si no es veterinario, validar y obtener veterinario del request (opcional)
+                if (cita.getVeterinario() != null && cita.getVeterinario().getDocumento() != null) {
+                    Optional<Usuario> veterinarioOpt = usuarioService.findById(cita.getVeterinario().getDocumento());
+                    cita.setVeterinario(veterinarioOpt.orElse(null));
+                }
             }
             
             // Validar y obtener veterinaria (opcional)

@@ -619,22 +619,29 @@ const MascotaManagement: React.FC = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Especie *</Form.Label>
-                  <Form.Select
-                    name="especie"
-                    value={formData.especie}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  >
-                    <option value="">Seleccione una especie</option>
-                    <option value="Perro">Perro</option>
-                    <option value="Gato">Gato</option>
-                    <option value="Ave">Ave</option>
-                    <option value="Conejo">Conejo</option>
-                    <option value="Hamster">Hamster</option>
-                    <option value="Reptil">Reptil</option>
-                    <option value="Otro">Otro</option>
-                  </Form.Select>
+                  {modalMode === 'view' ? (
+                    <Form.Control
+                      type="text"
+                      value={formData.especie || 'No especificada'}
+                      disabled
+                    />
+                  ) : (
+                    <Form.Select
+                      name="especie"
+                      value={formData.especie}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Seleccione una especie</option>
+                      <option value="Perro">Perro</option>
+                      <option value="Gato">Gato</option>
+                      <option value="Ave">Ave</option>
+                      <option value="Conejo">Conejo</option>
+                      <option value="Hamster">Hamster</option>
+                      <option value="Reptil">Reptil</option>
+                      <option value="Otro">Otro</option>
+                    </Form.Select>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
@@ -656,16 +663,23 @@ const MascotaManagement: React.FC = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Sexo</Form.Label>
-                  <Form.Select
-                    name="sexo"
-                    value={formData.sexo}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  >
-                    <option value="">Seleccione el sexo</option>
-                    <option value="Macho">Macho ♂</option>
-                    <option value="Hembra">Hembra ♀</option>
-                  </Form.Select>
+                  {modalMode === 'view' ? (
+                    <Form.Control
+                      type="text"
+                      value={formData.sexo ? (formData.sexo === 'Macho' ? 'Macho ♂' : formData.sexo === 'Hembra' ? 'Hembra ♀' : formData.sexo) : 'No especificado'}
+                      disabled
+                    />
+                  ) : (
+                    <Form.Select
+                      name="sexo"
+                      value={formData.sexo}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Seleccione el sexo</option>
+                      <option value="Macho">Macho ♂</option>
+                      <option value="Hembra">Hembra ♀</option>
+                    </Form.Select>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
@@ -716,20 +730,31 @@ const MascotaManagement: React.FC = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Propietario *</Form.Label>
-                  <Form.Select
-                    name="propietarioId"
-                    value={formData.propietarioId}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  >
-                    <option value="">Seleccione un propietario</option>
-                    {propietarios.map(propietario => (
-                      <option key={propietario.documento} value={propietario.documento}>
-                        {`${propietario.nombres || ''} ${propietario.apellidos || ''} - ${propietario.documento}`}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  {modalMode === 'view' ? (
+                    <Form.Control
+                      type="text"
+                      value={
+                        propietarios.find(p => p.documento === formData.propietarioId)
+                          ? `${propietarios.find(p => p.documento === formData.propietarioId)?.nombres || ''} ${propietarios.find(p => p.documento === formData.propietarioId)?.apellidos || ''} - ${formData.propietarioId}`
+                          : formData.propietarioId || 'No especificado'
+                      }
+                      disabled
+                    />
+                  ) : (
+                    <Form.Select
+                      name="propietarioId"
+                      value={formData.propietarioId}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Seleccione un propietario</option>
+                      {propietarios.map(propietario => (
+                        <option key={propietario.documento} value={propietario.documento}>
+                          {`${propietario.nombres || ''} ${propietario.apellidos || ''} - ${propietario.documento}`}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
                 </Form.Group>
               </Col>
             </Row>

@@ -1,89 +1,32 @@
-package com.veterinaria.veterinaria.entity;
+package com.veterinaria.veterinaria.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "historias_clinicas")
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class HistoriaClinica {
+public class HistoriaClinicaRequest {
     
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @Column(name = "fecha_consulta", nullable = false)
     private LocalDateTime fechaConsulta;
-    
-    @Column(columnDefinition = "TEXT")
     private String motivoConsulta;
-    
-    @Column(columnDefinition = "TEXT")
     private String sintomas;
-    
-    @Column(columnDefinition = "TEXT")
     private String diagnostico;
-    
-    @Column(columnDefinition = "TEXT")
     private String tratamiento;
-    
-    @Column(columnDefinition = "TEXT")
     private String medicamentos;
-    
-    @Column(columnDefinition = "DECIMAL(5,2)")
     private BigDecimal peso;
-    
-    @Column(columnDefinition = "DECIMAL(4,2)")
     private BigDecimal temperatura;
-    
-    @Column(name = "frecuencia_cardiaca")
     private Integer frecuenciaCardiaca;
-    
-    @Column(name = "frecuencia_respiratoria")
     private Integer frecuenciaRespiratoria;
-    
-    @Column(columnDefinition = "TEXT")
     private String observaciones;
-    
-    @Column(columnDefinition = "TEXT")
     private String recomendaciones;
     
-    @Column(name = "fecha_creacion", nullable = false)
-    private LocalDateTime fechaCreacion = LocalDateTime.now();
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mascota_id", nullable = false)
-    private Mascota mascota;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "veterinario_documento", nullable = false)
-    private Usuario veterinario;
-    
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cita_id")
-    private Cita cita;
+    // IDs para las relaciones
+    private Long mascotaId;
+    private String veterinarioDocumento;
+    private Long citaId;
     
     // Constructores
-    public HistoriaClinica() {}
-    
-    public HistoriaClinica(LocalDateTime fechaConsulta, String motivoConsulta, Mascota mascota, Usuario veterinario) {
-        this.fechaConsulta = fechaConsulta;
-        this.motivoConsulta = motivoConsulta;
-        this.mascota = mascota;
-        this.veterinario = veterinario;
-    }
+    public HistoriaClinicaRequest() {}
     
     // Getters y Setters
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
     public LocalDateTime getFechaConsulta() {
         return fechaConsulta;
     }
@@ -180,35 +123,27 @@ public class HistoriaClinica {
         this.recomendaciones = recomendaciones;
     }
     
-    public LocalDateTime getFechaCreacion() {
-        return fechaCreacion;
+    public Long getMascotaId() {
+        return mascotaId;
     }
     
-    public void setFechaCreacion(LocalDateTime fechaCreacion) {
-        this.fechaCreacion = fechaCreacion;
+    public void setMascotaId(Long mascotaId) {
+        this.mascotaId = mascotaId;
     }
     
-    public Mascota getMascota() {
-        return mascota;
+    public String getVeterinarioDocumento() {
+        return veterinarioDocumento;
     }
     
-    public void setMascota(Mascota mascota) {
-        this.mascota = mascota;
+    public void setVeterinarioDocumento(String veterinarioDocumento) {
+        this.veterinarioDocumento = veterinarioDocumento;
     }
     
-    public Usuario getVeterinario() {
-        return veterinario;
+    public Long getCitaId() {
+        return citaId;
     }
     
-    public void setVeterinario(Usuario veterinario) {
-        this.veterinario = veterinario;
-    }
-    
-    public Cita getCita() {
-        return cita;
-    }
-    
-    public void setCita(Cita cita) {
-        this.cita = cita;
+    public void setCitaId(Long citaId) {
+        this.citaId = citaId;
     }
 }
