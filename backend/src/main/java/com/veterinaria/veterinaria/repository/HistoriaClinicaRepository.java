@@ -19,6 +19,10 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
     List<HistoriaClinica> findByFechaConsultaBetween(LocalDateTime inicio, LocalDateTime fin);
     List<HistoriaClinica> findByMascotaIdOrderByFechaConsultaDesc(Long mascotaId);
     
+    // Encontrar historias clínicas de mascotas que pertenecen a una veterinaria
+    @Query("SELECT h FROM HistoriaClinica h WHERE h.cita.veterinaria.id = :veterinariaId OR h.veterinario.veterinaria.id = :veterinariaId")
+    List<HistoriaClinica> findByVeterinariaId(@Param("veterinariaId") Long veterinariaId);
+    
     // Métodos de conteo
     long countByMascota(Mascota mascota);
     

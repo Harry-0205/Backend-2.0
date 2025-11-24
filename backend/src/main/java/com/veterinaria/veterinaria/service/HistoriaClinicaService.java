@@ -56,4 +56,8 @@ public class HistoriaClinicaService {
     public void deleteById(Long id) {
         historiaClinicaRepository.deleteById(id);
     }
+    
+    public List<HistoriaClinica> findByVeterinariaId(Long veterinariaId) {
+        return historiaClinicaRepository.findByVeterinariaId(veterinariaId);
+    }
 }

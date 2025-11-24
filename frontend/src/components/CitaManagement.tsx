@@ -65,26 +65,47 @@ const CitaManagement: React.FC = () => {
   const loadCitas = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 Iniciando carga de citas...');
       let data: any;
       
       // Si es cliente, solo cargar sus propias citas
       if (authService.isCliente()) {
         const currentUser = authService.getCurrentUser();
         if (currentUser && currentUser.documento) {
+          console.log('📅 Cargando citas del cliente:', currentUser.documento);
           data = await citaService.getCitasByCliente(currentUser.documento);
         } else {
           data = [];
         }
       } else {
         // Otros roles ven todas las citas
+        console.log('📅 Cargando todas las citas...');
         data = await citaService.getAllCitas();
       }
       
-      setCitas(Array.isArray(data) ? data : []);
-      setError('');
-    } catch (error) {
-      setError('Error al cargar las citas');
-      console.error('Error loading citas:', error);
+      console.log('📥 Citas recibidas:', data);
+      console.log('📊 Total de citas:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Citas cargadas exitosamente');
+        setCitas(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron citas');
+        setCitas([]);
+        if (!authService.isCliente()) {
+          setError('No se encontraron citas. Verifica que existan datos en la base de datos.');
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las citas';
+      console.error('❌ Error loading citas:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setCitas([]);
     } finally {
       setLoading(false);
@@ -182,13 +203,26 @@ const CitaManagement: React.FC = () => {
   const loadVeterinarias = async () => {
     try {
       console.log('🏥 Cargando veterinarias...');
+      console.log('🔐 Usuario actual:', authService.getCurrentUser());
+      console.log('🔐 Token:', authService.getToken()?.substring(0, 20) + '...');
+      console.log('🔐 Es cliente?:', authService.isCliente());
+      console.log('🔐 Roles:', authService.getCurrentUser()?.roles);
+      
       const data = await getAllVeterinarias();
       console.log('🏥 Veterinarias cargadas:', data);
       console.log('🏥 Cantidad de veterinarias:', data?.length || 0);
       setVeterinarias(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error('❌ Error loading veterinarias:', error);
+      console.error('❌ Código de estado:', error.response?.status);
+      console.error('❌ Mensaje:', error.response?.data?.message);
       console.error('❌ Error completo veterinarias:', error.response || error);
+      
+      // No cerrar sesión si es un error de permisos, solo mostrar mensaje
+      if (error.response?.status === 403) {
+        console.warn('⚠️ No tienes permisos para ver veterinarias, pero puedes continuar');
+      }
+      
       setVeterinarias([]);
     }
   };

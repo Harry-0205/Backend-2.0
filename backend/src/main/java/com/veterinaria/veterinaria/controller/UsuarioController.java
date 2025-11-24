@@ -45,24 +45,48 @@ public class UsuarioController {
     public ResponseEntity<ApiResponse<List<UsuarioResponse>>> getAllUsuarios(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         List<Usuario> usuarios;
         
-        // Verificar si el usuario autenticado es veterinario
+        // Obtener el usuario autenticado
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+        
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.ok(ApiResponse.success("No se encontró el usuario autenticado", List.of()));
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+        
+        // Verificar roles
+        boolean isAdmin = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
         boolean isVeterinario = userDetails.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        boolean isRecepcionista = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         
         if (isVeterinario) {
             // Si es veterinario, solo obtener los clientes que ha atendido
-            Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
-            if (veterinarioOpt.isPresent()) {
-                String veterinarioDocumento = veterinarioOpt.get().getDocumento();
-                usuarios = usuarioService.findClientesAtendidosPorVeterinario(veterinarioDocumento);
-                System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
+            usuarios = usuarioService.findClientesAtendidosPorVeterinario(usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
+        } else if (isAdmin || isRecepcionista) {
+            // Admin y Recepcionista ven solo usuarios de su veterinaria
+            System.out.println("=== DEBUG DETALLADO: Usuario " + userDetails.getUsername());
+            System.out.println("=== DEBUG DETALLADO: Documento: " + usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG DETALLADO: Veterinaria: " + usuarioAutenticado.getVeterinaria());
+            System.out.println("=== DEBUG DETALLADO: Veterinaria es null? " + (usuarioAutenticado.getVeterinaria() == null));
+            
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaId);
+                usuarios = usuarioService.findByVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
+                    " consultando usuarios de veterinaria ID " + veterinariaId + ": " + usuarios.size() + " usuarios");
             } else {
-                usuarios = List.of(); // Lista vacía si no se encuentra el veterinario
+                // Si no tiene veterinaria asignada, no puede ver ningún usuario
+                usuarios = List.of();
+                System.out.println("=== DEBUG ALERTA: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
+                    " sin veterinaria asignada, no puede ver usuarios. ESTO DEBE SER CORREGIDO EN LA BD!");
             }
         } else {
-            // Admin y Recepcionista pueden ver todos los usuarios
-            usuarios = usuarioService.findAll();
-            System.out.println("=== DEBUG: Total usuarios encontrados: " + usuarios.size());
+            usuarios = List.of();
         }
         
         List<UsuarioResponse> response = usuarios.stream()
@@ -71,7 +95,7 @@ public class UsuarioController {
         
         String message = isVeterinario 
             ? "Clientes atendidos obtenidos exitosamente" 
-            : "Usuarios obtenidos exitosamente";
+            : "Usuarios de la veterinaria obtenidos exitosamente";
         
         return ResponseEntity.ok(ApiResponse.success(message, response));
     }
@@ -272,18 +296,53 @@ public class UsuarioController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UsuarioResponse>> createUsuario(@RequestBody UsuarioRequest usuarioRequest) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> createUsuario(
+            @RequestBody UsuarioRequest usuarioRequest,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
+            System.out.println("=== DEBUG CREATE USER: Request recibido");
+            System.out.println("=== Documento: " + usuarioRequest.getDocumento());
+            System.out.println("=== Username: " + usuarioRequest.getUsername());
+            System.out.println("=== Tipo Documento: " + usuarioRequest.getTipoDocumento());
+            System.out.println("=== Roles: " + usuarioRequest.getRoles());
+            System.out.println("=== Veterinaria ID actual: " + usuarioRequest.getVeterinariaId());
+            
+            // Obtener la veterinaria del usuario autenticado (admin o recepcionista)
+            Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+            
+            if (usuarioAutenticadoOpt.isPresent()) {
+                Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+                
+                // Asignar automáticamente la veterinaria del admin/recepcionista al nuevo usuario
+                if (usuarioAutenticado.getVeterinaria() != null) {
+                    usuarioRequest.setVeterinariaId(usuarioAutenticado.getVeterinaria().getId());
+                    System.out.println("=== DEBUG: Asignando veterinaria " + usuarioAutenticado.getVeterinaria().getNombre() + 
+                                     " (ID: " + usuarioAutenticado.getVeterinaria().getId() + ") al nuevo usuario " + usuarioRequest.getUsername());
+                } else {
+                    System.out.println("=== DEBUG ALERTA: Usuario autenticado NO tiene veterinaria asignada!");
+                }
+            }
+            
             Usuario usuario = convertToEntity(usuarioRequest);
             Usuario savedUsuario = usuarioService.save(usuario);
+            System.out.println("=== DEBUG: Usuario guardado exitosamente con ID: " + savedUsuario.getDocumento());
+            
             return ResponseEntity.ok(
                 ApiResponse.success("Usuario creado exitosamente", new UsuarioResponse(savedUsuario))
             );
         } catch (Exception e) {
-            System.err.println("Error creating usuario: " + e.getMessage());
+            System.err.println("❌ ERROR COMPLETO creating usuario: " + e.getClass().getName());
+            System.err.println("❌ Mensaje: " + e.getMessage());
+            e.printStackTrace();
+            
+            String errorMessage = e.getMessage();
+            if (errorMessage == null || errorMessage.isEmpty()) {
+                errorMessage = "Error desconocido: " + e.getClass().getSimpleName();
+            }
+            
             return ResponseEntity.badRequest().body(
-                ApiResponse.error("Error al crear usuario", e.getMessage())
+                ApiResponse.error("Error al crear usuario", errorMessage)
             );
         }
     }
@@ -411,19 +470,19 @@ public class UsuarioController {
             usuario.setRoles(roles);
         }
         
-        // Asignar veterinaria si es veterinario y se proporciona veterinariaId
+        // Asignar veterinaria si se proporciona veterinariaId
         if (request.getVeterinariaId() != null) {
-            boolean esVeterinario = request.getRoles() != null && 
-                request.getRoles().stream().anyMatch(r -> r.equals("ROLE_VETERINARIO"));
-            
-            if (esVeterinario) {
-                Optional<Veterinaria> veterinaria = veterinariaService.findById(request.getVeterinariaId());
-                if (veterinaria.isPresent()) {
-                    usuario.setVeterinaria(veterinaria.get());
-                } else {
-                    System.err.println("Veterinaria not found: " + request.getVeterinariaId());
-                }
+            Optional<Veterinaria> veterinaria = veterinariaService.findById(request.getVeterinariaId());
+            if (veterinaria.isPresent()) {
+                usuario.setVeterinaria(veterinaria.get());
+                System.out.println("=== DEBUG convertToEntity: Veterinaria " + veterinaria.get().getNombre() + 
+                                 " asignada al usuario " + usuario.getUsername());
+            } else {
+                System.err.println("Veterinaria not found: " + request.getVeterinariaId());
             }
+        } else {
+            System.out.println("=== DEBUG convertToEntity: No veterinariaId proporcionado para usuario " + 
+                             (request.getUsername() != null ? request.getUsername() : "nuevo"));
         }
         
         return usuario;

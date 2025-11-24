@@ -72,13 +72,29 @@ const UserManagement: React.FC = () => {
   const loadUsuarios = async () => {
     try {
       setLoading(true);
-      const data = await getAllUsuarios();
-      // Información sensible removida de console.log por seguridad
-      setUsuarios(Array.isArray(data) ? data : []);
       setError('');
-    } catch (error) {
-      setError('Error al cargar los usuarios');
-      console.error('Error loading usuarios:', error);
+      console.log('🔄 Iniciando carga de usuarios...');
+      const data = await getAllUsuarios();
+      console.log('📥 Usuarios recibidos:', data);
+      console.log('📊 Total de usuarios:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Usuarios cargados exitosamente');
+        setUsuarios(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron usuarios en la respuesta');
+        setUsuarios([]);
+        setError('No se encontraron usuarios. Verifica que existan datos en la base de datos.');
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar los usuarios';
+      console.error('❌ Error loading usuarios:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setUsuarios([]);
     } finally {
       setLoading(false);
@@ -220,11 +236,22 @@ const UserManagement: React.FC = () => {
       
       if (modalMode === 'create') {
         const nuevoUsuario: Usuario = {
-          ...formData,
+          documento: formData.documento,
+          username: formData.username,
+          nombres: formData.nombres,
+          apellidos: formData.apellidos,
+          email: formData.email,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          tipoDocumento: formData.tipoDocumento || 'CC',
+          password: formData.password,
           activo: true,
           roles: formData.rol ? [formData.rol] : [],
           veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : undefined
         };
+        
+        console.log('📤 Enviando datos de nuevo usuario:', nuevoUsuario);
+        
         await createUsuario(nuevoUsuario);
         setSuccess('Usuario creado exitosamente');
       } else if (modalMode === 'edit' && selectedUsuario) {
@@ -423,10 +450,31 @@ const UserManagement: React.FC = () => {
 
               {/* Tabla */}
               {loading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" role="status">
+                <div className="text-center py-5">
+                  <Spinner animation="border" role="status" variant="primary">
                     <span className="visually-hidden">Cargando...</span>
                   </Spinner>
+                  <p className="mt-3 text-muted">Cargando usuarios...</p>
+                </div>
+              ) : filteredUsuarios.length === 0 ? (
+                <div className="text-center py-5">
+                  <i className="fas fa-users fa-3x text-muted mb-3"></i>
+                  <h5 className="text-muted">No se encontraron usuarios</h5>
+                  <p className="text-muted">
+                    {usuarios.length === 0 
+                      ? 'No hay usuarios registrados en el sistema' 
+                      : 'No hay usuarios que coincidan con los filtros aplicados'}
+                  </p>
+                  {usuarios.length === 0 && authService.isAdmin() && (
+                    <Button 
+                      variant="primary" 
+                      onClick={() => handleShowModal('create')}
+                      className="mt-2"
+                    >
+                      <i className="fas fa-plus me-2"></i>
+                      Crear primer usuario
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table responsive striped hover>
@@ -443,45 +491,38 @@ const UserManagement: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsuarios.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-4">
-                          No se encontraron usuarios
+                    {filteredUsuarios.map((usuario) => (
+                      <tr key={usuario.documento}>
+                        <td>{usuario.documento}</td>
+                        <td><strong>{usuario.username}</strong></td>
+                        <td>{`${usuario.nombres || ''} ${usuario.apellidos || ''}`}</td>
+                        <td>{usuario.email || '-'}</td>
+                        <td>{usuario.telefono || '-'}</td>
+                        <td>
+                          {usuario.roles && Array.isArray(usuario.roles) && usuario.roles.length > 0 ? (
+                            usuario.roles.filter(role => role != null).map((role, index) => (
+                              <Badge key={index} bg={getRoleBadgeColor(role)} className="me-1">
+                                {getRoleDisplayName(role)}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge bg="secondary">Sin rol</Badge>
+                          )}
                         </td>
-                      </tr>
-                    ) : (
-                      filteredUsuarios.map((usuario) => (
-                        <tr key={usuario.documento}>
-                          <td>{usuario.documento}</td>
-                          <td><strong>{usuario.username}</strong></td>
-                          <td>{`${usuario.nombres || ''} ${usuario.apellidos || ''}`}</td>
-                          <td>{usuario.email || '-'}</td>
-                          <td>{usuario.telefono || '-'}</td>
-                          <td>
-                            {usuario.roles && Array.isArray(usuario.roles) && usuario.roles.length > 0 ? (
-                              usuario.roles.filter(role => role != null).map((role, index) => (
-                                <Badge key={index} bg={getRoleBadgeColor(role)} className="me-1">
-                                  {getRoleDisplayName(role)}
-                                </Badge>
-                              ))
-                            ) : (
-                              <Badge bg="secondary">Sin rol</Badge>
-                            )}
-                          </td>
-                          <td>
-                            <Badge bg={usuario.activo ? 'success' : 'danger'}>
-                              {usuario.activo ? 'Activo' : 'Inactivo'}
-                            </Badge>
-                          </td>
-                          <td>
-                            <div className="d-flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="info"
-                                onClick={() => handleShowModal('view', usuario)}
-                                title="Ver detalles"
-                              >
-                                <i className="fas fa-eye"></i>
+                        <td>
+                          <Badge bg={usuario.activo ? 'success' : 'danger'}>
+                            {usuario.activo ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="info"
+                              onClick={() => handleShowModal('view', usuario)}
+                              title="Ver detalles"
+                            >
+                              <i className="fas fa-eye"></i>
                               </Button>
                               {canEdit(usuario) && (
                                 <>
@@ -517,7 +558,7 @@ const UserManagement: React.FC = () => {
                           </td>
                         </tr>
                       ))
-                    )}
+                    }
                   </tbody>
                 </Table>
               )}

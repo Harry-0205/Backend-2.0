@@ -17,14 +17,28 @@ class VeterinariaService {
 
   // Obtener todas las veterinarias
   async getAllVeterinarias(): Promise<Veterinaria[]> {
-    const response = await apiClient.get<Veterinaria[]>(this.baseURL);
-    
-    let data = response.data;
-    if (typeof data === 'string') {
-      data = JSON.parse(data);
+    try {
+      const response = await apiClient.get(this.baseURL);
+      console.log('📥 Respuesta getAllVeterinarias:', response.data);
+      
+      // El backend devuelve ApiResponse<List<VeterinariaResponse>>
+      // Estructura: { success: boolean, message: string, data: Veterinaria[], timestamp: string }
+      let responseData = response.data;
+      
+      // Si es string, parsearlo
+      if (typeof responseData === 'string') {
+        responseData = JSON.parse(responseData);
+      }
+      
+      // Extraer el campo 'data' de la respuesta ApiResponse
+      const veterinarias = responseData.data || responseData;
+      console.log('✅ Veterinarias extraídas:', veterinarias);
+      
+      return Array.isArray(veterinarias) ? veterinarias : [];
+    } catch (error) {
+      console.error('❌ Error al obtener veterinarias:', error);
+      return [];
     }
-    
-    return Array.isArray(data) ? data : [];
   }
 
   // Obtener todas las veterinarias activas

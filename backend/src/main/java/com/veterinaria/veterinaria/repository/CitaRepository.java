@@ -30,6 +30,7 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findByMascotaIdOrderByFechaHoraDesc(Long mascotaId);
     List<Cita> findByEstado(Cita.EstadoCita estado);
     List<Cita> findByFechaHoraBetween(LocalDateTime inicio, LocalDateTime fin);
+    List<Cita> findByVeterinariaId(Long veterinariaId);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
     @Query("SELECT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")

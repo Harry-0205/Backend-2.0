@@ -32,12 +32,27 @@ public class VeterinariaController {
     
     @GetMapping
     public ResponseEntity<ApiResponse<List<VeterinariaResponse>>> getAllVeterinarias(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        System.out.println("=== DEBUG GET VETERINARIAS ===");
+        System.out.println("UserDetails: " + (userDetails != null ? userDetails.getUsername() : "null"));
+        if (userDetails != null) {
+            System.out.println("Authorities: " + userDetails.getAuthorities());
+        }
+        
         List<Veterinaria> veterinarias;
         
         // Verificar si el usuario autenticado es veterinario
         if (userDetails != null) {
             boolean isVeterinario = userDetails.getAuthorities().stream()
                 .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean isCliente = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+            
+            System.out.println("Roles detectados - Veterinario: " + isVeterinario + ", Admin: " + isAdmin + 
+                             ", Recepcionista: " + isRecepcionista + ", Cliente: " + isCliente);
             
             if (isVeterinario) {
                 // Si es veterinario, solo retornar la veterinaria donde trabaja
@@ -49,8 +64,23 @@ public class VeterinariaController {
                     veterinarias = new ArrayList<>();
                     System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " no tiene veterinaria asignada");
                 }
+            } else if (isAdmin || isRecepcionista) {
+                // Admin y Recepcionista ven solo su veterinaria
+                Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (usuarioOpt.isPresent() && usuarioOpt.get().getVeterinaria() != null) {
+                    veterinarias = List.of(usuarioOpt.get().getVeterinaria());
+                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " consultando su veterinaria");
+                } else {
+                    // Si no tienen veterinaria asignada, pueden ver todas (para facilitar asignación)
+                    veterinarias = veterinariaService.findAll();
+                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " sin veterinaria, viendo todas");
+                }
+            } else if (isCliente) {
+                // Cliente puede ver todas las veterinarias para agendar citas
+                veterinarias = veterinariaService.findAll();
+                System.out.println("=== DEBUG: Cliente " + userDetails.getUsername() + " consultando todas las veterinarias para agendar cita");
             } else {
-                // Admin, Recepcionista o Cliente pueden ver todas
+                // Otros usuarios pueden ver todas
                 veterinarias = veterinariaService.findAll();
             }
         } else {

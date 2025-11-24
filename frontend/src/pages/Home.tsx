@@ -62,9 +62,24 @@ const Home: React.FC = () => {
               }}>
                 Sistema integral de gestión veterinaria. Organiza citas, historiales médicos y administra tu clínica desde un solo lugar.
               </p>
+              {/* Botón de registro removido - solo admin puede crear usuarios */}
               <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link to="/register" style={{ textDecoration: 'none' }}>
-                </Link> 
+                <Link to="/login" style={{ textDecoration: 'none' }}>
+                  <button style={{
+                    padding: '15px 40px',
+                    fontSize: '1.1rem',
+                    fontWeight: '600',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    color: 'white',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    Iniciar Sesión
+                  </button>
+                </Link>
               </div>
             </Col>
           </Row>
@@ -299,11 +314,12 @@ const Home: React.FC = () => {
                   onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}>
                   Iniciar Sesión
                 </Link>
-                <Link to="/register" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}
+                {/* Enlace de registro removido - solo admin puede crear usuarios */}
+                {/* <Link to="/register" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}
                   onMouseEnter={(e) => e.currentTarget.style.color = '#3b82f6'}
                   onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}>
                   Crear Cuenta
-                </Link>
+                </Link> */}
                 <a href="#" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}
                   onMouseEnter={(e) => e.currentTarget.style.color = '#3b82f6'}
                   onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}>

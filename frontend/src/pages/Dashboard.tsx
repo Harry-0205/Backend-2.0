@@ -154,7 +154,7 @@ const Dashboard: React.FC = () => {
                         <Nav.Link eventKey="citas">Gestión de Citas</Nav.Link>
                       </Nav.Item>
                       <Nav.Item>
-                        <Nav.Link eventKey="clientes">Gestión de Clientes</Nav.Link>
+                        <Nav.Link eventKey="usuarios">Gestión de Usuarios</Nav.Link>
                       </Nav.Item>
                       <Nav.Item>
                         <Nav.Link eventKey="mascotas">Gestión de Mascotas</Nav.Link>
@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
                   </Card.Header>
                   <Card.Body>
                     {activeTab === 'citas' && <CitaManagement />}
-                    {activeTab === 'clientes' && <UserManagement />}
+                    {activeTab === 'usuarios' && <UserManagement />}
                     {activeTab === 'mascotas' && <MascotaManagement />}
                     {activeTab === 'historias' && <HistoriaClinicaManagement />}
                   </Card.Body>

@@ -59,26 +59,47 @@ const MascotaManagement: React.FC = () => {
   const loadMascotas = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 Iniciando carga de mascotas...');
       let data: any;
       
       // Si es cliente, solo cargar sus propias mascotas
       if (authService.isCliente()) {
         const currentUser = authService.getCurrentUser();
         if (currentUser && currentUser.documento) {
+          console.log('🐶 Cargando mascotas del cliente:', currentUser.documento);
           data = await mascotaService.getMascotasByPropietario(currentUser.documento);
         } else {
           data = [];
         }
       } else {
         // Admin, Recepcionista y Veterinario ven todas
+        console.log('🐶 Cargando todas las mascotas...');
         data = await mascotaService.getAllMascotas();
       }
       
-      setMascotas(Array.isArray(data) ? data : []);
-      setError('');
-    } catch (error) {
-      setError('Error al cargar las mascotas');
-      console.error('Error loading mascotas:', error);
+      console.log('📥 Mascotas recibidas:', data);
+      console.log('📊 Total de mascotas:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Mascotas cargadas exitosamente');
+        setMascotas(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron mascotas');
+        setMascotas([]);
+        if (!authService.isCliente()) {
+          setError('No se encontraron mascotas. Verifica que existan datos en la base de datos.');
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las mascotas';
+      console.error('❌ Error loading mascotas:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setMascotas([]);
     } finally {
       setLoading(false);

@@ -109,4 +109,8 @@ public class CitaService {
     public long countByEstado(Cita.EstadoCita estado) {
         return citaRepository.countByEstado(estado);
     }
+    
+    public List<Cita> findByVeterinariaId(Long veterinariaId) {
+        return citaRepository.findByVeterinariaId(veterinariaId);
+    }
 }

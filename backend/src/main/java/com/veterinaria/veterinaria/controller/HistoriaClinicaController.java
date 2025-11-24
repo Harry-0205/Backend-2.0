@@ -46,7 +46,18 @@ public class HistoriaClinicaController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         
-        // Verificar si el usuario tiene rol VETERINARIO
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.ok(List.of());
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+        
+        // Verificar roles
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         boolean isVeterinario = authentication.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
         
@@ -54,15 +65,23 @@ public class HistoriaClinicaController {
         
         if (isVeterinario) {
             // Si es veterinario, obtener solo sus historias clínicas
-            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
-            if (veterinario.isPresent()) {
-                historias = historiaClinicaService.findByVeterinarioDocumento(veterinario.get().getDocumento());
+            historias = historiaClinicaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG: Veterinario " + username + " consultando sus historias: " + historias.size());
+        } else if (isAdmin || isRecepcionista) {
+            // Admin y Recepcionista ven solo historias de su veterinaria
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                historias = historiaClinicaService.findByVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " consultando historias de veterinaria ID " + veterinariaId + ": " + historias.size() + " historias");
             } else {
+                // Si no tiene veterinaria asignada, no puede ver ninguna historia
                 historias = List.of();
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " sin veterinaria asignada, no puede ver historias");
             }
         } else {
-            // Si es admin o recepcionista, obtener todas las historias
-            historias = historiaClinicaService.findAll();
+            historias = List.of();
         }
         
         List<HistoriaClinicaResponse> response = historias.stream()

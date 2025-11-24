@@ -52,16 +52,36 @@ apiClient.interceptors.response.use(
       data: error.response?.data,
       url: error.config?.url,
       method: error.config?.method,
-      message: error.message,
-      fullError: error
+      message: error.message
     });
     
+    // Solo cerrar sesión si es un error 401 Y el mensaje indica claramente un problema de token
     if (error.response?.status === 401) {
-      // Token expirado o inválido
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const errorMessage = error.response?.data?.message?.toLowerCase() || '';
+      const isTokenError = errorMessage.includes('token') || 
+                          errorMessage.includes('expired') || 
+                          errorMessage.includes('invalid') ||
+                          errorMessage.includes('malformed') ||
+                          errorMessage.includes('unauthorized');
+      
+      // También verificar si es la ruta de login que falló
+      const isLoginFailure = error.config?.url?.includes('/auth/signin');
+      
+      if (isTokenError && !isLoginFailure) {
+        console.warn('🔐 Token expirado o inválido, cerrando sesión...');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      } else {
+        console.warn('⚠️ Error 401 - No se cerrará la sesión automáticamente');
+      }
     }
+    
+    // Para errores 403, solo registrar pero no cerrar sesión
+    if (error.response?.status === 403) {
+      console.warn('⚠️ Error 403 - Acceso denegado. El usuario no tiene permisos suficientes.');
+    }
+    
     return Promise.reject(error);
   }
 );

@@ -48,7 +48,18 @@ public class CitaController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         
-        // Verificar si el usuario tiene rol VETERINARIO
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.ok(List.of());
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+        
+        // Verificar roles
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         boolean isVeterinario = authentication.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
         
@@ -56,15 +67,23 @@ public class CitaController {
         
         if (isVeterinario) {
             // Si es veterinario, obtener solo sus citas
-            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
-            if (veterinario.isPresent()) {
-                citas = citaService.findByVeterinarioDocumento(veterinario.get().getDocumento());
+            citas = citaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG: Veterinario " + username + " consultando sus citas: " + citas.size());
+        } else if (isAdmin || isRecepcionista) {
+            // Admin y Recepcionista ven solo citas de su veterinaria
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                citas = citaService.findByVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " consultando citas de veterinaria ID " + veterinariaId + ": " + citas.size() + " citas");
             } else {
+                // Si no tiene veterinaria asignada, no puede ver ninguna cita
                 citas = List.of();
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " sin veterinaria asignada, no puede ver citas");
             }
         } else {
-            // Si es admin o recepcionista, obtener todas las citas
-            citas = citaService.findAllWithRelations();
+            citas = List.of();
         }
         
         List<CitaResponse> response = citas.stream()

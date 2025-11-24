@@ -4,16 +4,24 @@ import { Usuario } from '../types';
 export const getAllUsuarios = async (): Promise<Usuario[]> => {
   try {
     const res = await apiClient.get('/usuarios');
+    console.log('📥 Respuesta getAllUsuarios:', res.data);
+    
+    // El backend devuelve ApiResponse<List<UsuarioResponse>>
+    // Estructura: { success: boolean, message: string, data: Usuario[], timestamp: string }
+    let responseData = res.data;
     
     // Si es string, parsearlo
-    let data = res.data;
-    if (typeof data === 'string') {
-      data = JSON.parse(data);
+    if (typeof responseData === 'string') {
+      responseData = JSON.parse(responseData);
     }
     
-    return Array.isArray(data) ? data : [];
+    // Extraer el campo 'data' de la respuesta ApiResponse
+    const usuarios = responseData.data || responseData;
+    console.log('✅ Usuarios extraídos:', usuarios);
+    
+    return Array.isArray(usuarios) ? usuarios : [];
   } catch (error) {
-    console.error('Error al obtener usuarios:', error);
+    console.error('❌ Error al obtener usuarios:', error);
     return [];
   }
 };
@@ -78,8 +86,17 @@ export const getVeterinariosByVeterinaria = async (veterinariaId: number): Promi
 };
 
 export const createUsuario = async (usuario: Usuario): Promise<Usuario> => {
-  const res = await apiClient.post('/usuarios', usuario);
-  return res.data;
+  console.log('📤 Creando usuario con datos:', usuario);
+  try {
+    const res = await apiClient.post('/usuarios', usuario);
+    console.log('✅ Usuario creado:', res.data);
+    return res.data;
+  } catch (error: any) {
+    console.error('❌ Error detallado al crear usuario:', error);
+    console.error('❌ Respuesta del servidor:', error.response?.data);
+    console.error('❌ Status:', error.response?.status);
+    throw error;
+  }
 };
 
 export const updateUsuario = async (documento: string, usuario: Usuario): Promise<Usuario> => {

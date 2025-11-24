@@ -60,7 +60,7 @@ SET @vet3_id = (SELECT id FROM veterinarias WHERE nombre = 'Clínica Veterinaria
 INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, apellidos, email, telefono, direccion, activo, veterinaria_id, fecha_registro) VALUES
 -- Administrador
 ('12345678', 'CC', 'admin', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Administrador', 'Sistema', 'admin@veterinaria.com', '3001234567', 'Oficina Principal', true, NULL, NOW()),
+ 'Administrador', 'Sistema', 'admin@veterinaria.com', '3001234567', 'Oficina Principal', true, @vet1_id, NOW()),
 
 -- Veterinarios
 ('87654321', 'CC', 'dr.garcia', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
@@ -72,17 +72,17 @@ INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, ap
 
 -- Clientes
 ('33333333', 'CC', 'cliente1', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Pedro', 'Pérez González', 'pedro.perez@email.com', '3003456789', 'Calle 10 #20-30', true, NULL, NOW()),
+ 'Pedro', 'Pérez González', 'pedro.perez@email.com', '3003456789', 'Calle 10 #20-30', true, @vet1_id, NOW()),
 ('44444444', 'CC', 'cliente2', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Laura', 'Gómez Ramírez', 'laura.gomez@email.com', '3009999999', 'Zona Norte #456', true, NULL, NOW()),
+ 'Laura', 'Gómez Ramírez', 'laura.gomez@email.com', '3009999999', 'Zona Norte #456', true, @vet1_id, NOW()),
 ('55555555', 'CC', 'cliente3', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, NULL, NOW()),
+ 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, @vet2_id, NOW()),
 ('66666666', 'CC', 'cliente4', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Sofia', 'Martín Fernández', 'sofia.martin@email.com', '3004444444', 'Zona Este #321', true, NULL, NOW()),
+ 'Sofia', 'Martín Fernández', 'sofia.martin@email.com', '3004444444', 'Zona Este #321', true, @vet2_id, NOW()),
 
 -- Recepcionista
 ('22222222', 'CC', 'recepcion1', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Ana', 'González Torres', 'recepcion@veterinaria.com', '3004567890', 'Recepción', true, NULL, NOW());
+ 'Ana', 'González Torres', 'recepcion@veterinaria.com', '3004567890', 'Recepción', true, @vet1_id, NOW());
 
 -- Asignar roles a usuarios
 INSERT INTO usuarios_roles (usuario_documento, rol_id) VALUES

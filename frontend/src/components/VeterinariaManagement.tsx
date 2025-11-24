@@ -51,12 +51,29 @@ const VeterinariaManagement: React.FC = () => {
   const loadVeterinarias = async () => {
     try {
       setLoading(true);
-      const data = await veterinariaService.getAllVeterinarias();
-      setVeterinarias(Array.isArray(data) ? data : []);
       setError('');
-    } catch (error) {
-      setError('Error al cargar las veterinarias');
-      console.error('Error loading veterinarias:', error);
+      console.log('🔄 Iniciando carga de veterinarias...');
+      const data = await veterinariaService.getAllVeterinarias();
+      console.log('📥 Veterinarias recibidas:', data);
+      console.log('📊 Total de veterinarias:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Veterinarias cargadas exitosamente');
+        setVeterinarias(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron veterinarias en la respuesta');
+        setVeterinarias([]);
+        setError('No se encontraron veterinarias. Verifica que existan datos en la base de datos.');
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las veterinarias';
+      console.error('❌ Error loading veterinarias:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setVeterinarias([]);
     } finally {
       setLoading(false);
@@ -258,10 +275,31 @@ const VeterinariaManagement: React.FC = () => {
 
               {/* Tabla */}
               {loading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" role="status">
+                <div className="text-center py-5">
+                  <Spinner animation="border" role="status" variant="primary">
                     <span className="visually-hidden">Cargando...</span>
                   </Spinner>
+                  <p className="mt-3 text-muted">Cargando veterinarias...</p>
+                </div>
+              ) : filteredVeterinarias.length === 0 ? (
+                <div className="text-center py-5">
+                  <i className="fas fa-hospital fa-3x text-muted mb-3"></i>
+                  <h5 className="text-muted">No se encontraron veterinarias</h5>
+                  <p className="text-muted">
+                    {veterinarias.length === 0 
+                      ? 'No hay veterinarias registradas en el sistema' 
+                      : 'No hay veterinarias que coincidan con los filtros aplicados'}
+                  </p>
+                  {veterinarias.length === 0 && (
+                    <Button 
+                      variant="primary" 
+                      onClick={() => handleShowModal('create')}
+                      className="mt-2"
+                    >
+                      <i className="fas fa-plus me-2"></i>
+                      Crear primera veterinaria
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table responsive striped hover>
@@ -278,61 +316,54 @@ const VeterinariaManagement: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredVeterinarias.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-4">
-                          No se encontraron veterinarias
+                    {filteredVeterinarias.map((veterinaria) => (
+                      <tr key={veterinaria.id}>
+                        <td>{veterinaria.id}</td>
+                        <td>{veterinaria.nombre}</td>
+                        <td>{veterinaria.ciudad || '-'}</td>
+                        <td>{veterinaria.telefono || '-'}</td>
+                        <td>{veterinaria.email || '-'}</td>
+                        <td>
+                          <Badge bg={veterinaria.activo ? 'success' : 'danger'}>
+                            {veterinaria.activo ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                        </td>
+                        <td>{new Date(veterinaria.fechaRegistro).toLocaleDateString()}</td>
+                        <td>
+                          <div className="d-flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="info"
+                              onClick={() => handleShowModal('view', veterinaria)}
+                            >
+                              <i className="fas fa-eye"></i>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="warning"
+                              onClick={() => handleShowModal('edit', veterinaria)}
+                            >
+                              <i className="fas fa-edit"></i>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={veterinaria.activo ? 'secondary' : 'success'}
+                              onClick={() => handleToggleActivo(veterinaria)}
+                            >
+                              <i className={veterinaria.activo ? 'fas fa-ban' : 'fas fa-check'}></i>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => handleDelete(veterinaria)}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </Button>
+                          </div>
                         </td>
                       </tr>
-                    ) : (
-                      filteredVeterinarias.map((veterinaria) => (
-                        <tr key={veterinaria.id}>
-                          <td>{veterinaria.id}</td>
-                          <td>{veterinaria.nombre}</td>
-                          <td>{veterinaria.ciudad || '-'}</td>
-                          <td>{veterinaria.telefono || '-'}</td>
-                          <td>{veterinaria.email || '-'}</td>
-                          <td>
-                            <Badge bg={veterinaria.activo ? 'success' : 'danger'}>
-                              {veterinaria.activo ? 'Activa' : 'Inactiva'}
-                            </Badge>
-                          </td>
-                          <td>{new Date(veterinaria.fechaRegistro).toLocaleDateString()}</td>
-                          <td>
-                            <div className="d-flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="info"
-                                onClick={() => handleShowModal('view', veterinaria)}
-                              >
-                                <i className="fas fa-eye"></i>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="warning"
-                                onClick={() => handleShowModal('edit', veterinaria)}
-                              >
-                                <i className="fas fa-edit"></i>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={veterinaria.activo ? 'secondary' : 'success'}
-                                onClick={() => handleToggleActivo(veterinaria)}
-                              >
-                                <i className={veterinaria.activo ? 'fas fa-ban' : 'fas fa-check'}></i>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                onClick={() => handleDelete(veterinaria)}
-                              >
-                                <i className="fas fa-trash"></i>
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))
+                    }
                   </tbody>
                 </Table>
               )}

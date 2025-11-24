@@ -97,8 +97,8 @@ const NavigationBar: React.FC = () => {
                   </button>
                 </Link>
 
-                {/* Botón Registrarse */}
-                <Link to="/register" style={{ textDecoration: 'none' }}>
+                {/* Botón Registrarse - COMENTADO para que solo admin pueda crear usuarios */}
+                {/* <Link to="/register" style={{ textDecoration: 'none' }}>
                   <button className="nav-button-primary" style={{
                     padding: '12px 30px',
                     border: 'none',
@@ -112,12 +112,12 @@ const NavigationBar: React.FC = () => {
                   }}>
                     Registrarse
                   </button>
-                </Link>
+                </Link> */}
               </>
             ) : (
               <>
-                {/* Mostrar Dashboard solo para Administradores */}
-                {authService.isAdmin() && (
+                {/* Mostrar Dashboard para Administradores, Recepcionistas y Veterinarios */}
+                {(authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario()) && (
                   <Link to="/dashboard" style={{ textDecoration: 'none' }}>
                     <button className="nav-button" style={{
                       padding: '12px 30px',
@@ -138,8 +138,8 @@ const NavigationBar: React.FC = () => {
                   </Link>
                 )}
 
-                {/* Enlaces para usuarios no administradores */}
-                {!authService.isAdmin() && (
+                {/* Enlaces para clientes */}
+                {authService.isCliente() && (
                   <>
                     <Link to="/mis-mascotas" style={{ textDecoration: 'none' }}>
                       <button className="nav-button" style={{
