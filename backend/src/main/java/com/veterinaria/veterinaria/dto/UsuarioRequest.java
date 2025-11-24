@@ -17,6 +17,7 @@ public class UsuarioRequest {
     private Boolean activo;
     private List<String> roles; // Array de nombres de roles como strings
     private String password;
+    private Long veterinariaId; // ID de la veterinaria para veterinarios
     
     // Constructor vacío
     public UsuarioRequest() {}
@@ -57,4 +58,7 @@ public class UsuarioRequest {
     
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    
+    public Long getVeterinariaId() { return veterinariaId; }
+    public void setVeterinariaId(Long veterinariaId) { this.veterinariaId = veterinariaId; }
 }

@@ -168,7 +168,7 @@ const ReporteManagement: React.FC = () => {
     }
 
     if (filterRol) {
-      filtered = filtered.filter(u => u.rol === filterRol);
+      filtered = filtered.filter(u => normalizeRole(u.rol) === filterRol);
     }
 
     setFilteredUsuarios(filtered);
@@ -322,8 +322,15 @@ const ReporteManagement: React.FC = () => {
 
   // ==================== FUNCIONES AUXILIARES ====================
 
+  const normalizeRole = (rol: string): string => {
+    // Remover el prefijo ROLE_ si existe
+    return rol.replace(/^ROLE_/, '');
+  };
+
   const getRoleBadgeColor = (rol: string) => {
-    switch (rol) {
+    // Normalizar el rol antes de comparar
+    const normalizedRole = normalizeRole(rol);
+    switch (normalizedRole) {
       case 'ADMIN': return 'danger';
       case 'VETERINARIO': return 'primary';
       case 'RECEPCIONISTA': return 'info';
@@ -400,7 +407,7 @@ const ReporteManagement: React.FC = () => {
                 <h6 className="text-muted mb-3">Por Rol</h6>
                 {Object.entries(estadisticasUsuarios.totalPorRol).map(([rol, total]) => (
                   <div key={rol} className="d-flex justify-content-between mb-2">
-                    <Badge bg={getRoleBadgeColor(rol)}>{rol}</Badge>
+                    <Badge bg={getRoleBadgeColor(rol)}>{normalizeRole(rol)}</Badge>
                     <strong>{total}</strong>
                   </div>
                 ))}
@@ -654,7 +661,7 @@ const ReporteManagement: React.FC = () => {
                                 <td>{usuario.email}</td>
                                 <td>
                                   <Badge bg={getRoleBadgeColor(usuario.rol)}>
-                                    {usuario.rol}
+                                    {normalizeRole(usuario.rol)}
                                   </Badge>
                                 </td>
                                 <td>

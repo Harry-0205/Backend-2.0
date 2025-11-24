@@ -16,7 +16,7 @@ import {
 import { Cita, EstadoCita } from '../types';
 import citaService from '../services/citaService';
 import mascotaService from '../services/mascotaService';
-import { getAllUsuarios } from '../services/userService';
+import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
 
@@ -25,6 +25,7 @@ const CitaManagement: React.FC = () => {
   const [filteredCitas, setFilteredCitas] = useState<Cita[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [veterinarios, setVeterinarios] = useState<any[]>([]);
+  const [filteredVeterinarios, setFilteredVeterinarios] = useState<any[]>([]);
   const [mascotas, setMascotas] = useState<any[]>([]);
   const [veterinarias, setVeterinarias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,21 +139,18 @@ const CitaManagement: React.FC = () => {
 
   const loadVeterinarios = async () => {
     try {
-      // Si es cliente, no cargar veterinarios (no necesario para crear citas)
-      if (authService.isCliente()) {
-        setVeterinarios([]);
-        return;
-      }
+      console.log('🔄 Cargando veterinarios...');
+      console.log('🔑 Usuario actual:', authService.getCurrentUser());
       
-      const data = await getAllUsuarios();
-      const veterinariosList = Array.isArray(data) 
-        ? data.filter(usuario => 
-            usuario.roles?.some(role => role === 'VETERINARIO' || role === 'ROLE_VETERINARIO')
-          )
-        : [];
-      setVeterinarios(veterinariosList);
-    } catch (error) {
-      console.error('Error loading veterinarios:', error);
+      // Usar el nuevo endpoint específico para veterinarios
+      const veterinariosList = await getVeterinarios();
+      console.log('✅ Veterinarios obtenidos:', veterinariosList);
+      console.log('📊 Cantidad de veterinarios:', veterinariosList?.length || 0);
+      
+      setVeterinarios(Array.isArray(veterinariosList) ? veterinariosList : []);
+    } catch (error: any) {
+      console.error('❌ Error loading veterinarios:', error);
+      console.error('❌ Error completo:', error.response || error);
       setVeterinarios([]);
     }
   };
@@ -183,10 +181,14 @@ const CitaManagement: React.FC = () => {
 
   const loadVeterinarias = async () => {
     try {
+      console.log('🏥 Cargando veterinarias...');
       const data = await getAllVeterinarias();
+      console.log('🏥 Veterinarias cargadas:', data);
+      console.log('🏥 Cantidad de veterinarias:', data?.length || 0);
       setVeterinarias(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error loading veterinarias:', error);
+    } catch (error: any) {
+      console.error('❌ Error loading veterinarias:', error);
+      console.error('❌ Error completo veterinarias:', error.response || error);
       setVeterinarias([]);
     }
   };
@@ -261,8 +263,16 @@ const CitaManagement: React.FC = () => {
         veterinarioId: cita.veterinarioDocumento || cita.veterinario?.documento || '',
         veterinariaId: cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || ''
       });
+      
+      // Si hay veterinaria seleccionada, filtrar veterinarios
+      if (cita.veterinariaId || cita.veterinaria?.id) {
+        setFilteredVeterinarios(veterinarios);
+      } else {
+        setFilteredVeterinarios([]);
+      }
     } else {
       resetForm();
+      setFilteredVeterinarios([]); // Inicialmente vacío hasta que seleccione veterinaria
     }
     
     setShowModal(true);
@@ -280,10 +290,35 @@ const CitaManagement: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Si cambió la veterinaria, filtrar veterinarios y limpiar la selección de veterinario
+    if (name === 'veterinariaId') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        veterinarioId: '' // Limpiar veterinario seleccionado
+      }));
+      
+      // Filtrar veterinarios por veterinaria seleccionada
+      if (value) {
+        getVeterinariosByVeterinaria(parseInt(value))
+          .then(vetsFiltered => {
+            console.log('🏥 Veterinarios filtrados por veterinaria:', vetsFiltered);
+            setFilteredVeterinarios(vetsFiltered);
+          })
+          .catch(error => {
+            console.error('❌ Error al filtrar veterinarios:', error);
+            setFilteredVeterinarios([]);
+          });
+      } else {
+        setFilteredVeterinarios(veterinarios);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -720,40 +755,12 @@ const CitaManagement: React.FC = () => {
                   )}
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Veterinario</Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={selectedCita.veterinarioNombre && selectedCita.veterinarioApellido 
-                        ? `Dr. ${selectedCita.veterinarioNombre} ${selectedCita.veterinarioApellido}`
-                        : 'Sin asignar'}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="veterinarioId"
-                      value={formData.veterinarioId}
-                      onChange={handleInputChange}
-                      disabled={modalMode === 'view'}
-                    >
-                      <option value="">Sin asignar</option>
-                      {veterinarios.map(veterinario => (
-                        <option key={veterinario.documento} value={veterinario.documento}>
-                          {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                </Form.Group>
-              </Col>
             </Row>
 
             <Row>
               <Col md={12}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Veterinaria</Form.Label>
+                  <Form.Label>Veterinaria <span className="text-danger">*</span></Form.Label>
                   {modalMode === 'view' && selectedCita ? (
                     <Form.Control
                       type="text"
@@ -761,23 +768,78 @@ const CitaManagement: React.FC = () => {
                       disabled
                     />
                   ) : (
-                    <Form.Select
-                      name="veterinariaId"
-                      value={formData.veterinariaId}
-                      onChange={handleInputChange}
-                      disabled={modalMode === 'view'}
-                    >
-                      <option value="">Seleccione una veterinaria</option>
-                      {veterinarias.map(veterinaria => (
-                        <option key={veterinaria.id} value={veterinaria.id}>
-                          {veterinaria.nombre}
-                        </option>
-                      ))}
-                    </Form.Select>
+                    <>
+                      <Form.Select
+                        name="veterinariaId"
+                        value={formData.veterinariaId}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        required
+                      >
+                        <option value="">Seleccione una veterinaria</option>
+                        {veterinarias.map(veterinaria => (
+                          <option key={veterinaria.id} value={veterinaria.id}>
+                            {veterinaria.nombre}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Text className="text-muted">
+                        Primero seleccione la veterinaria para ver los veterinarios disponibles
+                      </Form.Text>
+                    </>
                   )}
                 </Form.Group>
               </Col>
             </Row>
+
+            {/* Solo mostrar campo de veterinario si NO es veterinario */}
+            {!authService.isVeterinario() && (
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Veterinario</Form.Label>
+                    {modalMode === 'view' && selectedCita ? (
+                      <Form.Control
+                        type="text"
+                        value={selectedCita.veterinarioNombre && selectedCita.veterinarioApellido 
+                          ? `Dr. ${selectedCita.veterinarioNombre} ${selectedCita.veterinarioApellido}`
+                          : 'Sin asignar'}
+                        disabled
+                      />
+                    ) : (
+                      <>
+                        <Form.Select
+                          name="veterinarioId"
+                          value={formData.veterinarioId}
+                          onChange={handleInputChange}
+                          disabled={modalMode === 'view' || !formData.veterinariaId}
+                        >
+                          <option value="">Sin asignar</option>
+                          {filteredVeterinarios.map(veterinario => (
+                            <option key={veterinario.documento} value={veterinario.documento}>
+                              {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        {!formData.veterinariaId && (
+                          <Form.Text className="text-muted">
+                            Seleccione primero una veterinaria
+                          </Form.Text>
+                        )}
+                      </>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+            
+            {/* Mostrar mensaje informativo si es veterinario */}
+            {authService.isVeterinario() && modalMode !== 'view' && (
+              <Alert variant="info" className="mb-3">
+                <i className="fas fa-info-circle me-2"></i>
+                Como veterinario, serás asignado automáticamente a esta cita
+              </Alert>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Label>Motivo</Form.Label>

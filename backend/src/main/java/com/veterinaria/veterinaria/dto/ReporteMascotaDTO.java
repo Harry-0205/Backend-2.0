@@ -1,6 +1,7 @@
 package com.veterinaria.veterinaria.dto;
 
 import com.veterinaria.veterinaria.entity.Mascota;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -12,7 +13,7 @@ public class ReporteMascotaDTO {
     private String raza;
     private String sexo;
     private Integer edad;
-    private Double peso;
+    private BigDecimal peso;
     private String propietarioDocumento;
     private String propietarioNombre;
     private String propietarioApellido;
@@ -99,11 +100,11 @@ public class ReporteMascotaDTO {
         this.edad = edad;
     }
 
-    public Double getPeso() {
+    public BigDecimal getPeso() {
         return peso;
     }
 
-    public void setPeso(Double peso) {
+    public void setPeso(BigDecimal peso) {
         this.peso = peso;
     }
 

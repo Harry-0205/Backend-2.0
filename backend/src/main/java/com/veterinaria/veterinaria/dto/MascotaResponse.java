@@ -1,6 +1,7 @@
 package com.veterinaria.veterinaria.dto;
 
 import com.veterinaria.veterinaria.entity.Mascota;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -11,7 +12,7 @@ public class MascotaResponse {
     private String raza;
     private String sexo;
     private LocalDate fechaNacimiento;
-    private Double peso;
+    private BigDecimal peso;
     private String color;
     private String observaciones;
     private LocalDateTime fechaRegistro;
@@ -52,7 +53,7 @@ public class MascotaResponse {
     public String getRaza() { return raza; }
     public String getSexo() { return sexo; }
     public LocalDate getFechaNacimiento() { return fechaNacimiento; }
-    public Double getPeso() { return peso; }
+    public BigDecimal getPeso() { return peso; }
     public String getColor() { return color; }
     public String getObservaciones() { return observaciones; }
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }

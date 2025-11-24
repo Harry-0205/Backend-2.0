@@ -48,6 +48,10 @@ public class ReporteService {
     public List<Reporte> findByTipo(String tipo) {
         return reporteRepository.findByTipo(Reporte.TipoReporte.valueOf(tipo.toUpperCase()));
     }
+
+    public List<Reporte> findByTipo(Reporte.TipoReporte tipo) {
+        return reporteRepository.findByTipo(tipo);
+    }
     
     public List<Reporte> findByGeneradoPorDocumento(String usuarioDocumento) {
         return reporteRepository.findByGeneradoPorDocumento(usuarioDocumento);
