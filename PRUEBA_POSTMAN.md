@@ -15,6 +15,7 @@
 6. [Casos de Prueba Específicos](#casos-de-prueba-específicos)
 7. [Validación de Errores](#validación-de-errores)
 8. [Pruebas de Funcionalidad PDF](#pruebas-de-funcionalidad-pdf)
+9. [Formato Completo para Crear Usuarios en Postman](#formato-completo-para-crear-usuarios-en-postman)
 
 ---
 
@@ -85,7 +86,7 @@ client_token: (token del cliente)
 
 # Datos de Usuarios
 admin_username: admin
-admin_password: 123456
+admin_password: admin123
 veterinario_username: dr.garcia
 veterinario_password: 123456
 cliente_username: cliente1
@@ -239,7 +240,7 @@ Content-Type: application/json
     "tipoDocumento": "CC",
     "fechaNacimiento": "1990-01-01",
     "activo": true,
-    "roles": [{"id": 3}]
+    "roles": ["ROLE_CLIENTE"]
 }
 ```
 
@@ -707,7 +708,7 @@ Accept: application/pdf
 
 ---
 
-## 📊 **VALIDACIÓN DE RESPUESTAS**
+## 🆕 **FORMATO COMPLETO PARA CREAR USUARIOS EN POSTMAN**
 
 ### **Formato de Respuesta Estándar:**
 
@@ -736,28 +737,228 @@ Todas las operaciones del API ahora retornan un formato de respuesta consistente
 
 ### **Scripts de Validación Automática (en Tests de Postman):**
 
-#### **Para Login:**
-```javascript
-pm.test("Login exitoso", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Token presente", function () {
-    const response = pm.response.json();
-    pm.expect(response.token).to.be.a('string');
-    pm.expect(response.token.length).to.be.above(50);
-});
-
-pm.test("Rol correcto", function () {
-    const response = pm.response.json();
-    pm.expect(response.roles).to.be.an('array');
-    pm.expect(response.roles.length).to.be.above(0);
-});
+**1. Método:** `POST`  
+**2. URL:** `{{base_url}}/usuarios`  
+**3. Headers necesarios:**
+```
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
 ```
 
-#### **Para Endpoints Protegidos:**
+### **📝 Formato del Body (JSON)**
+
+#### **✅ Formato CORRECTO (funciona):**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+#### **❌ Formato INCORRECTO (causaba error 500):**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": [{"id": 3}]  ← ❌ INCORRECTO
+}
+```
+
+### **👥 Ejemplos para Diferentes Tipos de Usuario**
+
+#### **🔵 Crear Cliente:**
+```json
+{
+    "documento": "11111111",
+    "username": "cliente_nuevo",
+    "password": "123456",
+    "nombres": "Juan Carlos",
+    "apellidos": "López García",
+    "email": "juan@ejemplo.com",
+    "telefono": "3001234567",
+    "direccion": "Calle 123 #45-67",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1985-05-15",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+#### **🟢 Crear Veterinario:**
+```json
+{
+    "documento": "22222222",
+    "username": "dr.martinez",
+    "password": "123456",
+    "nombres": "Ana María",
+    "apellidos": "Martínez Rodríguez",
+    "email": "ana.martinez@veterinaria.com",
+    "telefono": "3109876543",
+    "direccion": "Avenida Veterinaria 789",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1982-03-20",
+    "activo": true,
+    "roles": ["ROLE_VETERINARIO"],
+    "veterinariaId": 1
+}
+```
+
+#### **🟡 Crear Recepcionista:**
+```json
+{
+    "documento": "33333333",
+    "username": "recepcion_maria",
+    "password": "123456",
+    "nombres": "María Fernanda",
+    "apellidos": "González Pérez",
+    "email": "recepcion@veterinaria.com",
+    "telefono": "3207654321",
+    "direccion": "Centro Comercial 456",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-08-10",
+    "activo": true,
+    "roles": ["ROLE_RECEPCIONISTA"]
+}
+```
+
+#### **🔴 Crear Administrador:**
+```json
+{
+    "documento": "44444444",
+    "username": "admin_carlos",
+    "password": "123456",
+    "nombres": "Carlos Eduardo",
+    "apellidos": "Administrador Pérez",
+    "email": "admin.carlos@veterinaria.com",
+    "telefono": "3301122334",
+    "direccion": "Oficina Central 321",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1978-12-05",
+    "activo": true,
+    "roles": ["ROLE_ADMIN"]
+}
+```
+
+#### **⚡ Usuario con Múltiples Roles:**
+```json
+{
+    "documento": "55555555",
+    "username": "super_user",
+    "password": "123456",
+    "nombres": "Roberto",
+    "apellidos": "Super Usuario",
+    "email": "super@veterinaria.com",
+    "telefono": "3401122334",
+    "direccion": "Sede Principal 111",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1980-01-15",
+    "activo": true,
+    "roles": ["ROLE_ADMIN", "ROLE_VETERINARIO"]
+}
+```
+
+### **🎯 Valores Válidos para Campos**
+
+#### **Roles Disponibles:**
+- `"ROLE_CLIENTE"` - Para clientes/propietarios de mascotas
+- `"ROLE_VETERINARIO"` - Para veterinarios
+- `"ROLE_RECEPCIONISTA"` - Para personal de recepción
+- `"ROLE_ADMIN"` - Para administradores del sistema
+
+#### **Tipos de Documento:**
+- `"CC"` - Cédula de Ciudadanía
+- `"TI"` - Tarjeta de Identidad
+- `"CE"` - Cédula de Extranjería
+- `"PP"` - Pasaporte
+
+#### **Formato de Fecha:**
+- **fechaNacimiento:** `"YYYY-MM-DD"` (ej: `"1990-01-01"`)
+
+#### **Campos Opcionales:**
+- `veterinariaId` - Solo para veterinarios (ID de la veterinaria asignada)
+- `activo` - Por defecto `true` si no se especifica
+
+### **✅ Respuesta Exitosa Esperada:**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "fechaRegistro": "2025-10-29T16:52:40.1870239",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+### **🔍 Pasos en Postman**
+
+#### **Paso 1: Hacer Login como Admin**
+1. **URL:** `POST {{base_url}}/auth/signin`
+2. **Body:**
+   ```json
+   {
+       "username": "admin",
+       "password": "admin123"
+   }
+   ```
+3. **Copiar el token** de la respuesta
+
+#### **Paso 2: Crear el Usuario**
+1. **URL:** `POST {{base_url}}/usuarios`
+2. **Headers:**
+   - `Content-Type: application/json`
+   - `Authorization: Bearer [TOKEN_DEL_PASO_1]`
+3. **Body:** Usar cualquiera de los ejemplos de arriba
+
+### **❗ Errores Comunes y Soluciones**
+
+#### **Error 400 - Bad Request:**
+- **Causa:** Formato incorrecto del campo `roles`
+- **Solución:** Usar `["ROLE_CLIENTE"]` en lugar de `[{"id": 3}]`
+
+#### **Error 401 - Unauthorized:**
+- **Causa:** Token JWT faltante o inválido
+- **Solución:** Hacer login primero y usar el token correcto
+
+#### **Error 403 - Forbidden:**
+- **Causa:** Usuario no tiene permisos de administrador
+- **Solución:** Usar token de un usuario con `ROLE_ADMIN`
+
+#### **Error 409 - Conflict:**
+- **Causa:** Usuario con ese documento o username ya existe
+- **Solución:** Cambiar `documento` y `username` por valores únicos
+
+### **🧪 Script de Validación para Postman**
+
+Agregar en la pestaña **Tests** del request:
+
 ```javascript
-pm.test("Acceso autorizado", function () {
+pm.test("Usuario creado exitosamente", function () {
     pm.response.to.have.status(200);
 });
 
@@ -819,7 +1020,7 @@ pm.test("Acceso denegado correctamente", function () {
     pm.response.to.have.status(403);
 });
 
-pm.test("Mensaje de error presente", function () {
+pm.test("Usuario está activo", function () {
     const response = pm.response.json();
     pm.expect(response.success).to.be.false;
     pm.expect(response.message).to.be.a('string');
