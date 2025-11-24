@@ -2,6 +2,7 @@ package com.veterinaria.veterinaria.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,11 +32,11 @@ public class HistoriaClinica {
     @Column(columnDefinition = "TEXT")
     private String medicamentos;
     
-    @Column
-    private Double peso;
+    @Column(columnDefinition = "DECIMAL(5,2)")
+    private BigDecimal peso;
     
-    @Column
-    private Double temperatura;
+    @Column(columnDefinition = "DECIMAL(4,2)")
+    private BigDecimal temperatura;
     
     @Column(name = "frecuencia_cardiaca")
     private Integer frecuenciaCardiaca;
@@ -131,19 +132,19 @@ public class HistoriaClinica {
         this.medicamentos = medicamentos;
     }
     
-    public Double getPeso() {
+    public BigDecimal getPeso() {
         return peso;
     }
     
-    public void setPeso(Double peso) {
+    public void setPeso(BigDecimal peso) {
         this.peso = peso;
     }
     
-    public Double getTemperatura() {
+    public BigDecimal getTemperatura() {
         return temperatura;
     }
     
-    public void setTemperatura(Double temperatura) {
+    public void setTemperatura(BigDecimal temperatura) {
         this.temperatura = temperatura;
     }
     

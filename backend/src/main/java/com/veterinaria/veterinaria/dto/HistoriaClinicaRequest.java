@@ -1,5 +1,6 @@
 package com.veterinaria.veterinaria.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class HistoriaClinicaRequest {
@@ -10,8 +11,8 @@ public class HistoriaClinicaRequest {
     private String diagnostico;
     private String tratamiento;
     private String medicamentos;
-    private Double peso;
-    private Double temperatura;
+    private BigDecimal peso;
+    private BigDecimal temperatura;
     private Integer frecuenciaCardiaca;
     private Integer frecuenciaRespiratoria;
     private String observaciones;
@@ -74,19 +75,19 @@ public class HistoriaClinicaRequest {
         this.medicamentos = medicamentos;
     }
     
-    public Double getPeso() {
+    public BigDecimal getPeso() {
         return peso;
     }
     
-    public void setPeso(Double peso) {
+    public void setPeso(BigDecimal peso) {
         this.peso = peso;
     }
     
-    public Double getTemperatura() {
+    public BigDecimal getTemperatura() {
         return temperatura;
     }
     
-    public void setTemperatura(Double temperatura) {
+    public void setTemperatura(BigDecimal temperatura) {
         this.temperatura = temperatura;
     }
     

@@ -22,11 +22,13 @@ import {
   activateUsuario,
   deactivateUsuario
 } from '../services/userService';
+import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
 
 const UserManagement: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [filteredUsuarios, setFilteredUsuarios] = useState<Usuario[]>([]);
+  const [veterinarias, setVeterinarias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
@@ -36,6 +38,11 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showActives, setShowActives] = useState<boolean | null>(null);
   const [filterByRole, setFilterByRole] = useState<string>('');
+
+  // Función para normalizar roles (quitar prefijo ROLE_)
+  const normalizeRole = (role: string): string => {
+    return role.replace(/^ROLE_/, '');
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -48,11 +55,13 @@ const UserManagement: React.FC = () => {
     direccion: '',
     tipoDocumento: 'CC',
     password: '',
-    rol: ''
+    rol: '',
+    veterinariaId: ''
   });
 
   useEffect(() => {
     loadUsuarios();
+    loadVeterinarias();
   }, []);
 
   useEffect(() => {
@@ -73,6 +82,16 @@ const UserManagement: React.FC = () => {
       setUsuarios([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadVeterinarias = async () => {
+    try {
+      const data = await getAllVeterinarias();
+      setVeterinarias(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading veterinarias:', error);
+      setVeterinarias([]);
     }
   };
 
@@ -109,10 +128,10 @@ const UserManagement: React.FC = () => {
       filtered = filtered.filter(user => user.activo === showActives);
     }
 
-    // Filtrar por rol
+    // Filtrar por rol (normalizar roles antes de comparar)
     if (filterByRole) {
       filtered = filtered.filter(user => 
-        user.roles && user.roles.some(role => role === filterByRole)
+        user.roles && user.roles.some(role => normalizeRole(role) === filterByRole)
       );
     }
 
@@ -130,7 +149,8 @@ const UserManagement: React.FC = () => {
       direccion: '',
       tipoDocumento: 'CC',
       password: '',
-      rol: ''
+      rol: '',
+      veterinariaId: ''
     });
   };
 
@@ -139,6 +159,11 @@ const UserManagement: React.FC = () => {
     setSelectedUsuario(usuario || null);
     
     if (usuario && (mode === 'edit' || mode === 'view')) {
+      // Normalizar el rol antes de asignarlo al formulario
+      const rolNormalizado = usuario.roles && usuario.roles.length > 0 
+        ? normalizeRole(usuario.roles[0]) 
+        : '';
+      
       setFormData({
         documento: usuario.documento,
         username: usuario.username,
@@ -149,7 +174,8 @@ const UserManagement: React.FC = () => {
         direccion: usuario.direccion || '',
         tipoDocumento: usuario.tipoDocumento || 'CC',
         password: '', // No mostrar password en edición
-        rol: usuario.roles && usuario.roles.length > 0 ? usuario.roles[0] : ''
+        rol: rolNormalizado,
+        veterinariaId: usuario.veterinariaId?.toString() || ''
       });
     } else {
       resetForm();
@@ -196,7 +222,8 @@ const UserManagement: React.FC = () => {
         const nuevoUsuario: Usuario = {
           ...formData,
           activo: true,
-          roles: formData.rol ? [formData.rol] : []
+          roles: formData.rol ? [formData.rol] : [],
+          veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : undefined
         };
         await createUsuario(nuevoUsuario);
         setSuccess('Usuario creado exitosamente');
@@ -215,6 +242,7 @@ const UserManagement: React.FC = () => {
           fechaNacimiento: selectedUsuario.fechaNacimiento,
           // Manejar roles: si se cambió el rol en el formulario, usar nuevo rol, sino mantener el existente
           roles: formData.rol ? [formData.rol] : selectedUsuario.roles,
+          veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : undefined,
           // Solo incluir password si se proporcionó una nueva
           ...(formData.password && formData.password.trim() !== '' && { password: formData.password })
         };
@@ -648,6 +676,37 @@ const UserManagement: React.FC = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
+              <Col md={6}>
+                {formData.rol === 'VETERINARIO' && (
+                  <Form.Group className="mb-3">
+                    <Form.Label>Veterinaria {modalMode !== 'view' && '*'}</Form.Label>
+                    {modalMode === 'view' ? (
+                      <Form.Control
+                        type="text"
+                        value={selectedUsuario?.veterinariaNombre || 'No asignada'}
+                        disabled
+                      />
+                    ) : (
+                      <Form.Select
+                        name="veterinariaId"
+                        value={formData.veterinariaId}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Seleccione una veterinaria</option>
+                        {veterinarias.map((vet: any) => (
+                          <option key={vet.id} value={vet.id}>
+                            {vet.nombre}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    )}
+                  </Form.Group>
+                )}
+              </Col>
+            </Row>
+
+            <Row>
               <Col md={6}>
                 {modalMode !== 'view' && (
                   <Form.Group className="mb-3">
