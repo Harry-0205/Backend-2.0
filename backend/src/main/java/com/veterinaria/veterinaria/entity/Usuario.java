@@ -78,6 +78,11 @@ public class Usuario {
     @JsonIgnoreProperties("veterinario")
     private Set<Cita> citasComoVeterinario = new HashSet<>();
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "veterinaria_id")
+    @JsonIgnoreProperties({"citas", "veterinarios"})
+    private Veterinaria veterinaria;
+    
     // Constructores
     public Usuario() {}
     
@@ -216,6 +221,14 @@ public class Usuario {
     
     public void setCitasComoVeterinario(Set<Cita> citasComoVeterinario) {
         this.citasComoVeterinario = citasComoVeterinario;
+    }
+    
+    public Veterinaria getVeterinaria() {
+        return veterinaria;
+    }
+    
+    public void setVeterinaria(Veterinaria veterinaria) {
+        this.veterinaria = veterinaria;
     }
     
     // Método helper para obtener nombre completo

@@ -15,6 +15,7 @@
 6. [Casos de Prueba Específicos](#casos-de-prueba-específicos)
 7. [Validación de Errores](#validación-de-errores)
 8. [Pruebas de Funcionalidad PDF](#pruebas-de-funcionalidad-pdf)
+9. [Formato Completo para Crear Usuarios en Postman](#formato-completo-para-crear-usuarios-en-postman)
 
 ---
 
@@ -85,7 +86,7 @@ client_token: (token del cliente)
 
 # Datos de Usuarios
 admin_username: admin
-admin_password: 123456
+admin_password: admin123
 veterinario_username: dr.garcia
 veterinario_password: 123456
 cliente_username: cliente1
@@ -193,6 +194,21 @@ Content-Type: application/json
 
 ## 👥 **PRUEBAS POR ROL**
 
+> **⚠️ IMPORTANTE - RESTRICCIONES DE ROL VETERINARIO:**  
+> Los veterinarios tienen acceso limitado al endpoint de usuarios:
+> - ✅ **Pueden ver:** Solo clientes que han atendido (tienen citas programadas)
+> - ✅ **Pueden consultar:** Su propio perfil
+> - ❌ **NO pueden ver:** Administradores, recepcionistas u otros veterinarios
+> - ❌ **NO pueden ver:** Clientes que no han atendido
+> - ✅ **Endpoint `/usuarios/rol/CLIENTE`:** Solo retorna sus clientes atendidos
+> - ❌ **Endpoint `/usuarios/rol/{OTRO_ROL}`:** Acceso denegado (403)
+>
+> **RESTRICCIONES DE VETERINARIAS:**
+> - ✅ **Pueden ver:** Solo la veterinaria donde trabajan
+> - ❌ **NO pueden ver:** Otras veterinarias del sistema
+> - ✅ **Endpoint `/veterinarias`:** Solo retorna su veterinaria asignada
+> - ❌ **Endpoint `/veterinarias/{id}`:** Solo puede ver su veterinaria (403 para otras)
+
 ### **🔴 ADMINISTRADOR - Acceso Total**
 
 #### **1. Gestión de Usuarios**
@@ -224,7 +240,7 @@ Content-Type: application/json
     "tipoDocumento": "CC",
     "fechaNacimiento": "1990-01-01",
     "activo": true,
-    "roles": [{"id": 3}]
+    "roles": ["ROLE_CLIENTE"]
 }
 ```
 
@@ -254,7 +270,18 @@ Authorization: Bearer {{admin_token}}
 
 ### **🟢 VETERINARIO - Gestión Médica**
 
-#### **1. Ver Mascotas (Permitido)**
+#### **1. Ver Clientes Atendidos (Restringido)**
+```
+GET {{base_url}}/usuarios
+Authorization: Bearer {{vet_token}}
+```
+
+**Validaciones:**
+- ✅ Status 200 - Veterinario puede ver solo clientes que ha atendido
+- ✅ NO puede ver administradores, recepcionistas u otros veterinarios
+- ✅ Solo muestra clientes con citas previas con este veterinario
+
+#### **2. Ver Mascotas (Permitido)**
 ```
 GET {{base_url}}/mascotas
 Authorization: Bearer {{vet_token}}
@@ -262,13 +289,13 @@ Authorization: Bearer {{vet_token}}
 
 **Validación:** ✅ Status 200 - Veterinario puede ver todas las mascotas
 
-#### **2. Ver Citas Asignadas**
+#### **3. Ver Citas Asignadas**
 ```
 GET {{base_url}}/citas/veterinario/{{vet_documento}}
 Authorization: Bearer {{vet_token}}
 ```
 
-#### **3. Crear Historia Clínica**
+#### **4. Crear Historia Clínica**
 ```
 POST {{base_url}}/historias-clinicas
 Authorization: Bearer {{vet_token}}
@@ -298,13 +325,87 @@ GET {{base_url}}/historias-clinicas
 Authorization: Bearer {{vet_token}}
 ```
 
-#### **5. Acceso Denegado a Gestión de Usuarios**
+#### **5. Ver Perfil de Cliente Atendido (Permitido)**
 ```
-GET {{base_url}}/usuarios
+GET {{base_url}}/usuarios/{{cliente_documento}}
 Authorization: Bearer {{vet_token}}
 ```
 
-**Validación:** ❌ Status 403 - Veterinario no puede gestionar usuarios
+**Validaciones:**
+- ✅ Status 200 - Puede ver perfil del cliente si lo ha atendido
+- ✅ El cliente debe tener al menos una cita con este veterinario
+
+#### **6. Acceso Denegado a Cliente No Atendido**
+```
+GET {{base_url}}/usuarios/44444444
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - No puede ver cliente que no ha atendido
+
+#### **7. Acceso Denegado a Consultar Todos los Usuarios**
+```
+GET {{base_url}}/usuarios/rol/ADMIN
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - Veterinario no puede consultar administradores
+
+#### **8. Consultar Solo Clientes Atendidos por Rol**
+```
+GET {{base_url}}/usuarios/rol/CLIENTE
+Authorization: Bearer {{vet_token}}
+```
+
+**Validaciones:**
+- ✅ Status 200 - Puede consultar clientes
+- ✅ Solo muestra clientes que ha atendido personalmente
+
+#### **9. Acceso Denegado a Gestión de Usuarios**
+```
+POST {{base_url}}/usuarios
+Authorization: Bearer {{vet_token}}
+Content-Type: application/json
+
+{
+    "documento": "99999999",
+    "username": "nuevo_usuario",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Usuario",
+    "email": "nuevo@test.com",
+    "roles": [{"id": 3}]
+}
+```
+
+**Validación:** ❌ Status 403 - Veterinario no puede crear usuarios
+
+#### **10. Ver Su Veterinaria (Restringido)**
+```
+GET {{base_url}}/veterinarias
+Authorization: Bearer {{vet_token}}
+```
+
+**Validaciones:**
+- ✅ Status 200 - Veterinario puede ver su veterinaria
+- ✅ Solo retorna la veterinaria donde trabaja (1 veterinaria)
+- ✅ NO retorna otras veterinarias del sistema
+
+#### **11. Ver Veterinaria por ID (Su Veterinaria)**
+```
+GET {{base_url}}/veterinarias/1
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Puede ver su propia veterinaria
+
+#### **12. Acceso Denegado a Otra Veterinaria**
+```
+GET {{base_url}}/veterinarias/2
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - No puede ver otras veterinarias
 
 ### **🔵 CLIENTE - Datos Personales**
 
@@ -405,6 +506,93 @@ Authorization: Bearer {{client_token}}
 #### **Paso 4:** Consultar estadísticas generales
 #### **Paso 5:** Generar reportes del sistema
 
+### **Escenario 4: Restricciones de Veterinario (NUEVO)**
+
+#### **Paso 1:** Login del veterinario
+```
+POST {{base_url}}/auth/signin
+Content-Type: application/json
+
+{
+    "username": "{{veterinario_username}}",
+    "password": "{{veterinario_password}}"
+}
+```
+
+**Validación:** ✅ Status 200 - Login exitoso
+
+#### **Paso 2:** Intentar ver todos los usuarios
+```
+GET {{base_url}}/usuarios
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Solo retorna clientes que ha atendido (NO todos los usuarios)
+
+#### **Paso 3:** Ver perfil de cliente atendido
+```
+GET {{base_url}}/usuarios/33333333
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Puede ver cliente que ha atendido
+
+#### **Paso 4:** Intentar ver perfil de cliente NO atendido
+```
+GET {{base_url}}/usuarios/55555555
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - No puede ver cliente que no ha atendido
+
+#### **Paso 5:** Intentar consultar veterinarios
+```
+GET {{base_url}}/usuarios/rol/VETERINARIO
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - Solo puede consultar clientes
+
+#### **Paso 6:** Consultar clientes (filtrado)
+```
+GET {{base_url}}/usuarios/rol/CLIENTE
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Solo retorna clientes que ha atendido
+
+#### **Paso 7:** Ver su propio perfil
+```
+GET {{base_url}}/usuarios/{{vet_documento}}
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Puede ver su propio perfil
+
+#### **Paso 8:** Ver sus citas
+```
+GET {{base_url}}/citas/veterinario/{{vet_documento}}
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Puede ver sus citas programadas
+
+#### **Paso 9:** Ver su veterinaria
+```
+GET {{base_url}}/veterinarias
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ✅ Status 200 - Solo retorna su veterinaria asignada
+
+#### **Paso 10:** Intentar ver otra veterinaria
+```
+GET {{base_url}}/veterinarias/2
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - No puede ver otras veterinarias
+
 ---
 
 ## ❌ **VALIDACIÓN DE ERRORES**
@@ -430,7 +618,7 @@ Authorization: Bearer token_expirado_o_invalido
 
 **Validación:** ❌ Status 401 - Token inválido
 
-### **3. Acceso Sin Permisos**
+### **3. Acceso Sin Permisos (Cliente intentando ver todos los usuarios)**
 ```
 GET {{base_url}}/usuarios
 Authorization: Bearer {{client_token}}
@@ -438,7 +626,31 @@ Authorization: Bearer {{client_token}}
 
 **Validación:** ❌ Status 403 - Acceso denegado
 
-### **4. Recurso No Encontrado**
+### **4. Veterinario intentando ver usuario no atendido**
+```
+GET {{base_url}}/usuarios/55555555
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - Veterinario no puede ver cliente que no ha atendido
+
+### **5. Veterinario intentando consultar otros roles**
+```
+GET {{base_url}}/usuarios/rol/VETERINARIO
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - Veterinario solo puede consultar clientes
+
+### **6. Veterinario intentando ver otra veterinaria**
+```
+GET {{base_url}}/veterinarias/2
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:** ❌ Status 403 - Veterinario solo puede ver su veterinaria
+
+### **7. Recurso No Encontrado**
 ```
 GET {{base_url}}/mascotas/99999
 Authorization: Bearer {{admin_token}}
@@ -446,7 +658,7 @@ Authorization: Bearer {{admin_token}}
 
 **Validación:** ❌ Status 404 - Mascota no encontrada
 
-### **5. Datos Inválidos**
+### **8. Datos Inválidos**
 ```
 POST {{base_url}}/mascotas
 Authorization: Bearer {{client_token}}
@@ -496,38 +708,309 @@ Accept: application/pdf
 
 ---
 
-## 📊 **VALIDACIÓN DE RESPUESTAS**
+## 🆕 **FORMATO COMPLETO PARA CREAR USUARIOS EN POSTMAN**
+
+### **Formato de Respuesta Estándar:**
+
+Todas las operaciones del API ahora retornan un formato de respuesta consistente:
+
+#### **Respuesta Exitosa:**
+```json
+{
+    "success": true,
+    "message": "Operación realizada exitosamente",
+    "data": { /* datos de respuesta */ },
+    "timestamp": "2025-11-03T10:30:00"
+}
+```
+
+#### **Respuesta de Error:**
+```json
+{
+    "success": false,
+    "message": "Descripción del error",
+    "error": "Detalles adicionales del error",
+    "data": null,
+    "timestamp": "2025-11-03T10:30:00"
+}
+```
 
 ### **Scripts de Validación Automática (en Tests de Postman):**
 
-#### **Para Login:**
-```javascript
-pm.test("Login exitoso", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Token presente", function () {
-    const response = pm.response.json();
-    pm.expect(response.token).to.be.a('string');
-    pm.expect(response.token.length).to.be.above(50);
-});
-
-pm.test("Rol correcto", function () {
-    const response = pm.response.json();
-    pm.expect(response.roles).to.be.an('array');
-    pm.expect(response.roles.length).to.be.above(0);
-});
+**1. Método:** `POST`  
+**2. URL:** `{{base_url}}/usuarios`  
+**3. Headers necesarios:**
+```
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
 ```
 
-#### **Para Endpoints Protegidos:**
+### **📝 Formato del Body (JSON)**
+
+#### **✅ Formato CORRECTO (funciona):**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+#### **❌ Formato INCORRECTO (causaba error 500):**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": [{"id": 3}]  ← ❌ INCORRECTO
+}
+```
+
+### **👥 Ejemplos para Diferentes Tipos de Usuario**
+
+#### **🔵 Crear Cliente:**
+```json
+{
+    "documento": "11111111",
+    "username": "cliente_nuevo",
+    "password": "123456",
+    "nombres": "Juan Carlos",
+    "apellidos": "López García",
+    "email": "juan@ejemplo.com",
+    "telefono": "3001234567",
+    "direccion": "Calle 123 #45-67",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1985-05-15",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+#### **🟢 Crear Veterinario:**
+```json
+{
+    "documento": "22222222",
+    "username": "dr.martinez",
+    "password": "123456",
+    "nombres": "Ana María",
+    "apellidos": "Martínez Rodríguez",
+    "email": "ana.martinez@veterinaria.com",
+    "telefono": "3109876543",
+    "direccion": "Avenida Veterinaria 789",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1982-03-20",
+    "activo": true,
+    "roles": ["ROLE_VETERINARIO"],
+    "veterinariaId": 1
+}
+```
+
+#### **🟡 Crear Recepcionista:**
+```json
+{
+    "documento": "33333333",
+    "username": "recepcion_maria",
+    "password": "123456",
+    "nombres": "María Fernanda",
+    "apellidos": "González Pérez",
+    "email": "recepcion@veterinaria.com",
+    "telefono": "3207654321",
+    "direccion": "Centro Comercial 456",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-08-10",
+    "activo": true,
+    "roles": ["ROLE_RECEPCIONISTA"]
+}
+```
+
+#### **🔴 Crear Administrador:**
+```json
+{
+    "documento": "44444444",
+    "username": "admin_carlos",
+    "password": "123456",
+    "nombres": "Carlos Eduardo",
+    "apellidos": "Administrador Pérez",
+    "email": "admin.carlos@veterinaria.com",
+    "telefono": "3301122334",
+    "direccion": "Oficina Central 321",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1978-12-05",
+    "activo": true,
+    "roles": ["ROLE_ADMIN"]
+}
+```
+
+#### **⚡ Usuario con Múltiples Roles:**
+```json
+{
+    "documento": "55555555",
+    "username": "super_user",
+    "password": "123456",
+    "nombres": "Roberto",
+    "apellidos": "Super Usuario",
+    "email": "super@veterinaria.com",
+    "telefono": "3401122334",
+    "direccion": "Sede Principal 111",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1980-01-15",
+    "activo": true,
+    "roles": ["ROLE_ADMIN", "ROLE_VETERINARIO"]
+}
+```
+
+### **🎯 Valores Válidos para Campos**
+
+#### **Roles Disponibles:**
+- `"ROLE_CLIENTE"` - Para clientes/propietarios de mascotas
+- `"ROLE_VETERINARIO"` - Para veterinarios
+- `"ROLE_RECEPCIONISTA"` - Para personal de recepción
+- `"ROLE_ADMIN"` - Para administradores del sistema
+
+#### **Tipos de Documento:**
+- `"CC"` - Cédula de Ciudadanía
+- `"TI"` - Tarjeta de Identidad
+- `"CE"` - Cédula de Extranjería
+- `"PP"` - Pasaporte
+
+#### **Formato de Fecha:**
+- **fechaNacimiento:** `"YYYY-MM-DD"` (ej: `"1990-01-01"`)
+
+#### **Campos Opcionales:**
+- `veterinariaId` - Solo para veterinarios (ID de la veterinaria asignada)
+- `activo` - Por defecto `true` si no se especifica
+
+### **✅ Respuesta Exitosa Esperada:**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "fechaRegistro": "2025-10-29T16:52:40.1870239",
+    "activo": true,
+    "roles": ["ROLE_CLIENTE"]
+}
+```
+
+### **🔍 Pasos en Postman**
+
+#### **Paso 1: Hacer Login como Admin**
+1. **URL:** `POST {{base_url}}/auth/signin`
+2. **Body:**
+   ```json
+   {
+       "username": "admin",
+       "password": "admin123"
+   }
+   ```
+3. **Copiar el token** de la respuesta
+
+#### **Paso 2: Crear el Usuario**
+1. **URL:** `POST {{base_url}}/usuarios`
+2. **Headers:**
+   - `Content-Type: application/json`
+   - `Authorization: Bearer [TOKEN_DEL_PASO_1]`
+3. **Body:** Usar cualquiera de los ejemplos de arriba
+
+### **❗ Errores Comunes y Soluciones**
+
+#### **Error 400 - Bad Request:**
+- **Causa:** Formato incorrecto del campo `roles`
+- **Solución:** Usar `["ROLE_CLIENTE"]` en lugar de `[{"id": 3}]`
+
+#### **Error 401 - Unauthorized:**
+- **Causa:** Token JWT faltante o inválido
+- **Solución:** Hacer login primero y usar el token correcto
+
+#### **Error 403 - Forbidden:**
+- **Causa:** Usuario no tiene permisos de administrador
+- **Solución:** Usar token de un usuario con `ROLE_ADMIN`
+
+#### **Error 409 - Conflict:**
+- **Causa:** Usuario con ese documento o username ya existe
+- **Solución:** Cambiar `documento` y `username` por valores únicos
+
+### **🧪 Script de Validación para Postman**
+
+Agregar en la pestaña **Tests** del request:
+
 ```javascript
-pm.test("Acceso autorizado", function () {
+pm.test("Usuario creado exitosamente", function () {
     pm.response.to.have.status(200);
+});
+
+pm.test("Respuesta exitosa", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.true;
+    pm.expect(response.message).to.be.a('string');
 });
 
 pm.test("Datos válidos", function () {
     const response = pm.response.json();
-    pm.expect(response).to.be.an('array').or.an('object');
+    pm.expect(response.data).to.exist;
+    pm.expect(response.timestamp).to.be.a('string');
+});
+```
+
+#### **Para Operaciones POST (Crear):**
+```javascript
+pm.test("Recurso creado exitosamente", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Mensaje de éxito correcto", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.true;
+    pm.expect(response.message).to.include("creado exitosamente");
+});
+```
+
+#### **Para Operaciones PUT (Actualizar):**
+```javascript
+pm.test("Recurso actualizado exitosamente", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Mensaje de actualización correcto", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.true;
+    pm.expect(response.message).to.include("actualizado exitosamente");
+});
+```
+
+#### **Para Operaciones DELETE (Eliminar):**
+```javascript
+pm.test("Recurso eliminado exitosamente", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Mensaje de eliminación correcto", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.true;
+    pm.expect(response.message).to.include("eliminado exitosamente");
 });
 ```
 
@@ -537,8 +1020,36 @@ pm.test("Acceso denegado correctamente", function () {
     pm.response.to.have.status(403);
 });
 
-pm.test("Mensaje de error presente", function () {
+pm.test("Usuario está activo", function () {
     const response = pm.response.json();
+    pm.expect(response.success).to.be.false;
+    pm.expect(response.message).to.be.a('string');
+    pm.expect(response.error).to.be.a('string');
+});
+```
+
+#### **Para Recursos No Encontrados:**
+```javascript
+pm.test("Recurso no encontrado", function () {
+    pm.response.to.have.status(404);
+});
+
+pm.test("Mensaje de no encontrado correcto", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.false;
+    pm.expect(response.message).to.include("no encontrad");
+});
+```
+
+#### **Para Errores de Validación:**
+```javascript
+pm.test("Error de validación", function () {
+    pm.response.to.have.status(400);
+});
+
+pm.test("Mensaje de error de validación", function () {
+    const response = pm.response.json();
+    pm.expect(response.success).to.be.false;
     pm.expect(response.message).to.be.a('string');
 });
 ```
@@ -557,6 +1068,13 @@ pm.test("Mensaje de error presente", function () {
 ### **✅ Funcionalidades por Rol**
 - [ ] **Admin:** Acceso completo a todas las funciones
 - [ ] **Veterinario:** Gestión médica sin acceso administrativo  
+- [ ] **Veterinario:** Solo puede ver clientes que ha atendido
+- [ ] **Veterinario:** No puede ver otros veterinarios, admins o recepcionistas
+- [ ] **Veterinario:** Puede ver su propio perfil
+- [ ] **Veterinario:** Puede consultar rol CLIENTE pero solo sus clientes atendidos
+- [ ] **Veterinario:** Acceso denegado a consultar otros roles (ADMIN, VETERINARIO, etc.)
+- [ ] **Veterinario:** Solo puede ver la veterinaria donde trabaja
+- [ ] **Veterinario:** Acceso denegado a ver otras veterinarias (403)
 - [ ] **Recepcionista:** Gestión de citas y clientes
 - [ ] **Cliente:** Solo acceso a sus propios datos
 
@@ -615,6 +1133,124 @@ Al completar todas las pruebas, deberías obtener:
 
 ---
 
-**📅 Documento creado:** 27 de octubre de 2025  
+## 🔄 **CAMBIOS RECIENTES EN PERMISOS**
+
+### **Actualización de Seguridad - ROL_VETERINARIO (03/11/2025)**
+
+#### **Cambios Implementados:**
+
+1. **Restricción en GET `/api/usuarios`:**
+   - ✅ Antes: Veterinarios podían ver todos los usuarios
+   - 🔒 Ahora: Solo ven clientes que han atendido (con citas registradas)
+
+2. **Restricción en GET `/api/usuarios/{documento}`:**
+   - ✅ Antes: Veterinarios podían ver cualquier perfil de usuario
+   - 🔒 Ahora: Solo pueden ver:
+     - Su propio perfil
+     - Perfiles de clientes que han atendido
+
+3. **Restricción en GET `/api/usuarios/username/{username}`:**
+   - ✅ Antes: Veterinarios podían consultar cualquier usuario por username
+   - 🔒 Ahora: Solo pueden consultar:
+     - Su propio usuario
+     - Clientes que han atendido
+
+4. **Restricción en GET `/api/usuarios/rol/{rolNombre}`:**
+   - ✅ Antes: Veterinarios podían consultar usuarios por cualquier rol
+   - 🔒 Ahora: 
+     - Solo pueden consultar `CLIENTE` o `ROLE_CLIENTE`
+     - Retorna únicamente clientes que han atendido
+     - Intentar consultar otros roles retorna 403 Forbidden
+
+5. **Restricción en GET `/api/veterinarias` (NUEVO):**
+   - ✅ Antes: Veterinarios podían ver todas las veterinarias
+   - 🔒 Ahora: Solo ven la veterinaria donde trabajan
+
+6. **Restricción en GET `/api/veterinarias/{id}` (NUEVO):**
+   - ✅ Antes: Veterinarios podían ver cualquier veterinaria por ID
+   - 🔒 Ahora: Solo pueden ver su propia veterinaria (403 para otras)
+
+7. **Restricción en GET `/api/veterinarias/activas` (NUEVO):**
+   - ✅ Antes: Veterinarios podían ver todas las veterinarias activas
+   - 🔒 Ahora: Solo ven su veterinaria si está activa
+
+8. **Mensajes de respuesta estandarizados (NUEVO):**
+   - ✅ Todas las operaciones retornan formato consistente con `success`, `message`, `data`, `timestamp`
+   - ✅ Mensajes descriptivos para operaciones exitosas: "creado exitosamente", "actualizado exitosamente", etc.
+   - ✅ Mensajes de error descriptivos con detalles adicionales
+   - ✅ Códigos HTTP apropiados para cada tipo de respuesta
+
+#### **Lógica de "Cliente Atendido":**
+Un cliente se considera "atendido" por un veterinario si existe al menos una cita donde:
+- `cita.cliente = cliente`
+- `cita.veterinario.documento = veterinario.documento`
+
+#### **Endpoints NO Modificados para Veterinarios:**
+- ✅ `/api/mascotas` - Pueden ver todas las mascotas
+- ✅ `/api/citas/veterinario/{documento}` - Pueden ver sus citas
+- ✅ `/api/historias-clinicas` - Pueden gestionar historias clínicas
+- ✅ `/api/veterinarios` - Listado público de veterinarios (sin cambios)
+
+#### **Endpoints Modificados para Veterinarios:**
+- 🔒 `/api/usuarios` - Solo clientes atendidos
+- 🔒 `/api/usuarios/{documento}` - Solo su perfil o clientes atendidos
+- 🔒 `/api/usuarios/username/{username}` - Solo su perfil o clientes atendidos
+- 🔒 `/api/usuarios/rol/{rolNombre}` - Solo rol CLIENTE y filtrado
+- 🔒 `/api/veterinarias` - Solo su veterinaria
+- 🔒 `/api/veterinarias/{id}` - Solo su veterinaria
+- 🔒 `/api/veterinarias/activas` - Solo su veterinaria si está activa
+
+#### **Pruebas Recomendadas Post-Actualización:**
+
+1. **Crear una cita entre veterinario y cliente:**
+   ```
+   POST {{base_url}}/citas
+   {
+       "clienteDocumento": "33333333",
+       "veterinarioDocumento": "87654321",
+       "mascotaId": 1,
+       ...
+   }
+   ```
+
+2. **Verificar que el veterinario puede ver al cliente:**
+   ```
+   GET {{base_url}}/usuarios
+   Authorization: Bearer {{vet_token}}
+   ```
+   **Resultado esperado:** Debe incluir al cliente con documento 33333333
+
+3. **Verificar que NO puede ver clientes sin citas:**
+   ```
+   GET {{base_url}}/usuarios/55555555
+   Authorization: Bearer {{vet_token}}
+   ```
+   **Resultado esperado:** 403 Forbidden
+
+4. **Verificar restricción por rol:**
+   ```
+   GET {{base_url}}/usuarios/rol/ADMIN
+   Authorization: Bearer {{vet_token}}
+   ```
+   **Resultado esperado:** 403 Forbidden
+
+5. **Verificar restricción de veterinarias:**
+   ```
+   GET {{base_url}}/veterinarias
+   Authorization: Bearer {{vet_token}}
+   ```
+   **Resultado esperado:** Solo retorna la veterinaria del veterinario (1 veterinaria)
+
+6. **Verificar acceso denegado a otra veterinaria:**
+   ```
+   GET {{base_url}}/veterinarias/2
+   Authorization: Bearer {{vet_token}}
+   ```
+   **Resultado esperado:** 403 Forbidden (si 2 no es su veterinaria)
+
+---
+
+**�📅 Documento creado:** 27 de octubre de 2025  
+**📅 Última actualización:** 03 de noviembre de 2025  
 **🔧 Para usar con:** Postman + Backend Veterinaria PET  
-**🎯 Estado:** ✅ GUÍA COMPLETA Y FUNCIONAL
+**🎯 Estado:** ✅ GUÍA COMPLETA Y FUNCIONAL CON RESTRICCIONES DE SEGURIDAD ACTUALIZADAS

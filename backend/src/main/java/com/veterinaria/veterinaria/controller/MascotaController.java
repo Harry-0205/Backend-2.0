@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,7 +31,29 @@ public class MascotaController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
     public ResponseEntity<List<MascotaResponse>> getAllMascotas() {
-        List<Mascota> mascotas = mascotaService.findAll();
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Verificar si el usuario tiene rol VETERINARIO
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        List<Mascota> mascotas;
+        
+        if (isVeterinario) {
+            // Si es veterinario, obtener solo las mascotas que ha atendido
+            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
+            if (veterinario.isPresent()) {
+                mascotas = mascotaService.findMascotasAtendidasByVeterinario(veterinario.get().getDocumento());
+            } else {
+                mascotas = List.of();
+            }
+        } else {
+            // Si es admin o recepcionista, obtener todas las mascotas
+            mascotas = mascotaService.findAll();
+        }
+        
         List<MascotaResponse> response = mascotas.stream()
                 .map(MascotaResponse::new)
                 .collect(Collectors.toList());
@@ -131,6 +155,10 @@ public class MascotaController {
             existingMascota.setPeso(mascota.getPeso());
             existingMascota.setColor(mascota.getColor());
             existingMascota.setObservaciones(mascota.getObservaciones());
+            // Permitir que ADMIN o RECEPCIONISTA actualicen el estado activo si se envía
+            if (mascota.getActivo() != null) {
+                existingMascota.setActivo(mascota.getActivo());
+            }
             
             // No cambiar el propietario ni el ID
             // existingMascota.setPropietario() - NO TOCAR
@@ -152,14 +180,20 @@ public class MascotaController {
     @PatchMapping("/{id}/desactivar")
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
     public ResponseEntity<?> deactivateMascota(@PathVariable Long id) {
-        mascotaService.deactivate(id);
-        return ResponseEntity.ok().build();
+        Mascota updated = mascotaService.deactivate(id);
+        if (updated != null) {
+            return ResponseEntity.ok(updated);
+        }
+        return ResponseEntity.notFound().build();
     }
     
     @PatchMapping("/{id}/activar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> activateMascota(@PathVariable Long id) {
-        mascotaService.activate(id);
-        return ResponseEntity.ok().build();
+        Mascota updated = mascotaService.activate(id);
+        if (updated != null) {
+            return ResponseEntity.ok(updated);
+        }
+        return ResponseEntity.notFound().build();
     }
 }

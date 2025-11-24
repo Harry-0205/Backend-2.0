@@ -47,8 +47,14 @@ public class ReporteController {
     @GetMapping("/tipo/{tipo}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Reporte>> getReportesByTipo(@PathVariable String tipo) {
-        List<Reporte> reportes = reporteService.findByTipo(tipo);
-        return ResponseEntity.ok(reportes);
+        try {
+            Reporte.TipoReporte tipoEnum = Reporte.TipoReporte.valueOf(tipo.toUpperCase());
+            List<Reporte> reportes = reporteService.findByTipo(tipoEnum);
+            return ResponseEntity.ok(reportes);
+        } catch (IllegalArgumentException e) {
+            // Tipo inválido: devolver 400 con mensaje claro
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     @GetMapping("/generado-por/{usuarioDocumento}")
