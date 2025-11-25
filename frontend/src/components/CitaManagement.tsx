@@ -11,10 +11,11 @@ import {
   Alert,
   Badge,
   InputGroup,
-  Spinner
+  Spinner,
+  ListGroup
 } from 'react-bootstrap';
 import { Cita, EstadoCita } from '../types';
-import citaService from '../services/citaService';
+import citaService, { HorarioDisponible } from '../services/citaService';
 import mascotaService from '../services/mascotaService';
 import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
@@ -37,6 +38,11 @@ const CitaManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByEstado, setFilterByEstado] = useState<string>('');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Estados para disponibilidad de horarios
+  const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -330,8 +336,12 @@ const CitaManagement: React.FC = () => {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        veterinarioId: '' // Limpiar veterinario seleccionado
+        veterinarioId: '', // Limpiar veterinario seleccionado
+        fechaHora: '' // Limpiar fecha/hora cuando cambia veterinaria
       }));
+      
+      setHorariosDisponibles([]); // Limpiar horarios
+      setFechaSeleccionada(''); // Limpiar fecha seleccionada
       
       // Filtrar veterinarios por veterinaria seleccionada
       if (value) {
@@ -354,6 +364,41 @@ const CitaManagement: React.FC = () => {
       }));
     }
   };
+  
+  const loadHorariosDisponibles = async (fecha: string) => {
+    if (!formData.veterinariaId || !fecha) {
+      return;
+    }
+    
+    try {
+      setLoadingHorarios(true);
+      const horarios = await citaService.getHorariosDisponibles(fecha, parseInt(formData.veterinariaId));
+      setHorariosDisponibles(horarios);
+      setFechaSeleccionada(fecha);
+    } catch (error: any) {
+      console.error('Error al cargar horarios disponibles:', error);
+      setError('Error al cargar horarios disponibles');
+    } finally {
+      setLoadingHorarios(false);
+    }
+  };
+  
+  const handleFechaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fecha = e.target.value;
+    setFechaSeleccionada(fecha);
+    setFormData(prev => ({ ...prev, fechaHora: '' }));
+    if (fecha && formData.veterinariaId) {
+      loadHorariosDisponibles(fecha);
+    }
+  };
+  
+  const handleSelectHorario = (horario: HorarioDisponible) => {
+    if (horario.disponible) {
+      // El backend espera formato "yyyy-MM-ddTHH:mm"
+      const fechaHora = horario.fechaHora.substring(0, 16);
+      setFormData(prev => ({ ...prev, fechaHora }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,29 +411,19 @@ const CitaManagement: React.FC = () => {
     try {
       setLoading(true);
       
-      // El input datetime-local ya está en formato local, solo agregamos ':00.000Z' para el backend
+      // Crear objeto en formato CitaRequest (DTO del backend)
       const citaData: any = {
-        fechaHora: formData.fechaHora + ':00.000',
+        fechaHora: formData.fechaHora + ':00',
         motivo: formData.motivo || null,
         observaciones: formData.observaciones || null,
         estado: modalMode === 'create' ? EstadoCita.PROGRAMADA : selectedCita?.estado,
-        cliente: {
-          documento: formData.clienteId
-        },
-        mascota: {
-          id: parseInt(formData.mascotaId)
-        },
-        ...(formData.veterinarioId && {
-          veterinario: {
-            documento: formData.veterinarioId
-          }
-        }),
-        ...(formData.veterinariaId && {
-          veterinaria: {
-            id: parseInt(formData.veterinariaId)
-          }
-        })
+        clienteDocumento: formData.clienteId,
+        mascotaId: parseInt(formData.mascotaId),
+        veterinarioDocumento: formData.veterinarioId || null,
+        veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : null
       };
+      
+      console.log('Enviando cita:', citaData);
       
       if (modalMode === 'create') {
         await citaService.createCita(citaData);
@@ -623,7 +658,7 @@ const CitaManagement: React.FC = () => {
                               >
                                 <i className="fas fa-eye"></i>
                               </Button>
-                              {cita.estado !== EstadoCita.COMPLETADA && cita.estado !== EstadoCita.CANCELADA && (
+                              {cita.estado !== EstadoCita.COMPLETADA && cita.estado !== EstadoCita.CANCELADA && !authService.isCliente() && (
                                 <Button
                                   size="sm"
                                   variant="warning"
@@ -633,7 +668,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-edit"></i>
                                 </Button>
                               )}
-                              {cita.estado === EstadoCita.PROGRAMADA && (
+                              {cita.estado === EstadoCita.PROGRAMADA && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario()) && (
                                 <Button
                                   size="sm"
                                   variant="success"
@@ -663,7 +698,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-check-double"></i>
                                 </Button>
                               )}
-                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (
+                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario() || authService.isCliente()) && (
                                 <Button
                                   size="sm"
                                   variant="danger"
@@ -710,16 +745,79 @@ const CitaManagement: React.FC = () => {
             {error && <Alert variant="danger">{error}</Alert>}
             
             <Row>
+              <Col md={12}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Seleccionar Fecha *</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={fechaSeleccionada}
+                    onChange={handleFechaChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                    disabled={modalMode === 'view' || !formData.veterinariaId}
+                  />
+                  {!formData.veterinariaId && modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      Primero seleccione una veterinaria para ver horarios disponibles
+                    </Form.Text>
+                  )}
+                </Form.Group>
+              </Col>
+            </Row>
+            
+            {/* Mostrar horarios disponibles */}
+            {modalMode !== 'view' && fechaSeleccionada && formData.veterinariaId && (
+              <Row className="mb-3">
+                <Col md={12}>
+                  <Form.Label>Horarios Disponibles *</Form.Label>
+                  {loadingHorarios ? (
+                    <div className="text-center p-3">
+                      <Spinner animation="border" size="sm" /> Cargando horarios...
+                    </div>
+                  ) : horariosDisponibles.length > 0 ? (
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '4px', padding: '10px' }}>
+                      <ListGroup>
+                        {horariosDisponibles.map((horario, index) => {
+                          const hora = new Date(horario.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                          const isSelected = formData.fechaHora === horario.fechaHora.substring(0, 16);
+                          return (
+                            <ListGroup.Item
+                              key={index}
+                              action
+                              variant={isSelected ? 'primary' : horario.disponible ? 'light' : 'danger'}
+                              onClick={() => handleSelectHorario(horario)}
+                              disabled={!horario.disponible}
+                              style={{ cursor: horario.disponible ? 'pointer' : 'not-allowed' }}
+                            >
+                              <div className="d-flex justify-content-between align-items-center">
+                                <span>{hora}</span>
+                                {horario.disponible ? (
+                                  <Badge bg="success">Disponible</Badge>
+                                ) : (
+                                  <Badge bg="danger">Ocupado</Badge>
+                                )}
+                              </div>
+                            </ListGroup.Item>
+                          );
+                        })}
+                      </ListGroup>
+                    </div>
+                  ) : (
+                    <Alert variant="info">No hay horarios disponibles para esta fecha</Alert>
+                  )}
+                </Col>
+              </Row>
+            )}
+            
+            <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Fecha y Hora *</Form.Label>
+                  <Form.Label>Hora Seleccionada</Form.Label>
                   <Form.Control
-                    type="datetime-local"
-                    name="fechaHora"
-                    value={formData.fechaHora}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
+                    type="text"
+                    value={formData.fechaHora ? new Date(formData.fechaHora).toLocaleString('es-ES') : ''}
+                    disabled
+                    placeholder="Seleccione un horario disponible"
                   />
                 </Form.Group>
               </Col>

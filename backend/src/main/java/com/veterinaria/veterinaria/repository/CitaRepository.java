@@ -30,7 +30,10 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findByMascotaIdOrderByFechaHoraDesc(Long mascotaId);
     List<Cita> findByEstado(Cita.EstadoCita estado);
     List<Cita> findByFechaHoraBetween(LocalDateTime inicio, LocalDateTime fin);
-    List<Cita> findByVeterinariaId(Long veterinariaId);
+    
+    @EntityGraph(attributePaths = {"cliente", "mascota", "mascota.propietario", "veterinario", "veterinario.veterinaria", "veterinaria"})
+    @Query("SELECT c FROM Cita c WHERE c.veterinaria.id = :veterinariaId")
+    List<Cita> findByVeterinariaId(@Param("veterinariaId") Long veterinariaId);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
     @Query("SELECT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")
@@ -79,4 +82,14 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
     @Query("SELECT c FROM Cita c WHERE DATE(c.fechaHora) = CURRENT_DATE")
     List<Cita> findCitasDeHoyWithRelations();
+    
+    // Verificar disponibilidad de horario
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    boolean existsCitaEnHorario(@Param("fechaHora") LocalDateTime fechaHora, @Param("veterinariaId") Long veterinariaId);
+    
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinario.documento = :veterinarioDocumento AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    boolean existsCitaEnHorarioParaVeterinario(@Param("fechaHora") LocalDateTime fechaHora, @Param("veterinarioDocumento") String veterinarioDocumento);
+    
+    @Query("SELECT c FROM Cita c WHERE DATE(c.fechaHora) = DATE(:fecha) AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    List<Cita> findCitasDelDia(@Param("fecha") LocalDateTime fecha, @Param("veterinariaId") Long veterinariaId);
 }

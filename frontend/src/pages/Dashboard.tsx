@@ -1,211 +1,183 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import UserManagement from '../components/UserManagement';
 import VeterinariaManagement from '../components/VeterinariaManagement';
 import MascotaManagement from '../components/MascotaManagement';
 import CitaManagement from '../components/CitaManagement';
 import HistoriaClinicaManagement from '../components/HistoriaClinicaManagement';
 import ReporteManagement from '../components/ReporteManagement';
-import { Container, Row, Col, Card, Badge, Nav } from 'react-bootstrap';
+import DashboardHome from '../components/DashboardHome';
 import authService from '../services/authService';
+import { 
+  FaHome, 
+  FaUsers, 
+  FaDog, 
+  FaCalendarAlt, 
+  FaFileMedicalAlt, 
+  FaHospital, 
+  FaChartLine,
+  FaBars,
+  FaTimes
+} from 'react-icons/fa';
+import '../styles/Dashboard.css';
+
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  roles: string[];
+}
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Definir menú según roles
+  const menuItems: MenuItem[] = [
+    {
+      id: 'home',
+      label: 'Inicio',
+      icon: <FaHome />,
+      path: '/dashboard',
+      roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
+    },
+    {
+      id: 'usuarios',
+      label: 'Gestión de Usuarios',
+      icon: <FaUsers />,
+      path: '/dashboard/usuarios',
+      roles: ['ROLE_ADMIN', 'ROLE_RECEPCIONISTA']
+    },
+    {
+      id: 'veterinarias',
+      label: 'Gestión de Veterinarias',
+      icon: <FaHospital />,
+      path: '/dashboard/veterinarias',
+      roles: ['ROLE_ADMIN']
+    },
+    {
+      id: 'mascotas',
+      label: authService.isCliente() ? 'Mis Mascotas' : 'Gestión de Mascotas',
+      icon: <FaDog />,
+      path: '/dashboard/mascotas',
+      roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
+    },
+    {
+      id: 'citas',
+      label: authService.isCliente() ? 'Mis Citas' : 'Gestión de Citas',
+      icon: <FaCalendarAlt />,
+      path: '/dashboard/citas',
+      roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
+    },
+    {
+      id: 'historias',
+      label: 'Historias Clínicas',
+      icon: <FaFileMedicalAlt />,
+      path: '/dashboard/historias',
+      roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
+    },
+    {
+      id: 'reportes',
+      label: 'Reportes',
+      icon: <FaChartLine />,
+      path: '/dashboard/reportes',
+      roles: ['ROLE_ADMIN']
+    }
+  ];
+
+  // Filtrar menú según roles del usuario
   const currentUser = authService.getCurrentUser();
-  const [activeTab, setActiveTab] = React.useState('usuarios');
+  const userRoles = currentUser?.roles || [];
   
-  // Debug: Ver qué hay en currentUser
-  React.useEffect(() => {
-    console.log('🔍 DEBUG Dashboard - currentUser:', currentUser);
-    console.log('🔍 DEBUG Dashboard - roles:', currentUser?.roles);
-    console.log('🔍 DEBUG Dashboard - localStorage:', localStorage.getItem('user'));
-  }, [currentUser]);
+  const filteredMenu = menuItems.filter(item => 
+    item.roles.some(role => userRoles.includes(role))
+  );
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'ROLE_ADMIN': return 'danger';
-      case 'ROLE_VETERINARIO': return 'success';
-      case 'ROLE_RECEPCIONISTA': return 'warning';
-      case 'ROLE_CLIENTE': return 'info';
-      default: return 'secondary';
+  const handleMenuClick = (path: string) => {
+    navigate(path);
+    // En móviles, cerrar el sidebar después de navegar
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
     }
   };
 
-  const getRoleName = (role: string) => {
-    switch (role) {
-      case 'ROLE_ADMIN': return 'Administrador';
-      case 'ROLE_VETERINARIO': return 'Veterinario';
-      case 'ROLE_RECEPCIONISTA': return 'Recepcionista';
-      case 'ROLE_CLIENTE': return 'Cliente';
-      default: return role;
-    }
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
-  const AdminPanel: React.FC = () => {
-    return (
-      <Row className="mb-4">
-        <Col>
-          <h3>Panel de Administrador</h3>
-          <Card>
-            <Card.Header>
-              <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'usuarios')}>
-                <Nav.Item>
-                  <Nav.Link eventKey="usuarios">Gestión de Usuarios</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="veterinarias">Gestión de Veterinarias</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="mascotas">Gestión de Mascotas</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="citas">Gestión de Citas</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="historias">Historias Clínicas</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="reportes">Reportes</Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Card.Header>
-            <Card.Body>
-              {activeTab === 'usuarios' && <UserManagement />}
-              {activeTab === 'veterinarias' && <VeterinariaManagement />}
-              {activeTab === 'mascotas' && <MascotaManagement />}
-              {activeTab === 'citas' && <CitaManagement />}
-              {activeTab === 'historias' && <HistoriaClinicaManagement />}
-              {activeTab === 'reportes' && <ReporteManagement />}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    );
+  const isActive = (path: string) => {
+    if (path === '/dashboard') {
+      return location.pathname === '/dashboard' || location.pathname === '/dashboard/';
+    }
+    return location.pathname === path;
   };
 
   return (
-    <Container className="py-4">
-      <Row>
-        <Col>
-          <h1 className="mb-4">Dashboard</h1>
-          
-          <Card className="mb-4">
-            <Card.Body>
-              <h5>Bienvenido, {currentUser?.username}!</h5>
-              <p className="text-muted mb-2">Documento: {currentUser?.documento}</p>
-              <p className="text-muted mb-3">Email: {currentUser?.email}</p>
-              
-              <div>
-                <strong>Roles:</strong>{' '}
-                {currentUser?.roles.map((role, index) => (
-                  <Badge 
-                    key={index} 
-                    bg={getRoleColor(role)} 
-                    className="me-2"
-                  >
-                    {getRoleName(role)}
-                  </Badge>
-                ))}
-              </div>
-            </Card.Body>
-          </Card>
+    <div className="dashboard-container">
+      {/* Sidebar */}
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <FaHospital className="logo-icon" />
+            {sidebarOpen && <span className="logo-text">VetSystem</span>}
+          </div>
+        </div>
 
-          {/* Admin Panel */}
-          {authService.isAdmin() && (
-            <AdminPanel />
-          )}
+        <nav className="sidebar-nav">
+          {filteredMenu.map(item => (
+            <button
+              key={item.id}
+              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+              onClick={() => handleMenuClick(item.path)}
+              title={!sidebarOpen ? item.label : ''}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {sidebarOpen && <span className="nav-label">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
 
-          {/* Veterinario Panel */}
-          {authService.isVeterinario() && (
-            <Row className="mb-4">
-              <Col>
-                <h3>Panel de Veterinario</h3>
-                <Card>
-                  <Card.Header>
-                    <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'citas')}>
-                      <Nav.Item>
-                        <Nav.Link eventKey="citas">Gestión de Citas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="historias">Historias Clínicas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="mascotas">Mascotas</Nav.Link>
-                      </Nav.Item>
-                    </Nav>
-                  </Card.Header>
-                  <Card.Body>
-                    {activeTab === 'citas' && <CitaManagement />}
-                    {activeTab === 'historias' && <HistoriaClinicaManagement />}
-                    {activeTab === 'mascotas' && <MascotaManagement />}
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          )}
+        <div className="sidebar-footer">
+          <button className="toggle-btn" onClick={toggleSidebar}>
+            {sidebarOpen ? <FaTimes /> : <FaBars />}
+          </button>
+        </div>
+      </aside>
 
-          {/* Recepcionista Panel */}
-          {authService.isRecepcionista() && (
-            <Row className="mb-4">
-              <Col>
-                <h3>Panel de Recepcionista</h3>
-                <Card>
-                  <Card.Header>
-                    <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'citas')}>
-                      <Nav.Item>
-                        <Nav.Link eventKey="citas">Gestión de Citas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="usuarios">Gestión de Usuarios</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="mascotas">Gestión de Mascotas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="historias">Historias Clínicas</Nav.Link>
-                      </Nav.Item>
-                    </Nav>
-                  </Card.Header>
-                  <Card.Body>
-                    {activeTab === 'citas' && <CitaManagement />}
-                    {activeTab === 'usuarios' && <UserManagement />}
-                    {activeTab === 'mascotas' && <MascotaManagement />}
-                    {activeTab === 'historias' && <HistoriaClinicaManagement />}
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          )}
+      {/* Main Content */}
+      <main className={`dashboard-main ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        {/* Mobile Header */}
+        <div className="mobile-header">
+          <button className="mobile-menu-btn" onClick={toggleSidebar}>
+            <FaBars />
+          </button>
+          <h1 className="mobile-title">Dashboard</h1>
+        </div>
 
-          {/* Cliente Panel */}
-          {authService.isCliente() && (
-            <Row className="mb-4">
-              <Col>
-                <h3>Panel de Cliente</h3>
-                <Card>
-                  <Card.Header>
-                    <Nav variant="tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'mascotas')}>
-                      <Nav.Item>
-                        <Nav.Link eventKey="mascotas">Mis Mascotas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="citas">Mis Citas</Nav.Link>
-                      </Nav.Item>
-                      <Nav.Item>
-                        <Nav.Link eventKey="historias">Historias Clínicas</Nav.Link>
-                      </Nav.Item>
-                    </Nav>
-                  </Card.Header>
-                  <Card.Body>
-                    {activeTab === 'mascotas' && <MascotaManagement />}
-                    {activeTab === 'citas' && <CitaManagement />}
-                    {activeTab === 'historias' && <HistoriaClinicaManagement />}
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          )}
-        </Col>
-      </Row>
-    </Container>
+        {/* Content Area */}
+        <div className="dashboard-content">
+          <Routes>
+            <Route path="/" element={<DashboardHome />} />
+            <Route path="/usuarios" element={<UserManagement />} />
+            <Route path="/veterinarias" element={<VeterinariaManagement />} />
+            <Route path="/mascotas" element={<MascotaManagement />} />
+            <Route path="/citas" element={<CitaManagement />} />
+            <Route path="/historias" element={<HistoriaClinicaManagement />} />
+            <Route path="/reportes" element={<ReporteManagement />} />
+          </Routes>
+        </div>
+      </main>
+
+      {/* Overlay para móviles */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+    </div>
   );
 };
 

@@ -94,6 +94,26 @@ class CitaService {
   marcarNoAsistio(id: number): Promise<Cita> {
     return this.cambiarEstado(id, EstadoCita.NO_ASISTIO);
   }
+
+  // Nuevos métodos para gestión de disponibilidad
+  getHorariosDisponibles(fecha: string, veterinariaId: number): Promise<HorarioDisponible[]> {
+    return apiClient.get('/citas/disponibilidad', {
+      params: { fecha, veterinariaId }
+    }).then(response => response.data);
+  }
+
+  getCitasDelDia(fecha: string, veterinariaId: number): Promise<Cita[]> {
+    return apiClient.get('/citas/dia', {
+      params: { fecha, veterinariaId }
+    }).then(response => response.data);
+  }
+}
+
+export interface HorarioDisponible {
+  fechaHora: string;
+  disponible: boolean;
+  veterinarioNombre?: string;
+  veterinarioDocumento?: string;
 }
 
 export default new CitaService();

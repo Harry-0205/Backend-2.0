@@ -40,54 +40,79 @@ public class HistoriaClinicaController {
     private CitaService citaService;
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE')")
     public ResponseEntity<List<HistoriaClinicaResponse>> getAllHistorias() {
-        // Obtener el usuario autenticado
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        
-        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
-        if (!usuarioAutenticadoOpt.isPresent()) {
-            return ResponseEntity.ok(List.of());
-        }
-        
-        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
-        
-        // Verificar roles
-        boolean isAdmin = authentication.getAuthorities().stream()
-            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
-        boolean isRecepcionista = authentication.getAuthorities().stream()
-            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
-        boolean isVeterinario = authentication.getAuthorities().stream()
-            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
-        
-        List<HistoriaClinica> historias;
-        
-        if (isVeterinario) {
-            // Si es veterinario, obtener solo sus historias clínicas
-            historias = historiaClinicaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
-            System.out.println("=== DEBUG: Veterinario " + username + " consultando sus historias: " + historias.size());
-        } else if (isAdmin || isRecepcionista) {
-            // Admin y Recepcionista ven solo historias de su veterinaria
-            if (usuarioAutenticado.getVeterinaria() != null) {
-                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
-                historias = historiaClinicaService.findByVeterinariaId(veterinariaId);
-                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
-                    " consultando historias de veterinaria ID " + veterinariaId + ": " + historias.size() + " historias");
-            } else {
-                // Si no tiene veterinaria asignada, no puede ver ninguna historia
-                historias = List.of();
-                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
-                    " sin veterinaria asignada, no puede ver historias");
+        try {
+            // Obtener el usuario autenticado
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            
+            Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
+            if (!usuarioAutenticadoOpt.isPresent()) {
+                return ResponseEntity.ok(List.of());
             }
-        } else {
-            historias = List.of();
+            
+            Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+            
+            // Verificar roles
+            boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean isVeterinario = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isCliente = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+            
+            List<HistoriaClinica> historias;
+            
+            if (isCliente) {
+                // Si es cliente, obtener historias de sus mascotas
+                historias = historiaClinicaService.findByPropietarioDocumento(usuarioAutenticado.getDocumento());
+                System.out.println("=== DEBUG: Cliente " + username + " consultando historias de sus mascotas: " + historias.size());
+            } else if (isVeterinario) {
+                // Si es veterinario, obtener solo sus historias clínicas
+                historias = historiaClinicaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
+                System.out.println("=== DEBUG: Veterinario " + username + " consultando sus historias: " + historias.size());
+            } else if (isAdmin || isRecepcionista) {
+                // Admin y Recepcionista ven solo historias de su veterinaria
+                System.out.println("=== DEBUG HISTORIAS: Usuario " + username + " tiene veterinaria? " + (usuarioAutenticado.getVeterinaria() != null));
+                
+                if (usuarioAutenticado.getVeterinaria() != null) {
+                    Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                    System.out.println("=== DEBUG HISTORIAS: Buscando historias para veterinaria ID: " + veterinariaId);
+                    System.out.println("=== DEBUG HISTORIAS: Nombre veterinaria: " + usuarioAutenticado.getVeterinaria().getNombre());
+                    
+                    historias = historiaClinicaService.findByVeterinariaId(veterinariaId);
+                    
+                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                        " consultando historias de veterinaria ID " + veterinariaId + ": " + historias.size() + " historias");
+                    
+                    // Debug: mostrar detalles de cada historia
+                    for (HistoriaClinica h : historias) {
+                        System.out.println("  - Historia ID " + h.getId() + 
+                                         ", Mascota: " + (h.getMascota() != null ? h.getMascota().getNombre() : "null") +
+                                         ", Veterinario: " + (h.getVeterinario() != null ? h.getVeterinario().getNombres() : "null"));
+                    }
+                } else {
+                    // Si no tiene veterinaria asignada, no puede ver ninguna historia
+                    historias = List.of();
+                    System.out.println("=== DEBUG ALERTA HISTORIAS: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                        " sin veterinaria asignada! Documento: " + usuarioAutenticado.getDocumento());
+                }
+            } else {
+                historias = List.of();
+            }
+            
+            List<HistoriaClinicaResponse> response = historias.stream()
+                    .map(HistoriaClinicaResponse::new)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener historias clínicas: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of()); // Devolver lista vacía en lugar de error 500
         }
-        
-        List<HistoriaClinicaResponse> response = historias.stream()
-                .map(HistoriaClinicaResponse::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/pageable")

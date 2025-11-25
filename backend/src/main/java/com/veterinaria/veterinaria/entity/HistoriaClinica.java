@@ -62,7 +62,7 @@ public class HistoriaClinica {
     private Usuario veterinario;
     
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cita_id")
+    @JoinColumn(name = "cita_id", unique = true)
     private Cita cita;
     
     // Constructores

@@ -155,4 +155,14 @@ export interface JwtResponse {
   username: string;
   email: string;
   roles: string[];
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string;
+  direccion?: string;
+  veterinaria?: {
+    id: number;
+    nombre: string;
+    telefono?: string;
+    direccion?: string;
+  };
 }

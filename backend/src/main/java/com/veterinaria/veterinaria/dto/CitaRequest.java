@@ -1,7 +1,7 @@
 package com.veterinaria.veterinaria.dto;
 
+import com.veterinaria.veterinaria.entity.Cita.EstadoCita;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 
 public class CitaRequest {
@@ -9,24 +9,30 @@ public class CitaRequest {
     @NotNull(message = "La fecha y hora son obligatorias")
     private LocalDateTime fechaHora;
     
-    @NotBlank(message = "El motivo es obligatorio")
     private String motivo;
     
     @NotNull(message = "El ID de la mascota es obligatorio")
     private Long mascotaId;
     
-    @NotBlank(message = "El documento del veterinario es obligatorio")
+    @NotNull(message = "El documento del cliente es obligatorio")
+    private String clienteDocumento;
+    
     private String veterinarioDocumento;
     
+    private Long veterinariaId;
+    
     private String observaciones;
+    
+    private EstadoCita estado;
     
     // Constructores
     public CitaRequest() {}
     
-    public CitaRequest(LocalDateTime fechaHora, String motivo, Long mascotaId, String veterinarioDocumento) {
+    public CitaRequest(LocalDateTime fechaHora, String motivo, Long mascotaId, String clienteDocumento, String veterinarioDocumento) {
         this.fechaHora = fechaHora;
         this.motivo = motivo;
         this.mascotaId = mascotaId;
+        this.clienteDocumento = clienteDocumento;
         this.veterinarioDocumento = veterinarioDocumento;
     }
     
@@ -55,6 +61,14 @@ public class CitaRequest {
         this.mascotaId = mascotaId;
     }
     
+    public String getClienteDocumento() {
+        return clienteDocumento;
+    }
+    
+    public void setClienteDocumento(String clienteDocumento) {
+        this.clienteDocumento = clienteDocumento;
+    }
+    
     public String getVeterinarioDocumento() {
         return veterinarioDocumento;
     }
@@ -63,11 +77,27 @@ public class CitaRequest {
         this.veterinarioDocumento = veterinarioDocumento;
     }
     
+    public Long getVeterinariaId() {
+        return veterinariaId;
+    }
+    
+    public void setVeterinariaId(Long veterinariaId) {
+        this.veterinariaId = veterinariaId;
+    }
+    
     public String getObservaciones() {
         return observaciones;
     }
     
     public void setObservaciones(String observaciones) {
         this.observaciones = observaciones;
+    }
+    
+    public EstadoCita getEstado() {
+        return estado;
+    }
+    
+    public void setEstado(EstadoCita estado) {
+        this.estado = estado;
     }
 }

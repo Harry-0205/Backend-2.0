@@ -376,17 +376,10 @@ const HistoriaClinicaManagement: React.FC = () => {
         frecuenciaRespiratoria: formData.frecuenciaRespiratoria ? parseInt(formData.frecuenciaRespiratoria) : null,
         observaciones: formData.observaciones || null,
         recomendaciones: formData.recomendaciones || null,
-        proximaCita: formData.proximaCita ? new Date(formData.proximaCita + ':00.000').toISOString() : null,
-        mascota: {
-          id: parseInt(formData.mascotaId)
-        },
-        veterinario: {
-          documento: formData.veterinarioId
-        },
+        mascotaId: parseInt(formData.mascotaId),
+        veterinarioDocumento: formData.veterinarioId,
         ...(formData.citaId && {
-          cita: {
-            id: parseInt(formData.citaId)
-          }
+          citaId: parseInt(formData.citaId)
         })
       };
       
@@ -416,26 +409,20 @@ const HistoriaClinicaManagement: React.FC = () => {
               setSuccess('Historia clínica creada. No se pudo crear la próxima cita: falta información del propietario');
             } else {
               console.log('Creando cita con datos:', {
-                fechaHora: formData.proximaCita + ':00.000',
-                propietarioDocumento,
-                mascotaId: formData.mascotaId,
-                veterinarioId: formData.veterinarioId
+                fechaHora: formData.proximaCita + ':00',
+                clienteDocumento: propietarioDocumento,
+                mascotaId: parseInt(formData.mascotaId),
+                veterinarioDocumento: formData.veterinarioId
               });
               
               const citaData: any = {
-                fechaHora: formData.proximaCita + ':00.000',
+                fechaHora: formData.proximaCita + ':00',
                 motivo: 'Seguimiento - Próxima consulta',
                 observaciones: formData.recomendaciones || 'Cita de seguimiento',
                 estado: EstadoCita.PROGRAMADA,
-                cliente: {
-                  documento: propietarioDocumento
-                },
-                mascota: {
-                  id: parseInt(formData.mascotaId)
-                },
-                veterinario: {
-                  documento: formData.veterinarioId
-                }
+                clienteDocumento: propietarioDocumento,
+                mascotaId: parseInt(formData.mascotaId),
+                veterinarioDocumento: formData.veterinarioId
               };
               
               await citaService.createCita(citaData);

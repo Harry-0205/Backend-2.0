@@ -37,6 +37,10 @@ public class HistoriaClinicaService {
         return historiaClinicaRepository.findByVeterinarioDocumentoWithRelations(veterinarioDocumento);
     }
     
+    public List<HistoriaClinica> findByPropietarioDocumento(String propietarioDocumento) {
+        return historiaClinicaRepository.findByPropietarioDocumento(propietarioDocumento);
+    }
+    
     public List<HistoriaClinica> findByFechaConsultaBetween(LocalDateTime inicio, LocalDateTime fin) {
         return historiaClinicaRepository.findByFechaConsultaBetween(inicio, fin);
     }
