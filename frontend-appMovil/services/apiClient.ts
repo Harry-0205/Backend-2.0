@@ -81,6 +81,10 @@ class ApiClient {
     return this.axiosInstance.put<T>(url, data, config);
   }
 
+  public patch<T = any>(url: string, data?: any, config?: any) {
+    return this.axiosInstance.patch<T>(url, data, config);
+  }
+
   public delete<T = any>(url: string, config?: any) {
     return this.axiosInstance.delete<T>(url, config);
   }
