@@ -27,7 +27,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator id="main" screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Login">
             {props => <LoginScreen {...props} onLoginSuccess={() => setIsAuthenticated(true)} />}

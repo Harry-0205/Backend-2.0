@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import apiClient from '../services/apiClient';
+import authService from '../services/authService';
 
 export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   const [mascotas, setMascotas] = useState<any[]>([]);
@@ -19,6 +20,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingMascota, setEditingMascota] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     nombre: '',
     especie: '',
@@ -32,17 +34,46 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   });
 
   useEffect(() => {
+    loadCurrentUser();
     loadMascotas();
     loadPropietarios();
   }, []);
 
+  const loadCurrentUser = async () => {
+    const user = await authService.getCurrentUser();
+    setCurrentUser(user);
+  };
+
+  const isCliente = () => {
+    return currentUser?.roles?.includes('ROLE_CLIENTE') || currentUser?.roles?.includes('CLIENTE');
+  };
+
   const loadMascotas = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/mascotas');
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        console.error('❌ No hay usuario autenticado');
+        setLoading(false);
+        return;
+      }
+
+      const roles = user.roles || [];
+      const esCliente = roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE');
+      
+      let response;
+      if (esCliente && user.documento) {
+        console.log('🐾 Cliente: Cargando mascotas del propietario:', user.documento);
+        response = await apiClient.get(`/mascotas/propietario/${user.documento}`);
+      } else {
+        console.log('🐾 Cargando todas las mascotas');
+        response = await apiClient.get('/mascotas');
+      }
+      
       setMascotas(Array.isArray(response.data) ? response.data : []);
+      console.log('✅ Mascotas cargadas:', response.data?.length || 0);
     } catch (error) {
-      console.error('Error al cargar mascotas:', error);
+      console.error('❌ Error al cargar mascotas:', error);
       Alert.alert('Error', 'No se pudieron cargar las mascotas');
     } finally {
       setLoading(false);
@@ -51,6 +82,28 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
 
   const loadPropietarios = async () => {
     try {
+      const user = await authService.getCurrentUser();
+      if (!user) return;
+
+      const roles = user.roles || [];
+      const esCliente = roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE');
+
+      if (esCliente) {
+        // Si es cliente, solo mostrar al usuario actual como propietario
+        const clienteData = {
+          documento: user.documento || '',
+          username: user.username || '',
+          email: user.email || '',
+          nombres: user.nombres || 'Mi',
+          apellidos: user.apellidos || 'Perfil',
+          roles: ['CLIENTE']
+        };
+        setPropietarios([clienteData]);
+        console.log('👤 Cliente: Usuario actual como propietario');
+        return;
+      }
+
+      // Para admin/recepcionista, cargar todos los usuarios
       const response = await apiClient.get('/usuarios');
       const usuariosData = response.data?.data || response.data;
       const clientes = Array.isArray(usuariosData)
@@ -60,8 +113,26 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
           )
         : [];
       setPropietarios(clientes);
+      console.log('👥 Propietarios cargados:', clientes.length);
     } catch (error) {
-      console.error('Error al cargar propietarios:', error);
+      console.error('❌ Error al cargar propietarios:', error);
+      // Si hay error y es cliente, al menos mostrar usuario actual
+      const user = await authService.getCurrentUser();
+      if (user) {
+        const roles = user.roles || [];
+        const esCliente = roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE');
+        if (esCliente) {
+          const clienteData = {
+            documento: user.documento || '',
+            username: user.username || '',
+            email: user.email || '',
+            nombres: user.nombres || 'Mi',
+            apellidos: user.apellidos || 'Perfil',
+            roles: ['CLIENTE']
+          };
+          setPropietarios([clienteData]);
+        }
+      }
     }
   };
 
@@ -202,20 +273,30 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
           <View key={mascota.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{mascota.nombre}</Text>
+              <Text style={styles.cardSubtitle}>
+                {mascota.especie} • {mascota.sexo === 'Macho' ? '♂' : mascota.sexo === 'Hembra' ? '♀' : ''}
+              </Text>
+            </View>
+            <Text style={styles.cardText}>🐾 Raza: {mascota.raza || 'No especificada'}</Text>
+            <Text style={styles.cardText}>⚖️ Peso: {mascota.peso ? `${mascota.peso} kg` : 'N/A'}</Text>
+            <Text style={styles.cardText}>🎨 Color: {mascota.color || 'N/A'}</Text>
+            {mascota.fechaNacimiento && (
+              <Text style={styles.cardText}>
+                🎂 Nacimiento: {new Date(mascota.fechaNacimiento).toLocaleDateString('es-ES')}
+              </Text>
+            )}
+            <Text style={styles.cardText}>
+              👤 Propietario: {mascota.propietario?.nombres || 'N/A'} {mascota.propietario?.apellidos || ''}
+            </Text>
+            {mascota.observaciones && (
+              <Text style={styles.cardText}>📝 {mascota.observaciones}</Text>
+            )}
+            
             <View style={styles.cardActions}>
-              <TouchableOpacity onPress={() => handleEdit(mascota)} style={styles.editBtn}>
-                <Text style={styles.actionText}>✏️</Text>
+              <TouchableOpacity onPress={() => handleEdit(mascota)} style={[styles.editBtn, { flex: 1 }]}>
+                <Text style={styles.actionText}>✏️ Editar</Text>
               </TouchableOpacity>
             </View>
-            </View>
-            <Text style={styles.cardText}>Especie: {mascota.especie}</Text>
-            <Text style={styles.cardText}>Raza: {mascota.raza || 'No especificada'}</Text>
-            <Text style={styles.cardText}>Sexo: {mascota.sexo || 'No especificado'}</Text>
-            <Text style={styles.cardText}>Peso: {mascota.peso ? `${mascota.peso} kg` : 'N/A'}</Text>
-            <Text style={styles.cardText}>Color: {mascota.color || 'N/A'}</Text>
-            <Text style={styles.cardText}>
-              Propietario: {mascota.propietario?.nombres || 'N/A'} {mascota.propietario?.apellidos || ''}
-            </Text>
           </View>
         ))}
       </ScrollView>
@@ -390,16 +471,31 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 10,
   },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', flex: 1 },
-  cardActions: { flexDirection: 'row', gap: 10 },
-  editBtn: { padding: 8 },
-  deleteBtn: { padding: 8 },
-  actionText: { fontSize: 18 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 },
+  cardSubtitle: { fontSize: 14, color: '#667eea', fontWeight: '600' },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  editBtn: {
+    backgroundColor: '#f59e0b',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteBtn: {
+    backgroundColor: '#ef4444',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   cardText: { fontSize: 14, color: '#6b7280', marginBottom: 5 },
   modalContainer: {
     flex: 1,

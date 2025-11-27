@@ -63,7 +63,7 @@ const VeterinariaManagement: React.FC = () => {
       } else {
         console.warn('⚠️ No se encontraron veterinarias en la respuesta');
         setVeterinarias([]);
-        setError('No se encontraron veterinarias. Verifica que existan datos en la base de datos.');
+        setError('No tienes una veterinaria asignada. Por favor, ve a "Mi Perfil" y selecciona tu veterinaria para poder gestionar esta sección.');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las veterinarias';
@@ -73,7 +73,13 @@ const VeterinariaManagement: React.FC = () => {
         statusText: error.response?.statusText,
         data: error.response?.data
       });
-      setError(errorMessage);
+      
+      // Mensaje personalizado si no tiene veterinaria asignada
+      if (error.response?.status === 403) {
+        setError('⚠️ No tienes una veterinaria asignada. Por favor, ve a "Mi Perfil" y asigna tu veterinaria para poder gestionar esta sección.');
+      } else {
+        setError(errorMessage);
+      }
       setVeterinarias([]);
     } finally {
       setLoading(false);
@@ -232,14 +238,16 @@ const VeterinariaManagement: React.FC = () => {
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h4 className="mb-0">Gestión de Veterinarias</h4>
-              <Button
-                variant="primary"
-                onClick={() => handleShowModal('create')}
-                disabled={loading}
-              >
-                <i className="fas fa-plus me-2"></i>
-                Nueva Veterinaria
-              </Button>
+              {veterinarias.length > 0 && (
+                <Button
+                  variant="primary"
+                  onClick={() => handleShowModal('create')}
+                  disabled={loading}
+                >
+                  <i className="fas fa-plus me-2"></i>
+                  Nueva Veterinaria
+                </Button>
+              )}
             </Card.Header>
             
             <Card.Body>
@@ -284,21 +292,31 @@ const VeterinariaManagement: React.FC = () => {
               ) : filteredVeterinarias.length === 0 ? (
                 <div className="text-center py-5">
                   <i className="fas fa-hospital fa-3x text-muted mb-3"></i>
-                  <h5 className="text-muted">No se encontraron veterinarias</h5>
+                  <h5 className="text-muted">
+                    {error ? 'Sin acceso a veterinarias' : 'No se encontraron veterinarias'}
+                  </h5>
                   <p className="text-muted">
-                    {veterinarias.length === 0 
-                      ? 'No hay veterinarias registradas en el sistema' 
-                      : 'No hay veterinarias que coincidan con los filtros aplicados'}
+                    {error 
+                      ? error
+                      : veterinarias.length === 0 
+                        ? 'No tienes veterinarias asignadas para gestionar' 
+                        : 'No hay veterinarias que coincidan con los filtros aplicados'}
                   </p>
-                  {veterinarias.length === 0 && (
-                    <Button 
-                      variant="primary" 
-                      onClick={() => handleShowModal('create')}
-                      className="mt-2"
-                    >
-                      <i className="fas fa-plus me-2"></i>
-                      Crear primera veterinaria
-                    </Button>
+                  {!error && veterinarias.length === 0 && (
+                    <Alert variant="info" className="mt-3 mx-auto" style={{ maxWidth: '600px' }}>
+                      <i className="fas fa-info-circle me-2"></i>
+                      <strong>Configuración requerida:</strong> Para gestionar veterinarias, primero debes asignarte una desde tu perfil.
+                      <br />
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => window.location.href = '/dashboard'}
+                      >
+                        <i className="fas fa-user me-2"></i>
+                        Ir a Mi Perfil
+                      </Button>
+                    </Alert>
                   )}
                 </div>
               ) : (

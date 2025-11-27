@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Modal,
   SafeAreaView,
+  Animated,
 } from 'react-native';
 import authService from '../services/authService';
 import apiClient from '../services/apiClient';
@@ -32,30 +33,141 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
+  const slideAnim = useState(new Animated.Value(-280))[0]; // Inicia fuera de pantalla a la izquierda
 
   useEffect(() => {
     loadUser();
     loadStats();
   }, []);
 
+  useEffect(() => {
+    if (showMenu) {
+      // Deslizar hacia la derecha (mostrar menú)
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      // Deslizar hacia la izquierda (ocultar menú)
+      Animated.timing(slideAnim, {
+        toValue: -280,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showMenu]);
+
   const loadUser = async () => {
     const user = await authService.getCurrentUser();
     setCurrentUser(user);
+    console.log('👤 Usuario actual:', user);
+    console.log('🔐 Roles:', user?.roles);
+  };
+
+  const getUserRole = () => {
+    if (!currentUser?.roles) return null;
+    const roles = currentUser.roles;
+    if (roles.includes('ROLE_ADMIN') || roles.includes('ADMIN')) return 'ADMIN';
+    if (roles.includes('ROLE_VETERINARIO') || roles.includes('VETERINARIO')) return 'VETERINARIO';
+    if (roles.includes('ROLE_RECEPCIONISTA') || roles.includes('RECEPCIONISTA')) return 'RECEPCIONISTA';
+    if (roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE')) return 'CLIENTE';
+    return null;
+  };
+
+  const getRoleLabel = () => {
+    const role = getUserRole();
+    switch (role) {
+      case 'ADMIN': return 'Administrador';
+      case 'VETERINARIO': return 'Veterinario';
+      case 'RECEPCIONISTA': return 'Recepcionista';
+      case 'CLIENTE': return 'Cliente';
+      default: return 'Usuario';
+    }
+  };
+
+  const canAccessUsuarios = () => {
+    const role = getUserRole();
+    return role === 'ADMIN';
+  };
+
+  const canManageCitas = () => {
+    const role = getUserRole();
+    return role === 'ADMIN' || role === 'RECEPCIONISTA' || role === 'VETERINARIO';
+  };
+
+  const canManageHistorias = () => {
+    const role = getUserRole();
+    return role === 'ADMIN' || role === 'VETERINARIO';
+  };
+
+  const canManageMascotas = () => {
+    const role = getUserRole();
+    return role === 'ADMIN' || role === 'CLIENTE';
   };
 
   const loadStats = async () => {
     setLoading(true);
     try {
-      const [mascotasRes, citasRes, usuariosRes, historiasRes] = await Promise.all([
-        apiClient.get('/mascotas'),
-        apiClient.get('/citas'),
-        apiClient.get('/usuarios'),
-        apiClient.get('/historias-clinicas'),
-      ]);
+      // Obtener el usuario actual directamente para evitar problemas de sincronización
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        console.error('❌ No hay usuario autenticado');
+        setLoading(false);
+        return;
+      }
+
+      const roles = user.roles || [];
+      let role = null;
+      if (roles.includes('ROLE_ADMIN') || roles.includes('ADMIN')) role = 'ADMIN';
+      else if (roles.includes('ROLE_VETERINARIO') || roles.includes('VETERINARIO')) role = 'VETERINARIO';
+      else if (roles.includes('ROLE_RECEPCIONISTA') || roles.includes('RECEPCIONISTA')) role = 'RECEPCIONISTA';
+      else if (roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE')) role = 'CLIENTE';
+
+      console.log('👤 Usuario en loadStats:', user.username);
+      console.log('🔐 Rol detectado:', role);
+      
+      // Cargar solo las estadísticas permitidas según el rol
+      const promises: Promise<any>[] = [];
+      
+      // Mascotas - ADMIN y CLIENTE
+      if (role === 'ADMIN') {
+        console.log('📊 Admin: Cargando todas las mascotas');
+        promises.push(apiClient.get('/mascotas'));
+      } else if (role === 'CLIENTE' && user.documento) {
+        console.log('📊 Cliente: Cargando mascotas del propietario:', user.documento);
+        promises.push(apiClient.get(`/mascotas/propietario/${user.documento}`));
+      } else {
+        console.log('📊 No carga mascotas para este rol:', role);
+        promises.push(Promise.resolve({ data: [] }));
+      }
+      
+      // Citas - Todos
+      console.log('📊 Cargando citas');
+      promises.push(apiClient.get('/citas'));
+      
+      // Usuarios - Solo ADMIN
+      if (role === 'ADMIN') {
+        console.log('📊 Admin: Cargando usuarios');
+        promises.push(apiClient.get('/usuarios'));
+      } else {
+        promises.push(Promise.resolve({ data: { data: [] } }));
+      }
+      
+      // Historias Clínicas - ADMIN, VETERINARIO, CLIENTE
+      if (role === 'ADMIN' || role === 'VETERINARIO' || role === 'CLIENTE') {
+        console.log('📊 Cargando historias clínicas');
+        promises.push(apiClient.get('/historias-clinicas'));
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+      }
+
+      const [mascotasRes, citasRes, usuariosRes, historiasRes] = await Promise.all(promises);
 
       const citas = citasRes.data;
       const citasPendientes = Array.isArray(citas)
-        ? citas.filter((c: any) => c.estado === 'PROGRAMADA').length
+        ? citas.filter((c: any) => c.estado === 'PROGRAMADA' || c.estado === 'CONFIRMADA').length
         : 0;
 
       // Extraer data de ApiResponse wrapper para usuarios
@@ -68,8 +180,14 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
         totalUsuarios: Array.isArray(usuariosData) ? usuariosData.length : 0,
         totalHistorias: Array.isArray(historiasRes.data) ? historiasRes.data.length : 0,
       });
+      
+      console.log('✅ Estadísticas cargadas:', {
+        mascotas: mascotasRes.data?.length || 0,
+        citas: citasRes.data?.length || 0,
+        historias: historiasRes.data?.length || 0
+      });
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
+      console.error('❌ Error al cargar estadísticas:', error);
     } finally {
       setLoading(false);
     }
@@ -112,13 +230,13 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{getGreeting()}, {currentUser?.nombres}!</Text>
-          <Text style={styles.role}>Administrador</Text>
-        </View>
         <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuButton}>
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.greeting}>{getGreeting()}, {currentUser?.nombres}!</Text>
+          <Text style={styles.role}>{getRoleLabel()}</Text>
+        </View>
       </View>
 
       {/* Content */}
@@ -128,49 +246,114 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
       >
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, styles.greenCard]}>
-            <Text style={styles.statIcon}>🐾</Text>
-            <Text style={styles.statLabel}>Mis Mascotas</Text>
-            <Text style={styles.statValue}>{stats.totalMascotas}</Text>
-          </View>
+          {/* Mascotas - ADMIN y CLIENTE */}
+          {(getUserRole() === 'ADMIN' || getUserRole() === 'CLIENTE') && (
+            <View style={[styles.statCard, styles.greenCard]}>
+              <Text style={styles.statIcon}>🐾</Text>
+              <Text style={styles.statLabel}>
+                {getUserRole() === 'CLIENTE' ? 'Mis Mascotas' : 'Total Mascotas'}
+              </Text>
+              <Text style={styles.statValue}>{stats.totalMascotas}</Text>
+            </View>
+          )}
 
-          <View style={[styles.statCard, styles.orangeCard]}>
-            <Text style={styles.statIcon}>📅</Text>
-            <Text style={styles.statLabel}>Total de Citas</Text>
-            <Text style={styles.statValue}>{stats.totalCitas}</Text>
-          </View>
+          {/* Citas - Todos excepto CLIENTE */}
+          {getUserRole() !== 'CLIENTE' && (
+            <View style={[styles.statCard, styles.orangeCard]}>
+              <Text style={styles.statIcon}>📅</Text>
+              <Text style={styles.statLabel}>Total de Citas</Text>
+              <Text style={styles.statValue}>{stats.totalCitas}</Text>
+            </View>
+          )}
 
+          {/* Mis Citas - Solo CLIENTE */}
+          {getUserRole() === 'CLIENTE' && (
+            <View style={[styles.statCard, styles.orangeCard]}>
+              <Text style={styles.statIcon}>📅</Text>
+              <Text style={styles.statLabel}>Mis Citas</Text>
+              <Text style={styles.statValue}>{stats.totalCitas}</Text>
+            </View>
+          )}
+
+          {/* Citas Pendientes - Todos */}
           <View style={[styles.statCard, styles.redCard]}>
-            <Text style={styles.statIcon}>📋</Text>
-            <Text style={styles.statLabel}>Citas Pendientes</Text>
+            <Text style={styles.statIcon}>⏰</Text>
+            <Text style={styles.statLabel}>
+              {getUserRole() === 'CLIENTE' ? 'Citas Pendientes' : 'Citas Programadas'}
+            </Text>
             <Text style={styles.statValue}>{stats.citasPendientes}</Text>
           </View>
 
-          <View style={[styles.statCard, styles.purpleCard]}>
-            <Text style={styles.statIcon}>📋</Text>
-            <Text style={styles.statLabel}>Historias Clínicas</Text>
-            <Text style={styles.statValue}>{stats.totalHistorias}</Text>
-          </View>
+          {/* Historias Clínicas - ADMIN, VETERINARIO, CLIENTE */}
+          {(getUserRole() === 'ADMIN' || getUserRole() === 'VETERINARIO' || getUserRole() === 'CLIENTE') && (
+            <View style={[styles.statCard, styles.purpleCard]}>
+              <Text style={styles.statIcon}>📋</Text>
+              <Text style={styles.statLabel}>
+                {getUserRole() === 'CLIENTE' ? 'Mis Historias' : 'Historias Clínicas'}
+              </Text>
+              <Text style={styles.statValue}>{stats.totalHistorias}</Text>
+            </View>
+          )}
+
+          {/* Usuarios - Solo ADMIN */}
+          {getUserRole() === 'ADMIN' && (
+            <View style={[styles.statCard, styles.blueCard]}>
+              <Text style={styles.statIcon}>👥</Text>
+              <Text style={styles.statLabel}>Total Usuarios</Text>
+              <Text style={styles.statValue}>{stats.totalUsuarios}</Text>
+            </View>
+          )}
         </View>
 
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
         <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('citas')}>
-            <Text style={styles.actionIcon}>➕</Text>
-            <Text style={styles.actionText}>Nueva Cita</Text>
-          </TouchableOpacity>
+          {/* Nueva Cita - ADMIN, RECEPCIONISTA, VETERINARIO, CLIENTE */}
+          {canManageCitas() && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('citas')}>
+              <Text style={styles.actionIcon}>➕</Text>
+              <Text style={styles.actionText}>
+                {getUserRole() === 'CLIENTE' ? 'Agendar Cita' : 'Nueva Cita'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('mascotas')}>
-            <Text style={styles.actionIcon}>📝</Text>
-            <Text style={styles.actionText}>Nueva Mascota</Text>
-          </TouchableOpacity>
+          {getUserRole() === 'CLIENTE' && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('citas')}>
+              <Text style={styles.actionIcon}>📅</Text>
+              <Text style={styles.actionText}>Ver Mis Citas</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('historias')}>
-            <Text style={styles.actionIcon}>🩺</Text>
-            <Text style={styles.actionText}>Nueva Historia</Text>
-          </TouchableOpacity>
+          {/* Nueva Mascota - ADMIN, CLIENTE */}
+          {canManageMascotas() && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('mascotas')}>
+              <Text style={styles.actionIcon}>
+                {getUserRole() === 'CLIENTE' ? '➕' : '📝'}
+              </Text>
+              <Text style={styles.actionText}>
+                {getUserRole() === 'CLIENTE' ? 'Registrar Mascota' : 'Nueva Mascota'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
+          {/* Nueva Historia - ADMIN, VETERINARIO */}
+          {canManageHistorias() && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('historias')}>
+              <Text style={styles.actionIcon}>🩺</Text>
+              <Text style={styles.actionText}>Nueva Historia</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Ver Historias - CLIENTE */}
+          {getUserRole() === 'CLIENTE' && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigateTo('historias')}>
+              <Text style={styles.actionIcon}>📋</Text>
+              <Text style={styles.actionText}>Mis Historias</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Actualizar - Todos */}
           <TouchableOpacity style={styles.actionButton} onPress={loadStats}>
             <Text style={styles.actionIcon}>🔄</Text>
             <Text style={styles.actionText}>Actualizar</Text>
@@ -182,7 +365,7 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
       <Modal
         visible={showMenu}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowMenu(false)}
       >
         <View style={styles.drawerContainer}>
@@ -191,7 +374,14 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
             activeOpacity={1}
             onPress={() => setShowMenu(false)}
           />
-          <View style={styles.drawerMenu}>
+          <Animated.View 
+            style={[
+              styles.drawerMenu,
+              {
+                transform: [{ translateX: slideAnim }]
+              }
+            ]}
+          >
             <View style={styles.menuHeader}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
@@ -210,32 +400,50 @@ export default function DashboardScreen({ onLogout }: DashboardScreenProps) {
                 <Text style={styles.menuItemText}>Dashboard</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('mascotas')}>
-                <Text style={styles.menuItemIcon}>🐾</Text>
-                <Text style={styles.menuItemText}>Mascotas</Text>
-              </TouchableOpacity>
+              {/* Mascotas - ADMIN, CLIENTE */}
+              {canManageMascotas() && (
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('mascotas')}>
+                  <Text style={styles.menuItemIcon}>🐾</Text>
+                  <Text style={styles.menuItemText}>
+                    {getUserRole() === 'CLIENTE' ? 'Mis Mascotas' : 'Mascotas'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('citas')}>
-                <Text style={styles.menuItemIcon}>📅</Text>
-                <Text style={styles.menuItemText}>Citas</Text>
-              </TouchableOpacity>
+              {/* Citas - ADMIN, VETERINARIO, RECEPCIONISTA, CLIENTE */}
+              {canManageCitas() && (
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('citas')}>
+                  <Text style={styles.menuItemIcon}>📅</Text>
+                  <Text style={styles.menuItemText}>
+                    {getUserRole() === 'CLIENTE' ? 'Mis Citas' : 'Citas'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('historias')}>
-                <Text style={styles.menuItemIcon}>📋</Text>
-                <Text style={styles.menuItemText}>Historias Clínicas</Text>
-              </TouchableOpacity>
+              {/* Historias Clínicas - ADMIN, VETERINARIO, CLIENTE */}
+              {(getUserRole() === 'ADMIN' || getUserRole() === 'VETERINARIO' || getUserRole() === 'CLIENTE') && (
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('historias')}>
+                  <Text style={styles.menuItemIcon}>📋</Text>
+                  <Text style={styles.menuItemText}>
+                    {getUserRole() === 'CLIENTE' ? 'Mis Historias' : 'Historias Clínicas'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('usuarios')}>
-                <Text style={styles.menuItemIcon}>👥</Text>
-                <Text style={styles.menuItemText}>Usuarios</Text>
-              </TouchableOpacity>
+              {/* Usuarios - Solo ADMIN */}
+              {canAccessUsuarios() && (
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('usuarios')}>
+                  <Text style={styles.menuItemIcon}>👥</Text>
+                  <Text style={styles.menuItemText}>Usuarios</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Cerrar Sesión</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -252,18 +460,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 40,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  greeting: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  role: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 2,
+    gap: 15,
   },
   menuButton: {
     width: 45,
@@ -276,6 +474,19 @@ const styles = StyleSheet.create({
   menuIcon: {
     fontSize: 24,
     color: '#fff',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  role: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
   },
   content: {
     padding: 20,
@@ -302,6 +513,7 @@ const styles = StyleSheet.create({
   orangeCard: { borderLeftColor: '#f59e0b' },
   redCard: { borderLeftColor: '#ef4444' },
   purpleCard: { borderLeftColor: '#8b5cf6' },
+  blueCard: { borderLeftColor: '#3b82f6' },
   statIcon: {
     fontSize: 36,
     marginBottom: 10,
@@ -356,13 +568,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   drawerMenu: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     width: 280,
     backgroundColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: -2, height: 0 },
+    shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    elevation: 10,
+    elevation: 16,
   },
   menuHeader: {
     backgroundColor: '#667eea',

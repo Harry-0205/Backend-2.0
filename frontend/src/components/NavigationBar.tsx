@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Modal, Row, Col, Card } from 'react-bootstrap';
+import { Container, Modal, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import veterinariaService from '../services/veterinariaService';
+import userService from '../services/userService';
 
 const NavigationBar: React.FC = () => {
   const navigate = useNavigate();
@@ -9,6 +11,21 @@ const NavigationBar: React.FC = () => {
   const isAuthenticated = authService.isAuthenticated();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showCreateVeterinariaForm, setShowCreateVeterinariaForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  const [veterinariaForm, setVeterinariaForm] = useState({
+    nombre: '',
+    direccion: '',
+    telefono: '',
+    email: '',
+    ciudad: '',
+    descripcion: '',
+    servicios: '',
+    horarioAtencion: ''
+  });
 
   const handleLogout = () => {
     authService.logout();
@@ -27,6 +44,96 @@ const NavigationBar: React.FC = () => {
   
   const handleCloseProfile = () => {
     setShowProfileModal(false);
+    setShowCreateVeterinariaForm(false);
+    setError('');
+    setSuccess('');
+    setVeterinariaForm({
+      nombre: '',
+      direccion: '',
+      telefono: '',
+      email: '',
+      ciudad: '',
+      descripcion: '',
+      servicios: '',
+      horarioAtencion: ''
+    });
+  };
+
+  const handleVeterinariaInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setVeterinariaForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleCreateVeterinaria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!veterinariaForm.nombre || !veterinariaForm.telefono) {
+      setError('El nombre y teléfono son obligatorios');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('🏥 Creando veterinaria:', veterinariaForm);
+      
+      // Crear la veterinaria
+      const nuevaVeterinaria = await veterinariaService.createVeterinaria(veterinariaForm);
+      console.log('✅ Veterinaria creada:', nuevaVeterinaria);
+      
+      // Asociar el admin a la veterinaria
+      if (currentUser?.documento) {
+        console.log('👤 Asociando admin:', currentUser.documento, 'a veterinaria:', nuevaVeterinaria.id);
+        
+        // Preparar datos de actualización con los campos requeridos
+        const updateData = {
+          documento: currentUser.documento,
+          username: currentUser.username,
+          nombres: currentUser.nombres || '',
+          apellidos: currentUser.apellidos || '',
+          email: currentUser.email,
+          telefono: currentUser.telefono,
+          direccion: currentUser.direccion,
+          activo: true, // Campo requerido
+          roles: currentUser.roles,
+          veterinariaId: nuevaVeterinaria.id
+        };
+
+        console.log('📤 Datos de actualización:', updateData);
+        const usuarioActualizado = await userService.updateUsuario(currentUser.documento, updateData);
+        console.log('✅ Usuario actualizado:', usuarioActualizado);
+        
+        // Actualizar el usuario en localStorage
+        const userWithVeterinaria = {
+          ...currentUser,
+          veterinaria: {
+            id: nuevaVeterinaria.id,
+            nombre: nuevaVeterinaria.nombre,
+            telefono: nuevaVeterinaria.telefono,
+            direccion: nuevaVeterinaria.direccion
+          }
+        };
+        localStorage.setItem('user', JSON.stringify(userWithVeterinaria));
+        console.log('💾 Usuario guardado en localStorage con veterinaria');
+        
+        setSuccess('¡Veterinaria creada y asociada exitosamente!');
+        setTimeout(() => {
+          setShowCreateVeterinariaForm(false);
+          window.location.reload(); // Recargar para actualizar la UI
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('❌ Error completo:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      setError(error.response?.data?.message || error.message || 'Error al crear la veterinaria');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Cerrar dropdown cuando se hace click fuera
@@ -535,6 +642,225 @@ const NavigationBar: React.FC = () => {
                               </p>
                             </Col>
                           </Row>
+                        </div>
+                      </Col>
+                    )}
+
+                    {/* Sección para crear veterinaria (solo admin sin veterinaria) */}
+                    {authService.isAdmin() && !currentUser?.veterinaria && (
+                      <Col md={12}>
+                        <div style={{
+                          padding: '20px',
+                          background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+                          borderRadius: '12px',
+                          border: '2px solid #f59e0b',
+                          marginTop: '10px'
+                        }}>
+                          {!showCreateVeterinariaForm ? (
+                            <div style={{ textAlign: 'center' }}>
+                              <i className="fas fa-hospital" style={{ fontSize: '3rem', color: '#f59e0b', marginBottom: '15px' }}></i>
+                              <h5 style={{ color: '#92400e', fontWeight: '700', marginBottom: '10px' }}>
+                                No tienes una veterinaria asociada
+                              </h5>
+                              <p style={{ color: '#78350f', marginBottom: '20px' }}>
+                                Como administrador, puedes crear y asociarte a tu veterinaria
+                              </p>
+                              <Button
+                                variant="warning"
+                                onClick={() => setShowCreateVeterinariaForm(true)}
+                                style={{
+                                  padding: '12px 30px',
+                                  fontWeight: '600',
+                                  borderRadius: '8px'
+                                }}
+                              >
+                                <i className="fas fa-plus-circle me-2"></i>
+                                Crear Mi Veterinaria
+                              </Button>
+                            </div>
+                          ) : (
+                            <div>
+                              <h5 style={{ 
+                                color: '#92400e', 
+                                fontWeight: '700',
+                                marginBottom: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px'
+                              }}>
+                                <i className="fas fa-hospital"></i>
+                                Crear Nueva Veterinaria
+                              </h5>
+
+                              {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
+                              {success && <Alert variant="success" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+
+                              <Form onSubmit={handleCreateVeterinaria}>
+                                <Row>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-hospital me-2"></i>
+                                        Nombre <span style={{ color: '#dc2626' }}>*</span>
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="text"
+                                        name="nombre"
+                                        value={veterinariaForm.nombre}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: Veterinaria San Francisco"
+                                        required
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-phone me-2"></i>
+                                        Teléfono <span style={{ color: '#dc2626' }}>*</span>
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="tel"
+                                        name="telefono"
+                                        value={veterinariaForm.telefono}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: 3001234567"
+                                        required
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-envelope me-2"></i>
+                                        Email
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="email"
+                                        name="email"
+                                        value={veterinariaForm.email}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="contacto@veterinaria.com"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-map-marker-alt me-2"></i>
+                                        Ciudad
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="text"
+                                        name="ciudad"
+                                        value={veterinariaForm.ciudad}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: Bogotá"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={12}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-home me-2"></i>
+                                        Dirección
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="text"
+                                        name="direccion"
+                                        value={veterinariaForm.direccion}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: Calle 123 # 45-67"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={12}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-info-circle me-2"></i>
+                                        Descripción
+                                      </Form.Label>
+                                      <Form.Control
+                                        as="textarea"
+                                        rows={2}
+                                        name="descripcion"
+                                        value={veterinariaForm.descripcion}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Descripción de la veterinaria"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-concierge-bell me-2"></i>
+                                        Servicios
+                                      </Form.Label>
+                                      <Form.Control
+                                        as="textarea"
+                                        rows={2}
+                                        name="servicios"
+                                        value={veterinariaForm.servicios}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: Consulta, Vacunación, Cirugía"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                      <Form.Label style={{ fontWeight: '600', color: '#78350f' }}>
+                                        <i className="fas fa-clock me-2"></i>
+                                        Horario de Atención
+                                      </Form.Label>
+                                      <Form.Control
+                                        type="text"
+                                        name="horarioAtencion"
+                                        value={veterinariaForm.horarioAtencion}
+                                        onChange={handleVeterinariaInputChange}
+                                        placeholder="Ej: Lun-Vie 8am-6pm, Sáb 9am-1pm"
+                                        disabled={loading}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                </Row>
+
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                  <Button
+                                    variant="secondary"
+                                    onClick={() => setShowCreateVeterinariaForm(false)}
+                                    disabled={loading}
+                                  >
+                                    <i className="fas fa-times me-2"></i>
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    variant="success"
+                                    type="submit"
+                                    disabled={loading}
+                                  >
+                                    {loading ? (
+                                      <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Creando...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <i className="fas fa-save me-2"></i>
+                                        Crear Veterinaria
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </Form>
+                            </div>
+                          )}
                         </div>
                       </Col>
                     )}

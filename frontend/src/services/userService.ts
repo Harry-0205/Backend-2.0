@@ -85,6 +85,18 @@ export const getVeterinariosByVeterinaria = async (veterinariaId: number): Promi
   }
 };
 
+export const getUsuarioByDocumento = async (documento: string): Promise<Usuario> => {
+  try {
+    console.log('🚀 Obteniendo usuario por documento:', documento);
+    const res = await apiClient.get(`/usuarios/${documento}`);
+    console.log('📥 Respuesta recibida:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Error al obtener usuario por documento:', error);
+    throw error;
+  }
+};
+
 export const createUsuario = async (usuario: Usuario): Promise<Usuario> => {
   console.log('📤 Creando usuario con datos:', usuario);
   try {
@@ -100,8 +112,23 @@ export const createUsuario = async (usuario: Usuario): Promise<Usuario> => {
 };
 
 export const updateUsuario = async (documento: string, usuario: Usuario): Promise<Usuario> => {
+  console.log('📤 Actualizando usuario:', documento, usuario);
   const res = await apiClient.put(`/usuarios/${documento}`, usuario);
-  return res.data;
+  console.log('📥 Respuesta updateUsuario:', res.data);
+  
+  // El backend devuelve ApiResponse<UsuarioResponse>
+  let responseData = res.data;
+  
+  // Si es string, parsearlo
+  if (typeof responseData === 'string') {
+    responseData = JSON.parse(responseData);
+  }
+  
+  // Extraer el campo 'data' de la respuesta ApiResponse
+  const usuarioActualizado = responseData.data || responseData;
+  console.log('✅ Usuario actualizado:', usuarioActualizado);
+  
+  return usuarioActualizado;
 };
 
 export const deleteUsuario = async (documento: string): Promise<void> => {
@@ -115,3 +142,18 @@ export const deactivateUsuario = async (documento: string): Promise<void> => {
 export const activateUsuario = async (documento: string): Promise<void> => {
   await apiClient.patch(`/usuarios/${documento}/activar`);
 };
+
+// Export default object
+const userService = {
+  getAllUsuarios,
+  getVeterinarios,
+  getVeterinariosByVeterinaria,
+  getUsuarioByDocumento,
+  createUsuario,
+  updateUsuario,
+  deleteUsuario,
+  deactivateUsuario,
+  activateUsuario
+};
+
+export default userService;

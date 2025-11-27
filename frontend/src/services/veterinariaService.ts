@@ -61,8 +61,23 @@ class VeterinariaService {
 
   // Crear nueva veterinaria
   async createVeterinaria(veterinaria: VeterinariaRequest): Promise<Veterinaria> {
-    const response = await apiClient.post<Veterinaria>(this.baseURL, veterinaria);
-    return response.data;
+    const response = await apiClient.post(this.baseURL, veterinaria);
+    console.log('📥 Respuesta createVeterinaria:', response.data);
+    
+    // El backend devuelve ApiResponse<Veterinaria>
+    // Estructura: { success: boolean, message: string, data: Veterinaria, timestamp: string }
+    let responseData = response.data;
+    
+    // Si es string, parsearlo
+    if (typeof responseData === 'string') {
+      responseData = JSON.parse(responseData);
+    }
+    
+    // Extraer el campo 'data' de la respuesta ApiResponse
+    const veterinariaCreada = responseData.data || responseData;
+    console.log('✅ Veterinaria creada:', veterinariaCreada);
+    
+    return veterinariaCreada;
   }
 
   // Actualizar veterinaria

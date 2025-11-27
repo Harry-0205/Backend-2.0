@@ -1,8 +1,18 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// IP de tu computadora en la red local (encontrada con ipconfig)
-const API_BASE_URL = 'http://172.16.103.201:8080/api';
+// Leer la URL del API desde variables de entorno
+// Si no está definida, usar un valor por defecto
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.20.25:8080/api';
+const API_TIMEOUT = parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '10000', 10);
+const DEBUG_ENABLED = process.env.EXPO_PUBLIC_DEBUG === 'true';
+
+// Mostrar configuración al iniciar (solo en desarrollo)
+if (__DEV__ && DEBUG_ENABLED) {
+  console.log('🔧 Configuración de API:');
+  console.log('   URL Base:', API_BASE_URL);
+  console.log('   Timeout:', API_TIMEOUT, 'ms');
+}
 
 class ApiClient {
   private axiosInstance: AxiosInstance;
@@ -13,7 +23,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 10000,
+      timeout: API_TIMEOUT,
     });
 
     // Interceptor para agregar token
@@ -23,11 +33,15 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        console.log('📤 Request:', config.method?.toUpperCase(), config.url);
+        if (DEBUG_ENABLED) {
+          console.log('📤 Request:', config.method?.toUpperCase(), config.url);
+        }
         return config;
       },
       (error) => {
-        console.error('❌ Request Error:', error);
+        if (DEBUG_ENABLED) {
+          console.error('❌ Request Error:', error);
+        }
         return Promise.reject(error);
       }
     );
@@ -35,11 +49,15 @@ class ApiClient {
     // Interceptor para manejar respuestas
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        console.log('✅ Response:', response.status, response.config.url);
+        if (DEBUG_ENABLED) {
+          console.log('✅ Response:', response.status, response.config.url);
+        }
         return response;
       },
       async (error) => {
-        console.error('❌ Response Error:', error.response?.status, error.response?.data);
+        if (DEBUG_ENABLED) {
+          console.error('❌ Response Error:', error.response?.status, error.response?.data);
+        }
         
         if (error.response?.status === 401 || error.response?.status === 403) {
           await AsyncStorage.removeItem('token');

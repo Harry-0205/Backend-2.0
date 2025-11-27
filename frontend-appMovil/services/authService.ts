@@ -10,6 +10,7 @@ export interface LoginResponse {
   token: string;
   type: string;
   username: string;
+  documento: string;
   nombres: string;
   apellidos: string;
   email: string;
@@ -61,6 +62,26 @@ class AuthService {
   async isAdmin(): Promise<boolean> {
     const user = await this.getCurrentUser();
     return user?.roles?.includes('ROLE_ADMIN') || false;
+  }
+
+  async isVeterinario(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user?.roles?.includes('ROLE_VETERINARIO') || false;
+  }
+
+  async isRecepcionista(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user?.roles?.includes('ROLE_RECEPCIONISTA') || false;
+  }
+
+  async isCliente(): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user?.roles?.includes('ROLE_CLIENTE') || false;
+  }
+
+  async hasRole(role: string): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    return user?.roles?.includes(`ROLE_${role}`) || user?.roles?.includes(role) || false;
   }
 }
 

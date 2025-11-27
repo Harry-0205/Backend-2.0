@@ -69,11 +69,11 @@ public class VeterinariaController {
                 Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
                 if (usuarioOpt.isPresent() && usuarioOpt.get().getVeterinaria() != null) {
                     veterinarias = List.of(usuarioOpt.get().getVeterinaria());
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " consultando su veterinaria");
+                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " consultando su veterinaria: " + usuarioOpt.get().getVeterinaria().getNombre());
                 } else {
-                    // Si no tienen veterinaria asignada, pueden ver todas (para facilitar asignación)
-                    veterinarias = veterinariaService.findAll();
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " sin veterinaria, viendo todas");
+                    // Si no tienen veterinaria asignada, NO pueden ver ninguna
+                    veterinarias = new ArrayList<>();
+                    System.out.println("=== ALERTA: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + " sin veterinaria asignada - Acceso denegado a veterinarias");
                 }
             } else if (isCliente) {
                 // Cliente puede ver todas las veterinarias para agendar citas

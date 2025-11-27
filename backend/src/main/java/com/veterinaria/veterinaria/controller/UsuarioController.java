@@ -398,24 +398,32 @@ public class UsuarioController {
                     existing.setRoles(roles);
                 }
                 
-                // Actualizar veterinaria si es veterinario y se proporciona veterinariaId
+                // Actualizar veterinaria si se proporciona veterinariaId
                 if (usuarioRequest.getVeterinariaId() != null) {
-                    boolean esVeterinario = existing.getRoles().stream()
-                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
+                    // Permitir asociar veterinaria a ADMIN, RECEPCIONISTA y VETERINARIO
+                    boolean puedeAsociarVeterinaria = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_ADMIN") || 
+                                      r.getNombre().equals("ROLE_RECEPCIONISTA") || 
+                                      r.getNombre().equals("ROLE_VETERINARIO"));
                     
-                    if (esVeterinario) {
+                    if (puedeAsociarVeterinaria) {
                         Optional<Veterinaria> veterinaria = veterinariaService.findById(usuarioRequest.getVeterinariaId());
                         if (veterinaria.isPresent()) {
                             existing.setVeterinaria(veterinaria.get());
+                            System.out.println("✅ Veterinaria " + veterinaria.get().getNombre() + " asociada al usuario " + existing.getUsername());
                         } else {
-                            System.err.println("Veterinaria not found: " + usuarioRequest.getVeterinariaId());
+                            System.err.println("❌ Veterinaria not found: " + usuarioRequest.getVeterinariaId());
                         }
+                    } else {
+                        System.out.println("⚠️ El usuario no tiene un rol que permita asociar veterinaria");
                     }
                 } else if (usuarioRequest.getVeterinariaId() == null) {
-                    // Si veterinariaId es null explícitamente, limpiar la veterinaria
-                    boolean esVeterinario = existing.getRoles().stream()
-                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
-                    if (!esVeterinario) {
+                    // Si veterinariaId es null explícitamente, limpiar la veterinaria solo si NO es admin, vet o recep
+                    boolean mantenerVeterinaria = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_ADMIN") || 
+                                      r.getNombre().equals("ROLE_RECEPCIONISTA") || 
+                                      r.getNombre().equals("ROLE_VETERINARIO"));
+                    if (!mantenerVeterinaria) {
                         existing.setVeterinaria(null);
                     }
                 }

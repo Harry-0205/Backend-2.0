@@ -77,7 +77,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/veterinario/**").hasAnyRole("ADMIN", "VETERINARIO")
                 .requestMatchers("/api/recepcionista/**").hasAnyRole("ADMIN", "RECEPCIONISTA")
                 .requestMatchers("/api/cliente/**").hasAnyRole("ADMIN", "CLIENTE")
-                .requestMatchers("/api/pdf/**").hasAnyRole("ADMIN", "VETERINARIO", "CLIENTE")
+                .requestMatchers("/api/pdf/**").hasAnyRole("ADMIN", "VETERINARIO", "RECEPCIONISTA", "CLIENTE")
                 .anyRequest().authenticated()
             );
         

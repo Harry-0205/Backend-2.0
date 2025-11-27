@@ -16,6 +16,7 @@ import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../services/apiClient';
+import authService from '../services/authService';
 
 export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void }) {
   const [historias, setHistorias] = useState<any[]>([]);
@@ -27,6 +28,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
   const [downloading, setDownloading] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingHistoria, setEditingHistoria] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     fechaConsulta: '',
     motivoConsulta: '',
@@ -47,20 +49,56 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
   });
 
   useEffect(() => {
+    loadCurrentUser();
     loadHistorias();
-    loadMascotas();
-    loadVeterinarios();
-    loadPropietarios();
   }, []);
+
+  const loadCurrentUser = async () => {
+    const user = await authService.getCurrentUser();
+    setCurrentUser(user);
+    console.log('👤 Usuario actual en Historias:', user?.username);
+    console.log('🔐 Roles:', user?.roles);
+    
+    // Cargar datos según el rol
+    const roles = user?.roles || [];
+    const esCliente = roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE');
+    
+    if (!esCliente) {
+      // Solo admin, veterinario y recepcionista necesitan estas listas
+      loadMascotas();
+      loadVeterinarios();
+      loadPropietarios();
+    } else {
+      // Los clientes solo ven sus historias, cargar solo sus mascotas
+      if (user?.documento) {
+        loadMascotasCliente(user.documento);
+      }
+    }
+  };
+
+  const isCliente = () => {
+    return currentUser?.roles?.includes('ROLE_CLIENTE') || currentUser?.roles?.includes('CLIENTE');
+  };
+
+  const canCreateHistoria = () => {
+    const roles = currentUser?.roles || [];
+    return roles.includes('ROLE_ADMIN') || 
+           roles.includes('ROLE_VETERINARIO') || 
+           roles.includes('ROLE_RECEPCIONISTA');
+  };
 
   const loadHistorias = async () => {
     setLoading(true);
     try {
+      console.log('📋 Cargando historias clínicas...');
       const response = await apiClient.get('/historias-clinicas');
-      setHistorias(Array.isArray(response.data) ? response.data : []);
+      const historiasData = Array.isArray(response.data) ? response.data : [];
+      setHistorias(historiasData);
+      console.log('✅ Historias cargadas:', historiasData.length);
     } catch (error) {
-      console.error('Error al cargar historias:', error);
+      console.error('❌ Error al cargar historias:', error);
       Alert.alert('Error', 'No se pudieron cargar las historias clínicas');
+      setHistorias([]);
     } finally {
       setLoading(false);
     }
@@ -68,17 +106,35 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
 
   const loadMascotas = async () => {
     try {
+      console.log('📋 Cargando todas las mascotas (admin/vet/recep)');
       const response = await apiClient.get('/mascotas');
       const mascotasData = Array.isArray(response.data) ? response.data : [];
       setMascotas(mascotasData);
       setFilteredMascotas(mascotasData);
+      console.log('✅ Mascotas cargadas:', mascotasData.length);
     } catch (error) {
-      console.error('Error al cargar mascotas:', error);
+      console.error('❌ Error al cargar mascotas:', error);
+    }
+  };
+
+  const loadMascotasCliente = async (documento: string) => {
+    try {
+      console.log('🐾 Cliente: Cargando mascotas del propietario:', documento);
+      const response = await apiClient.get(`/mascotas/propietario/${documento}`);
+      const mascotasData = Array.isArray(response.data) ? response.data : [];
+      setMascotas(mascotasData);
+      setFilteredMascotas(mascotasData);
+      console.log('✅ Mascotas del cliente cargadas:', mascotasData.length);
+    } catch (error) {
+      console.error('❌ Error al cargar mascotas del cliente:', error);
+      setMascotas([]);
+      setFilteredMascotas([]);
     }
   };
 
   const loadVeterinarios = async () => {
     try {
+      console.log('👨‍⚕️ Cargando veterinarios (solo admin/vet/recep)');
       const response = await apiClient.get('/usuarios');
       const usuariosData = response.data?.data || response.data;
       const veterinariosList = Array.isArray(usuariosData)
@@ -90,13 +146,16 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
           )
         : [];
       setVeterinarios(veterinariosList);
+      console.log('✅ Veterinarios cargados:', veterinariosList.length);
     } catch (error) {
-      console.error('Error al cargar veterinarios:', error);
+      console.error('❌ Error al cargar veterinarios:', error);
+      setVeterinarios([]);
     }
   };
 
   const loadPropietarios = async () => {
     try {
+      console.log('👥 Cargando propietarios (solo admin/vet/recep)');
       const response = await apiClient.get('/usuarios');
       const usuariosData = response.data?.data || response.data;
       const clientes = Array.isArray(usuariosData)
@@ -106,8 +165,10 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
           )
         : [];
       setPropietarios(clientes);
+      console.log('✅ Propietarios cargados:', clientes.length);
     } catch (error) {
-      console.error('Error al cargar propietarios:', error);
+      console.error('❌ Error al cargar propietarios:', error);
+      setPropietarios([]);
     }
   };
 
@@ -227,17 +288,19 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
       // Obtener el token de autenticación
       const token = await AsyncStorage.getItem('token');
       
-      // Construir la URL del PDF
-      const API_BASE_URL = 'http://172.16.103.201:8080/api';
+      // Construir la URL del PDF - Usar la misma URL base que apiClient
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.20.25:8080/api';
       const pdfUrl = `${API_BASE_URL}/pdf/historia-clinica/${historia.mascota.id}`;
+      
+      console.log('📄 Descargando PDF desde:', pdfUrl);
       
       // Crear nombre del archivo
       const fileName = `historia_clinica_${historia.mascota.nombre}_${new Date().toISOString().split('T')[0]}.pdf`;
       
-      // Usar la nueva API de expo-file-system v19
+      // Crear el archivo usando la nueva API de expo-file-system v19
       const pdfFile = new File(Paths.cache, fileName);
       
-      // Descargar el archivo usando fetch
+      // Descargar usando fetch y escribir el archivo
       const response = await fetch(pdfUrl, {
         method: 'GET',
         headers: {
@@ -246,17 +309,35 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
       });
 
       if (!response.ok) {
-        throw new Error(`Error al descargar: ${response.status}`);
+        throw new Error(`Error al descargar: ${response.status} - ${response.statusText}`);
       }
 
+      // Convertir la respuesta a blob y luego a arrayBuffer
       const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
       
-      // Escribir el archivo
+      // Leer el blob como array buffer usando FileReader
+      const reader = new FileReader();
+      const arrayBufferPromise = new Promise<ArrayBuffer>((resolve, reject) => {
+        reader.onloadend = () => {
+          if (reader.result) {
+            resolve(reader.result as ArrayBuffer);
+          } else {
+            reject(new Error('No se pudo leer el archivo'));
+          }
+        };
+        reader.onerror = () => reject(reader.error);
+      });
+      reader.readAsArrayBuffer(blob);
+      
+      const arrayBuffer = await arrayBufferPromise;
+      
+      // Escribir el archivo usando streams
       await pdfFile.create();
       const writer = pdfFile.writableStream().getWriter();
       await writer.write(new Uint8Array(arrayBuffer));
       await writer.close();
+
+      console.log('✅ PDF descargado en:', pdfFile.uri);
 
       // Verificar si el dispositivo soporta compartir
       const canShare = await Sharing.isAvailableAsync();
@@ -269,7 +350,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
         Alert.alert('Éxito', `Archivo guardado en: ${pdfFile.uri}`);
       }
     } catch (error: any) {
-      console.error('Error al descargar PDF:', error);
+      console.error('❌ Error al descargar PDF:', error);
       Alert.alert('Error', error.message || 'Error al descargar la historia clínica');
     } finally {
       setDownloading(null);
@@ -284,15 +365,19 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>📋 Historias Clínicas</Text>
-        <TouchableOpacity
-          onPress={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          style={styles.addButton}
-        >
-          <Text style={styles.addIcon}>+</Text>
-        </TouchableOpacity>
+        {canCreateHistoria() ? (
+          <TouchableOpacity
+            onPress={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            style={styles.addButton}
+          >
+            <Text style={styles.addIcon}>+</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 45 }} />
+        )}
       </View>
 
       {/* List */}
@@ -335,7 +420,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
             <View style={styles.cardActions}>
               <TouchableOpacity
                 onPress={() => handleDownloadPDF(historia)}
-                style={[styles.downloadBtn, { flex: 1, marginRight: 10 }]}
+                style={[styles.downloadBtn, { flex: 1, marginRight: canCreateHistoria() ? 10 : 0 }]}
                 disabled={downloading === historia.id}
               >
                 {downloading === historia.id ? (
@@ -344,9 +429,11 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                   <Text style={styles.actionText}>📄 Descargar PDF</Text>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleEdit(historia)} style={[styles.editBtn, { flex: 1 }]}>
-                <Text style={styles.actionText}>✏️ Editar</Text>
-              </TouchableOpacity>
+              {canCreateHistoria() && (
+                <TouchableOpacity onPress={() => handleEdit(historia)} style={[styles.editBtn, { flex: 1 }]}>
+                  <Text style={styles.actionText}>✏️ Editar</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         ))}
