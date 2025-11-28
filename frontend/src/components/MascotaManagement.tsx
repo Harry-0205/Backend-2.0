@@ -182,6 +182,13 @@ const MascotaManagement: React.FC = () => {
       );
     }
 
+    // Ordenar por fecha de registro (más recientes primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
+      const fechaB = b.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
+      return fechaB - fechaA;
+    });
+
     setFilteredMascotas(filtered);
   };
 

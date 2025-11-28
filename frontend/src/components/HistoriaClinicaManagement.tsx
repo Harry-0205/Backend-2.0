@@ -12,13 +12,14 @@ import {
   Badge,
   InputGroup,
   Spinner,
-  Accordion
+  Accordion,
+  ListGroup
 } from 'react-bootstrap';
 import { HistoriaClinica, EstadoCita } from '../types';
 import historiaClinicaService from '../services/historiaClinicaService';
 import mascotaService from '../services/mascotaService';
 import { getAllUsuarios } from '../services/userService';
-import citaService from '../services/citaService';
+import citaService, { HorarioDisponible } from '../services/citaService';
 import authService from '../services/authService';
 
 const HistoriaClinicaManagement: React.FC = () => {
@@ -37,6 +38,11 @@ const HistoriaClinicaManagement: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Estados para disponibilidad de horarios de próxima cita
+  const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([]);
+  const [fechaProximaCita, setFechaProximaCita] = useState<string>('');
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -237,6 +243,13 @@ const HistoriaClinicaManagement: React.FC = () => {
       });
     }
 
+    // Ordenar por fecha de creación (más recientes primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : 0;
+      const fechaB = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : 0;
+      return fechaB - fechaA;
+    });
+
     setFilteredHistorias(filtered);
   };
 
@@ -260,6 +273,9 @@ const HistoriaClinicaManagement: React.FC = () => {
       citaId: '',
       propietarioId: ''
     });
+    // Limpiar estados de próxima cita
+    setFechaProximaCita('');
+    setHorariosDisponibles([]);
   };
 
   const handleShowModal = (mode: 'create' | 'edit' | 'view', historia?: HistoriaClinica) => {
@@ -344,6 +360,21 @@ const HistoriaClinicaManagement: React.FC = () => {
         [name]: value,
         mascotaId: ''
       }));
+    } else if (name === 'veterinarioId') {
+      // Si cambia el veterinario y hay una fecha seleccionada, recargar horarios
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        proximaCita: '' // Limpiar la cita seleccionada al cambiar veterinario
+      }));
+      
+      // Recargar horarios si ya hay una fecha seleccionada
+      if (fechaProximaCita && value) {
+        loadHorariosDisponibles(fechaProximaCita, value);
+      } else if (!value) {
+        // Si se deseleccionó el veterinario, limpiar horarios
+        setHorariosDisponibles([]);
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -392,6 +423,22 @@ const HistoriaClinicaManagement: React.FC = () => {
             const mascota = mascotas.find(m => m.id === parseInt(formData.mascotaId));
             console.log('Mascota encontrada:', mascota);
             
+            // Obtener el veterinario y su veterinariaId
+            const veterinario = veterinarios.find(v => v.documento === formData.veterinarioId);
+            let veterinariaId: number | undefined;
+            
+            if (veterinario?.veterinariaId) {
+              veterinariaId = veterinario.veterinariaId;
+            } else {
+              // Fallback: obtener del usuario actual si es veterinario
+              const currentUser = authService.getCurrentUser();
+              if (currentUser?.veterinaria?.id) {
+                veterinariaId = currentUser.veterinaria.id;
+              }
+            }
+            
+            console.log('VeterinariaId obtenido:', veterinariaId);
+            
             // Obtener el documento del propietario
             let propietarioDocumento = '';
             if (mascota) {
@@ -407,12 +454,16 @@ const HistoriaClinicaManagement: React.FC = () => {
             if (!propietarioDocumento) {
               console.error('No se pudo obtener el documento del propietario');
               setSuccess('Historia clínica creada. No se pudo crear la próxima cita: falta información del propietario');
+            } else if (!veterinariaId) {
+              console.error('No se pudo obtener el veterinariaId');
+              setSuccess('Historia clínica creada. No se pudo crear la próxima cita: falta información de la veterinaria');
             } else {
               console.log('Creando cita con datos:', {
                 fechaHora: formData.proximaCita + ':00',
                 clienteDocumento: propietarioDocumento,
                 mascotaId: parseInt(formData.mascotaId),
-                veterinarioDocumento: formData.veterinarioId
+                veterinarioDocumento: formData.veterinarioId,
+                veterinariaId: veterinariaId
               });
               
               const citaData: any = {
@@ -422,7 +473,8 @@ const HistoriaClinicaManagement: React.FC = () => {
                 estado: EstadoCita.PROGRAMADA,
                 clienteDocumento: propietarioDocumento,
                 mascotaId: parseInt(formData.mascotaId),
-                veterinarioDocumento: formData.veterinarioId
+                veterinarioDocumento: formData.veterinarioId,
+                veterinariaId: veterinariaId
               };
               
               await citaService.createCita(citaData);
@@ -541,13 +593,18 @@ const HistoriaClinicaManagement: React.FC = () => {
   };
 
   const formatFechaHora = (fecha: string) => {
-    return new Date(fecha).toLocaleString('es-ES', {
+    const date = new Date(fecha);
+    const fechaStr = date.toLocaleDateString('es-ES', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'long',
+      day: 'numeric'
     });
+    const horaStr = date.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return `${fechaStr} - ${horaStr}`;
   };
 
   const getCitasByMascota = () => {
@@ -556,6 +613,86 @@ const HistoriaClinicaManagement: React.FC = () => {
       const mascotaId = cita.mascotaId || cita.mascota?.id;
       return mascotaId?.toString() === formData.mascotaId;
     });
+  };
+  
+  const loadHorariosDisponibles = async (fecha: string, veterinarioIdOverride?: string) => {
+    // Obtener la veterinaria del veterinario seleccionado
+    const vetId = veterinarioIdOverride || formData.veterinarioId;
+    
+    if (!vetId || !fecha) {
+      console.log('❌ No se puede cargar horarios: falta veterinario o fecha', { vetId, fecha });
+      return;
+    }
+    
+    // Buscar el veterinario en la lista
+    let veterinario = veterinarios.find(v => v.documento === vetId);
+    
+    // Si no se encuentra o no tiene veterinariaId, intentar obtenerlo del usuario actual
+    if (!veterinario || !veterinario.veterinariaId) {
+      console.log('⚠️ Veterinario no encontrado en lista o sin veterinariaId, intentando con usuario actual');
+      const currentUser = authService.getCurrentUser();
+      
+      if (currentUser && currentUser.documento === vetId && currentUser.veterinaria?.id) {
+        console.log('✅ Usando veterinaria del usuario actual:', currentUser.veterinaria.id);
+        veterinario = {
+          documento: currentUser.documento,
+          nombres: currentUser.nombres,
+          apellidos: currentUser.apellidos,
+          veterinariaId: currentUser.veterinaria.id
+        } as any;
+      } else {
+        console.log('❌ El veterinario seleccionado no tiene veterinaria asignada', {
+          veterinario,
+          currentUser,
+          vetId,
+          tieneVeterinaria: !!currentUser?.veterinaria?.id
+        });
+        setError('El veterinario seleccionado no tiene una veterinaria asignada');
+        setHorariosDisponibles([]);
+        return;
+      }
+    }
+    
+    try {
+      setLoadingHorarios(true);
+      console.log('📅 Cargando horarios disponibles:', {
+        fecha,
+        veterinariaId: veterinario.veterinariaId,
+        veterinarioDocumento: veterinario.documento
+      });
+      
+      const horarios = await citaService.getHorariosDisponibles(fecha, veterinario.veterinariaId);
+      console.log('✅ Horarios cargados:', horarios.length, 'horarios disponibles');
+      
+      setHorariosDisponibles(horarios);
+      setFechaProximaCita(fecha);
+      setError(''); // Limpiar errores previos
+    } catch (error: any) {
+      console.error('❌ Error al cargar horarios disponibles:', error);
+      setError('Error al cargar horarios disponibles: ' + (error.response?.data?.message || error.message));
+      setHorariosDisponibles([]);
+    } finally {
+      setLoadingHorarios(false);
+    }
+  };
+  
+  const handleFechaProximaCitaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fecha = e.target.value;
+    setFechaProximaCita(fecha);
+    setFormData(prev => ({ ...prev, proximaCita: '' }));
+    if (fecha && formData.mascotaId) {
+      loadHorariosDisponibles(fecha);
+    }
+  };
+  
+  const handleSelectHorario = (e: React.MouseEvent, horario: HorarioDisponible) => {
+    e.preventDefault(); // Prevenir el submit del formulario
+    e.stopPropagation(); // Detener la propagación del evento
+    
+    if (horario.disponible) {
+      const fechaHora = horario.fechaHora.substring(0, 16);
+      setFormData(prev => ({ ...prev, proximaCita: fechaHora }));
+    }
   };
 
   return (
@@ -1068,15 +1205,80 @@ const HistoriaClinicaManagement: React.FC = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Próxima Cita</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
-                    name="proximaCita"
-                    value={formData.proximaCita}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
+                  <Form.Label>Agendar Próxima Cita</Form.Label>
+                  {modalMode === 'view' ? (
+                    <Form.Control
+                      type="text"
+                      value={formData.proximaCita ? formatFechaHora(formData.proximaCita) : 'No agendada'}
+                      disabled
+                      readOnly
+                    />
+                  ) : (
+                    <>
+                      <Form.Control
+                        type="date"
+                        value={fechaProximaCita}
+                        onChange={handleFechaProximaCitaChange}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      <Form.Text className="text-muted">
+                        {!formData.veterinarioId && 'Primero seleccione un veterinario'}
+                        {formData.veterinarioId && !fechaProximaCita && 'Seleccione una fecha para ver horarios disponibles'}
+                      </Form.Text>
+                    </>
+                  )}
                 </Form.Group>
+                
+                {/* Mostrar horarios disponibles */}
+                {modalMode !== 'view' && fechaProximaCita && formData.veterinarioId && (
+                  <Form.Group className="mb-3">
+                    <Form.Label>Horarios Disponibles</Form.Label>
+                    {loadingHorarios ? (
+                      <div className="text-center p-3">
+                        <Spinner animation="border" size="sm" /> Cargando horarios...
+                      </div>
+                    ) : horariosDisponibles.length > 0 ? (
+                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '4px', padding: '10px' }}>
+                        <ListGroup>
+                          {horariosDisponibles.map((horario, index) => {
+                            const hora = new Date(horario.fechaHora).toLocaleTimeString('es-ES', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: true 
+                            });
+                            const isSelected = formData.proximaCita === horario.fechaHora.substring(0, 16);
+                            return (
+                              <ListGroup.Item
+                                key={index}
+                                action
+                                variant={isSelected ? 'primary' : horario.disponible ? 'light' : 'danger'}
+                                onClick={(e) => handleSelectHorario(e, horario)}
+                                disabled={!horario.disponible}
+                                style={{ cursor: horario.disponible ? 'pointer' : 'not-allowed' }}
+                              >
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <span>{hora}</span>
+                                  {horario.disponible ? (
+                                    <Badge bg="success">Disponible</Badge>
+                                  ) : (
+                                    <Badge bg="danger">Ocupado</Badge>
+                                  )}
+                                </div>
+                              </ListGroup.Item>
+                            );
+                          })}
+                        </ListGroup>
+                      </div>
+                    ) : (
+                      <Alert variant="info">No hay horarios disponibles para esta fecha</Alert>
+                    )}
+                    {formData.proximaCita && (
+                      <Form.Text className="text-success">
+                        ✓ Horario seleccionado: {new Date(formData.proximaCita).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </Form.Text>
+                    )}
+                  </Form.Group>
+                )}
               </Card.Body>
             </Card>
 

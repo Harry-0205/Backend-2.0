@@ -266,6 +266,13 @@ const CitaManagement: React.FC = () => {
       });
     }
 
+    // Ordenar por fecha y hora (más próximas primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaHora ? new Date(a.fechaHora).getTime() : 0;
+      const fechaB = b.fechaHora ? new Date(b.fechaHora).getTime() : 0;
+      return fechaA - fechaB;
+    });
+
     setFilteredCitas(filtered);
   };
 
@@ -293,20 +300,45 @@ const CitaManagement: React.FC = () => {
         fechaHora = cita.fechaHora.slice(0, 16);
       }
       
+      const veterinariaId = cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || '';
+      const clienteDocumento = cita.clienteDocumento || cita.cliente?.documento || '';
+      
+      console.log('📋 Cargando cita para editar:', {
+        citaId: cita.id,
+        clienteDocumento: clienteDocumento,
+        clienteFromDTO: cita.clienteDocumento,
+        clienteFromObj: cita.cliente?.documento,
+        mascotaId: cita.mascotaId,
+        veterinarioDocumento: cita.veterinarioDocumento,
+        veterinariaId: veterinariaId
+      });
+      
+      if (!clienteDocumento) {
+        console.error('⚠️ ADVERTENCIA: No se pudo obtener el documento del cliente de la cita');
+      }
+      
       setFormData({
         fechaHora: fechaHora,
         motivo: cita.motivo || '',
         observaciones: cita.observaciones || '',
         // Usar los campos del DTO o los objetos completos como fallback
-        clienteId: cita.clienteDocumento || cita.cliente?.documento || '',
+        clienteId: clienteDocumento,
         mascotaId: cita.mascotaId?.toString() || cita.mascota?.id?.toString() || '',
         veterinarioId: cita.veterinarioDocumento || cita.veterinario?.documento || '',
-        veterinariaId: cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || ''
+        veterinariaId: veterinariaId
       });
       
-      // Si hay veterinaria seleccionada, filtrar veterinarios
-      if (cita.veterinariaId || cita.veterinaria?.id) {
-        setFilteredVeterinarios(veterinarios);
+      // Si hay veterinaria seleccionada, filtrar veterinarios por esa veterinaria
+      if (veterinariaId) {
+        getVeterinariosByVeterinaria(parseInt(veterinariaId))
+          .then(vetsFiltered => {
+            console.log('🏥 Veterinarios filtrados para edición:', vetsFiltered);
+            setFilteredVeterinarios(vetsFiltered);
+          })
+          .catch(error => {
+            console.error('❌ Error al filtrar veterinarios para edición:', error);
+            setFilteredVeterinarios(veterinarios); // Fallback a todos los veterinarios
+          });
       } else {
         setFilteredVeterinarios([]);
       }
@@ -392,7 +424,10 @@ const CitaManagement: React.FC = () => {
     }
   };
   
-  const handleSelectHorario = (horario: HorarioDisponible) => {
+  const handleSelectHorario = (e: React.MouseEvent, horario: HorarioDisponible) => {
+    e.preventDefault(); // Prevenir submit del formulario
+    e.stopPropagation(); // Detener propagación del evento
+    
     if (horario.disponible) {
       // El backend espera formato "yyyy-MM-ddTHH:mm"
       const fechaHora = horario.fechaHora.substring(0, 16);
@@ -403,13 +438,81 @@ const CitaManagement: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.fechaHora || !formData.clienteId || !formData.mascotaId) {
-      setError('Fecha/hora, cliente y mascota son obligatorios');
+    // Validar campos obligatorios
+    if (!formData.fechaHora) {
+      setError('La fecha y hora de la cita son obligatorias');
       return;
+    }
+    
+    if (!formData.clienteId || formData.clienteId.trim() === '') {
+      setError('El cliente es obligatorio');
+      return;
+    }
+    
+    if (!formData.mascotaId || formData.mascotaId.trim() === '') {
+      setError('La mascota es obligatoria');
+      return;
+    }
+    
+    // Validar que recepcionista complete veterinaria y veterinario
+    if (authService.isRecepcionista() && modalMode === 'create') {
+      if (!formData.veterinariaId) {
+        setError('Debe seleccionar una veterinaria para crear la cita');
+        return;
+      }
+      if (!formData.veterinarioId) {
+        setError('Debe seleccionar un veterinario para crear la cita');
+        return;
+      }
     }
 
     try {
       setLoading(true);
+      
+      // Validación adicional de seguridad
+      console.log('📝 FormData antes de enviar:', {
+        modalMode,
+        formData: { ...formData },
+        clienteIdLength: formData.clienteId?.length,
+        clienteIdType: typeof formData.clienteId
+      });
+      
+      if (!formData.clienteId || formData.clienteId.trim() === '') {
+        console.error('❌ ClienteId está vacío:', formData.clienteId);
+        setError('Error: El documento del cliente no puede estar vacío');
+        setLoading(false);
+        return;
+      }
+      
+      // En modo edición, usar los datos originales de la cita para cliente y mascota
+      let clienteDocumento = '';
+      let mascotaIdValue = 0;
+      
+      if (modalMode === 'edit' && selectedCita) {
+        // Para edición, SIEMPRE usar los datos de selectedCita
+        clienteDocumento = selectedCita.clienteDocumento || selectedCita.cliente?.documento || '';
+        mascotaIdValue = selectedCita.mascotaId || selectedCita.mascota?.id || 0;
+        
+        console.log('🔄 Modo EDIT - Extrayendo datos de selectedCita:', {
+          clienteDocumento,
+          mascotaIdValue,
+          selectedCita: {
+            clienteDocumento: selectedCita.clienteDocumento,
+            clienteObjeto: selectedCita.cliente,
+            mascotaId: selectedCita.mascotaId,
+            mascotaObjeto: selectedCita.mascota
+          }
+        });
+      } else {
+        // Para creación, usar formData
+        clienteDocumento = formData.clienteId || '';
+        mascotaIdValue = parseInt(formData.mascotaId) || 0;
+        
+        console.log('✨ Modo CREATE - Usando formData:', {
+          clienteDocumento,
+          mascotaIdValue
+        });
+      }
       
       // Crear objeto en formato CitaRequest (DTO del backend)
       const citaData: any = {
@@ -417,13 +520,39 @@ const CitaManagement: React.FC = () => {
         motivo: formData.motivo || null,
         observaciones: formData.observaciones || null,
         estado: modalMode === 'create' ? EstadoCita.PROGRAMADA : selectedCita?.estado,
-        clienteDocumento: formData.clienteId,
-        mascotaId: parseInt(formData.mascotaId),
-        veterinarioDocumento: formData.veterinarioId || null,
+        clienteDocumento: clienteDocumento ? clienteDocumento.trim() : null,
+        mascotaId: mascotaIdValue,
+        veterinarioDocumento: formData.veterinarioId && formData.veterinarioId.trim() !== '' ? formData.veterinarioId.trim() : null,
         veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : null
       };
       
-      console.log('Enviando cita:', citaData);
+      console.log('📤 CitaData a enviar:', citaData);
+      console.log('📤 ClienteDocumento específicamente:', citaData.clienteDocumento);
+      
+      // Validación final CRÍTICA antes de enviar
+      if (!citaData.clienteDocumento || 
+          citaData.clienteDocumento === 'null' || 
+          citaData.clienteDocumento === null ||
+          citaData.clienteDocumento.toString().trim() === '') {
+        
+        console.error('❌❌❌ ERROR CRÍTICO: clienteDocumento es null o vacío en citaData ❌❌❌');
+        console.error('📊 Datos completos de depuración:', {
+          modalMode,
+          'selectedCita completa': selectedCita,
+          'formData completo': formData,
+          'citaData.clienteDocumento': citaData.clienteDocumento,
+          'tipo de clienteDocumento': typeof citaData.clienteDocumento,
+          'selectedCita.clienteDocumento': selectedCita?.clienteDocumento,
+          'selectedCita.cliente': selectedCita?.cliente,
+          'formData.clienteId': formData.clienteId
+        });
+        
+        setError('Error crítico: No se pudo obtener el documento del cliente. La cita puede estar corrupta. Por favor, contacte al administrador.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ Validación pasada - clienteDocumento es válido:', citaData.clienteDocumento);
       
       if (modalMode === 'create') {
         await citaService.createCita(citaData);
@@ -785,7 +914,7 @@ const CitaManagement: React.FC = () => {
                               key={index}
                               action
                               variant={isSelected ? 'primary' : horario.disponible ? 'light' : 'danger'}
-                              onClick={() => handleSelectHorario(horario)}
+                              onClick={(e) => handleSelectHorario(e, horario)}
                               disabled={!horario.disponible}
                               style={{ cursor: horario.disponible ? 'pointer' : 'not-allowed' }}
                             >
@@ -824,7 +953,7 @@ const CitaManagement: React.FC = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Cliente *</Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
+                  {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
                     <Form.Control
                       type="text"
                       value={`${selectedCita.clienteNombre || ''} ${selectedCita.clienteApellido || ''} - ${selectedCita.clienteDocumento || ''}`}
@@ -854,7 +983,7 @@ const CitaManagement: React.FC = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Mascota *</Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
+                  {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
                     <Form.Control
                       type="text"
                       value={`${selectedCita.mascotaNombre || ''} (${selectedCita.mascotaEspecie || ''})`}
@@ -880,7 +1009,7 @@ const CitaManagement: React.FC = () => {
                       ))}
                     </Form.Select>
                   )}
-                  {modalMode !== 'view' && formData.clienteId && getMascotasByCliente().length === 0 && (
+                  {modalMode !== 'view' && modalMode !== 'edit' && formData.clienteId && getMascotasByCliente().length === 0 && (
                     <Form.Text className="text-warning">
                       El cliente seleccionado no tiene mascotas registradas
                     </Form.Text>
@@ -929,7 +1058,9 @@ const CitaManagement: React.FC = () => {
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Veterinario</Form.Label>
+                    <Form.Label>
+                      Veterinario {authService.isRecepcionista() && modalMode === 'create' && '*'}
+                    </Form.Label>
                     {modalMode === 'view' && selectedCita ? (
                       <Form.Control
                         type="text"
@@ -945,8 +1076,11 @@ const CitaManagement: React.FC = () => {
                           value={formData.veterinarioId}
                           onChange={handleInputChange}
                           disabled={modalMode === 'view' || !formData.veterinariaId}
+                          required={authService.isRecepcionista() && modalMode === 'create'}
                         >
-                          <option value="">Sin asignar</option>
+                          <option value="">
+                            {authService.isRecepcionista() && modalMode === 'create' ? 'Seleccione un veterinario' : 'Sin asignar'}
+                          </option>
                           {filteredVeterinarios.map(veterinario => (
                             <option key={veterinario.documento} value={veterinario.documento}>
                               {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
@@ -1044,7 +1178,17 @@ const CitaManagement: React.FC = () => {
               {modalMode === 'view' ? 'Cerrar' : 'Cancelar'}
             </Button>
             {modalMode !== 'view' && (
-              <Button variant="primary" type="submit" disabled={loading}>
+              <Button 
+                variant="primary" 
+                type="submit" 
+                disabled={
+                  loading || 
+                  !formData.fechaHora || 
+                  !formData.clienteId || 
+                  !formData.mascotaId ||
+                  (authService.isRecepcionista() && modalMode === 'create' && (!formData.veterinariaId || !formData.veterinarioId))
+                }
+              >
                 {loading && <Spinner animation="border" size="sm" className="me-2" />}
                 {modalMode === 'create' ? 'Crear' : 'Actualizar'}
               </Button>

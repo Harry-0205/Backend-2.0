@@ -151,6 +151,13 @@ const UserManagement: React.FC = () => {
       );
     }
 
+    // Ordenar por fecha de registro (más recientes primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
+      const fechaB = b.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
+      return fechaB - fechaA;
+    });
+
     setFilteredUsuarios(filtered);
   };
 
@@ -233,6 +240,13 @@ const UserManagement: React.FC = () => {
 
     try {
       setLoading(true);
+      
+      // Validar que recepcionista no pueda crear/editar administradores
+      if (authService.isRecepcionista() && (formData.rol === 'ADMIN' || formData.rol === 'ROLE_ADMIN')) {
+        setError('No tiene permisos para crear o editar usuarios con rol Administrador');
+        setLoading(false);
+        return;
+      }
       
       if (modalMode === 'create') {
         const nuevoUsuario: Usuario = {
@@ -710,7 +724,7 @@ const UserManagement: React.FC = () => {
                     disabled={modalMode === 'view'}
                   >
                     <option value="">Seleccione un rol</option>
-                    <option value="ADMIN">Administrador</option>
+                    {authService.isAdmin() && <option value="ADMIN">Administrador</option>}
                     <option value="VETERINARIO">Veterinario</option>
                     <option value="RECEPCIONISTA">Recepcionista</option>
                     <option value="CLIENTE">Cliente</option>

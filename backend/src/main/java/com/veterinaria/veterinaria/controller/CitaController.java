@@ -264,10 +264,30 @@ public class CitaController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
     public ResponseEntity<Cita> updateCita(@PathVariable Long id, @RequestBody Cita cita) {
-        Optional<Cita> existingCita = citaService.findById(id);
-        if (existingCita.isPresent()) {
-            cita.setId(id);
-            Cita updatedCita = citaService.update(cita);
+        Optional<Cita> existingCitaOpt = citaService.findById(id);
+        if (existingCitaOpt.isPresent()) {
+            Cita existingCita = existingCitaOpt.get();
+            
+            // Actualizar solo los campos que pueden cambiar
+            existingCita.setFechaHora(cita.getFechaHora());
+            existingCita.setMotivo(cita.getMotivo());
+            existingCita.setObservaciones(cita.getObservaciones());
+            existingCita.setEstado(cita.getEstado());
+            
+            // Actualizar veterinario solo si se proporciona
+            if (cita.getVeterinario() != null) {
+                existingCita.setVeterinario(cita.getVeterinario());
+            }
+            
+            // Actualizar veterinaria solo si se proporciona
+            if (cita.getVeterinaria() != null) {
+                existingCita.setVeterinaria(cita.getVeterinaria());
+            }
+            
+            // NO actualizar cliente ni mascota - estos no deben cambiar en una cita existente
+            // existingCita mantiene su cliente y mascota originales
+            
+            Cita updatedCita = citaService.update(existingCita);
             return ResponseEntity.ok(updatedCita);
         }
         return ResponseEntity.notFound().build();
