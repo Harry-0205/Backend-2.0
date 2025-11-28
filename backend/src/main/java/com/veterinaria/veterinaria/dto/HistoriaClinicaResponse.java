@@ -19,6 +19,7 @@ public class HistoriaClinicaResponse {
     private String observaciones;
     private String recomendaciones;
     private LocalDateTime fechaCreacion;
+    private Boolean activo;
     
     // Información básica de la mascota (sin datos sensibles)
     private MascotaBasicInfo mascota;
@@ -46,6 +47,7 @@ public class HistoriaClinicaResponse {
             this.observaciones = historia.getObservaciones();
             this.recomendaciones = historia.getRecomendaciones();
             this.fechaCreacion = historia.getFechaCreacion();
+            this.activo = historia.getActivo();
             
             // Solo información básica de la mascota
             try {
@@ -119,6 +121,7 @@ public class HistoriaClinicaResponse {
     public String getObservaciones() { return observaciones; }
     public String getRecomendaciones() { return recomendaciones; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
+    public Boolean getActivo() { return activo; }
     public MascotaBasicInfo getMascota() { return mascota; }
     public VeterinarioBasicInfo getVeterinario() { return veterinario; }
     public CitaBasicInfo getCita() { return cita; }

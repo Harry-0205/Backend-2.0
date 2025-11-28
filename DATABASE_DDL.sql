@@ -167,6 +167,7 @@ CREATE TABLE historias_clinicas (
     observaciones TEXT,
     recomendaciones TEXT,
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     mascota_id BIGINT NOT NULL,
     veterinario_documento VARCHAR(20) NOT NULL,
     cita_id BIGINT,

@@ -344,6 +344,19 @@ const CitaManagement: React.FC = () => {
       }
     } else {
       resetForm();
+      
+      // Si es cliente, establecer automáticamente su documento
+      if (authService.isCliente()) {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser && currentUser.documento) {
+          setFormData(prev => ({
+            ...prev,
+            clienteId: currentUser.documento
+          }));
+          console.log('👤 Cliente detectado - documento establecido automáticamente:', currentUser.documento);
+        }
+      }
+      
       setFilteredVeterinarios([]); // Inicialmente vacío hasta que seleccione veterinaria
     }
     
@@ -965,7 +978,7 @@ const CitaManagement: React.FC = () => {
                       value={formData.clienteId}
                       onChange={handleInputChange}
                       required
-                      disabled={modalMode === 'view'}
+                      disabled={modalMode === 'view' || authService.isCliente()}
                     >
                       <option value="">Seleccione un cliente</option>
                       {clientes.map(cliente => (

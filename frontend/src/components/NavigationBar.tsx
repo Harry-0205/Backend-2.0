@@ -301,7 +301,10 @@ const NavigationBar: React.FC = () => {
 
                       {/* Mi Perfil */}
                       <div 
-                        onClick={handleShowProfile}
+                        onClick={() => {
+                          navigate('/dashboard/perfil');
+                          setDropdownOpen(false);
+                        }}
                         style={{
                           padding: '15px 20px',
                           color: '#374151',

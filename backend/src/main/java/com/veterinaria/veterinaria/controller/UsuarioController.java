@@ -589,4 +589,72 @@ public class UsuarioController {
             return ResponseEntity.badRequest().build();
         }
     }
+    
+    @PostMapping("/{documento}/cambiar-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> changePassword(
+            @PathVariable String documento,
+            @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        try {
+            // Verificar que el usuario solo pueda cambiar su propia contraseña (excepto admin)
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            
+            if (!isAdmin && !userDetails.getUsername().equals(documento)) {
+                return ResponseEntity.status(403).body(ApiResponse.error("No tiene permisos para cambiar la contraseña de otro usuario"));
+            }
+            
+            // Buscar el usuario
+            Optional<Usuario> usuarioOpt = usuarioService.findById(documento);
+            if (!usuarioOpt.isPresent()) {
+                return ResponseEntity.status(404).body(ApiResponse.error("Usuario no encontrado"));
+            }
+            
+            Usuario usuario = usuarioOpt.get();
+            
+            // Verificar la contraseña actual
+            if (!passwordEncoder.matches(request.getCurrentPassword(), usuario.getPassword())) {
+                return ResponseEntity.status(400).body(ApiResponse.error("La contraseña actual es incorrecta"));
+            }
+            
+            // Validar la nueva contraseña
+            if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+                return ResponseEntity.status(400).body(ApiResponse.error("La nueva contraseña debe tener al menos 6 caracteres"));
+            }
+            
+            // Cambiar la contraseña
+            usuario.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            usuarioService.save(usuario);
+            
+            System.out.println("✅ Contraseña cambiada exitosamente para usuario: " + documento);
+            return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente", null));
+        } catch (Exception e) {
+            System.err.println("❌ Error al cambiar contraseña: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("Error al cambiar la contraseña: " + e.getMessage()));
+        }
+    }
+    
+    // Clase interna para el request de cambio de contraseña
+    public static class ChangePasswordRequest {
+        private String currentPassword;
+        private String newPassword;
+        
+        public String getCurrentPassword() {
+            return currentPassword;
+        }
+        
+        public void setCurrentPassword(String currentPassword) {
+            this.currentPassword = currentPassword;
+        }
+        
+        public String getNewPassword() {
+            return newPassword;
+        }
+        
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
+    }
 }

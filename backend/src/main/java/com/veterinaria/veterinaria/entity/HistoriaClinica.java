@@ -53,6 +53,9 @@ public class HistoriaClinica {
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
     
+    @Column(nullable = false)
+    private Boolean activo = true;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mascota_id", nullable = false)
     private Mascota mascota;
@@ -210,5 +213,13 @@ public class HistoriaClinica {
     
     public void setCita(Cita cita) {
         this.cita = cita;
+    }
+    
+    public Boolean getActivo() {
+        return activo;
+    }
+    
+    public void setActivo(Boolean activo) {
+        this.activo = activo;
     }
 }

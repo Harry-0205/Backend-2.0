@@ -111,6 +111,7 @@ export interface HistoriaClinica {
   recomendaciones?: string;
   proximaCita?: string;
   fechaCreacion: string;
+  activo?: boolean;
   mascota: Mascota;
   veterinario: Usuario | string; // Puede ser objeto Usuario o string (DTO)
   cita?: Cita;

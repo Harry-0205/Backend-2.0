@@ -143,6 +143,15 @@ export const activateUsuario = async (documento: string): Promise<void> => {
   await apiClient.patch(`/usuarios/${documento}/activar`);
 };
 
+export const changePassword = async (documento: string, currentPassword: string, newPassword: string): Promise<void> => {
+  console.log('🔒 Cambiando contraseña para usuario:', documento);
+  const res = await apiClient.post(`/usuarios/${documento}/cambiar-password`, {
+    currentPassword,
+    newPassword
+  });
+  console.log('✅ Contraseña cambiada exitosamente:', res.data);
+};
+
 // Export default object
 const userService = {
   getAllUsuarios,
@@ -153,7 +162,8 @@ const userService = {
   updateUsuario,
   deleteUsuario,
   deactivateUsuario,
-  activateUsuario
+  activateUsuario,
+  changePassword
 };
 
 export default userService;

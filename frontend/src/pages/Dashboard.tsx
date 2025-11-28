@@ -7,6 +7,7 @@ import CitaManagement from '../components/CitaManagement';
 import HistoriaClinicaManagement from '../components/HistoriaClinicaManagement';
 import ReporteManagement from '../components/ReporteManagement';
 import DashboardHome from '../components/DashboardHome';
+import UserProfile from '../components/UserProfile';
 import authService from '../services/authService';
 import { 
   FaHome, 
@@ -84,6 +85,13 @@ const Dashboard: React.FC = () => {
       icon: <FaChartLine />,
       path: '/dashboard/reportes',
       roles: ['ROLE_ADMIN']
+    },
+    {
+      id: 'perfil',
+      label: 'Mi Perfil',
+      icon: <FaUsers />,
+      path: '/dashboard/perfil',
+      roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
     }
   ];
 
@@ -166,6 +174,7 @@ const Dashboard: React.FC = () => {
             <Route path="/citas" element={<CitaManagement />} />
             <Route path="/historias" element={<HistoriaClinicaManagement />} />
             <Route path="/reportes" element={<ReporteManagement />} />
+            <Route path="/perfil" element={<UserProfile />} />
           </Routes>
         </div>
       </main>

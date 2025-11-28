@@ -176,7 +176,7 @@ INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_documento,
 -- INSERCIÓN DE HISTORIAS CLÍNICAS
 -- ============================================================================
 
-INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, fecha_creacion) VALUES
+INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, activo, fecha_creacion) VALUES
 -- Historias clínicas de Max
 (@max_id, '87654321', DATE_SUB(NOW(), INTERVAL 30 DAY), 
  'Vacunación y control anual', 
@@ -185,7 +185,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Vacuna séxtuple canina, Ivermectina',
  'Paciente en excelente condición física. Sin hallazgos patológicos.', 
  'Continuar con alimentación balanceada. Ejercicio regular.',
- 28.5, 38.5, 80, 25, DATE_SUB(NOW(), INTERVAL 30 DAY)),
+ 28.5, 38.5, 80, 25, true, DATE_SUB(NOW(), INTERVAL 30 DAY)),
 
 -- Historias clínicas de Luna
 (@luna_id, '11111111', DATE_SUB(NOW(), INTERVAL 15 DAY), 
@@ -195,7 +195,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Amoxicilina 50mg cada 12h por 7 días, Meloxicam 0.5mg cada 24h por 5 días',
  'Herida quirúrgica en perfectas condiciones. Sin signos de infección.', 
  'Reposo durante 10 días. Evitar saltos. Control en 5 días.',
- 4.2, 38.3, 120, 30, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+ 4.2, 38.3, 120, 30, true, DATE_SUB(NOW(), INTERVAL 15 DAY)),
 
 -- Historias clínicas de Rocky
 (@rocky_id, '87654321', DATE_SUB(NOW(), INTERVAL 60 DAY), 
@@ -205,7 +205,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Condroitina + Glucosamina, Carprofeno según necesidad',
  'Paciente geriátrico con buena calidad de vida. Leve cojera al levantarse.', 
  'Ejercicio moderado. Evitar escaleras. Control en 6 meses.',
- 32.0, 38.4, 75, 22, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+ 32.0, 38.4, 75, 22, true, DATE_SUB(NOW(), INTERVAL 60 DAY)),
 
 -- Historias clínicas de Bella
 (@bella_id, '11111111', DATE_SUB(NOW(), INTERVAL 20 DAY), 
@@ -215,7 +215,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Vacuna antirrábica anual',
  'Sin complicaciones. Signos vitales normales.', 
  'Próxima vacunación en 1 año.',
- 25.0, 38.6, 85, 26, DATE_SUB(NOW(), INTERVAL 20 DAY)),
+ 25.0, 38.6, 85, 26, true, DATE_SUB(NOW(), INTERVAL 20 DAY)),
 
 -- Historias clínicas de Zeus
 (@zeus_id, '87654321', DATE_SUB(NOW(), INTERVAL 90 DAY), 
@@ -225,7 +225,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Meloxicam 7.5mg cada 24h, Condroprotector',
  'Radiografías muestran displasia grado I. Buena respuesta al tratamiento.', 
  'Control de peso. Natación recomendada. Control en 3 meses.',
- 32.5, 38.5, 78, 24, DATE_SUB(NOW(), INTERVAL 90 DAY));
+ 32.5, 38.5, 78, 24, true, DATE_SUB(NOW(), INTERVAL 90 DAY));
 
 -- ============================================================================
 -- INSERCIÓN DE REPORTES DE EJEMPLO
