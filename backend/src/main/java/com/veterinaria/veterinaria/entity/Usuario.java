@@ -60,7 +60,7 @@ public class Usuario {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "usuarios_roles",
-        joinColumns = @JoinColumn(name = "usuario_documento"),
+        joinColumns = @JoinColumn(name = "usuario_id"),
         inverseJoinColumns = @JoinColumn(name = "rol_id")
     )
     @JsonIgnoreProperties("usuarios")
@@ -95,6 +95,14 @@ public class Usuario {
     }
     
     // Getters y Setters
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
     public String getDocumento() {
         return documento;
     }

@@ -11,8 +11,22 @@ import {
   Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../services/apiClient';
+
+// Configurar calendario en español
+LocaleConfig.locales['es'] = {
+  monthNames: [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ],
+  monthNamesShort: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+  dayNames: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+  dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  today: 'Hoy'
+};
+LocaleConfig.defaultLocale = 'es';
 
 export default function CitasScreen({ onBack }: { onBack: () => void }) {
   const [citas, setCitas] = useState<any[]>([]);
@@ -297,37 +311,7 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handleFechaChange = (texto: string) => {
-    console.log('📅 Fecha ingresada:', texto);
-    
-    // Eliminar caracteres no numéricos excepto guiones
-    let fecha = texto.replace(/[^\d-]/g, '');
-    
-    // Formatear automáticamente mientras escribe
-    if (fecha.length === 4 && !fecha.includes('-')) {
-      fecha = fecha + '-';
-    } else if (fecha.length === 7 && fecha.split('-').length === 2) {
-      fecha = fecha + '-';
-    }
-    
-    // Limitar a 10 caracteres (YYYY-MM-DD)
-    fecha = fecha.substring(0, 10);
-    
-    // Validar formato YYYY-MM-DD
-    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-    
-    setFechaSeleccionada(fecha);
-    setFormData(prev => ({ ...prev, fechaHora: '' }));
-    setHorariosDisponibles([]);
-    
-    // Solo cargar horarios si la fecha tiene el formato completo correcto
-    if (fecha && fechaRegex.test(fecha) && formData.veterinariaId) {
-      console.log('✅ Formato de fecha válido, cargando horarios...');
-      loadHorariosDisponibles(fecha);
-    } else if (fecha && !fechaRegex.test(fecha)) {
-      console.log('⚠️ Formato de fecha incompleto o inválido:', fecha);
-    }
-  };
+  // Ya no se necesita handleFechaChange - El calendario maneja la selección directamente
 
   const handleSelectHorario = (horario: any) => {
     if (horario.disponible) {
@@ -595,30 +579,58 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
 
               {formData.veterinariaId && (
                 <>
-                  <Text style={styles.label}>Fecha * (Formato: AAAA-MM-DD)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="2024-12-25"
-                    value={fechaSeleccionada}
-                    onChangeText={handleFechaChange}
-                    keyboardType="numeric"
-                    maxLength={10}
+                  <Text style={styles.label}>Seleccione una Fecha *</Text>
+                  <Calendar
+                    current={new Date().toISOString().split('T')[0]}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    markedDates={{
+                      [fechaSeleccionada]: {
+                        selected: true,
+                        selectedColor: '#3b82f6',
+                        selectedTextColor: '#fff'
+                      }
+                    }}
+                    onDayPress={(day: any) => {
+                      console.log('📅 Fecha seleccionada:', day.dateString);
+                      setFechaSeleccionada(day.dateString);
+                      setFormData(prev => ({ ...prev, fechaHora: '' }));
+                      setHorariosDisponibles([]);
+                      loadHorariosDisponibles(day.dateString);
+                    }}
+                    theme={{
+                      backgroundColor: '#ffffff',
+                      calendarBackground: '#ffffff',
+                      textSectionTitleColor: '#1e293b',
+                      selectedDayBackgroundColor: '#3b82f6',
+                      selectedDayTextColor: '#ffffff',
+                      todayTextColor: '#3b82f6',
+                      dayTextColor: '#1e293b',
+                      textDisabledColor: '#cbd5e1',
+                      dotColor: '#3b82f6',
+                      selectedDotColor: '#ffffff',
+                      arrowColor: '#3b82f6',
+                      monthTextColor: '#1e293b',
+                      indicatorColor: '#3b82f6',
+                      textDayFontFamily: 'System',
+                      textMonthFontFamily: 'System',
+                      textDayHeaderFontFamily: 'System',
+                      textDayFontWeight: '500',
+                      textMonthFontWeight: '700',
+                      textDayHeaderFontWeight: '600',
+                      textDayFontSize: 15,
+                      textMonthFontSize: 17,
+                      textDayHeaderFontSize: 13
+                    }}
+                    style={{
+                      borderRadius: 16,
+                      elevation: 3,
+                      shadowColor: '#64748b',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 8,
+                      marginBottom: 18,
+                    }}
                   />
-                  {fechaSeleccionada && fechaSeleccionada.length > 0 && fechaSeleccionada.length < 10 && (
-                    <Text style={styles.helperText}>
-                      📝 Continúe escribiendo... (Formato: AAAA-MM-DD)
-                    </Text>
-                  )}
-                  {fechaSeleccionada && fechaSeleccionada.length === 10 && !/^\d{4}-\d{2}-\d{2}$/.test(fechaSeleccionada) && (
-                    <Text style={styles.errorText}>
-                      ⚠️ Formato incorrecto. Use: AAAA-MM-DD (ej: 2024-12-25)
-                    </Text>
-                  )}
-                  {fechaSeleccionada && /^\d{4}-\d{2}-\d{2}$/.test(fechaSeleccionada) && (
-                    <Text style={styles.successText}>
-                      ✅ Formato válido - Cargando horarios...
-                    </Text>
-                  )}
 
                   {loadingHorarios && (
                     <Text style={styles.helperText}>⏳ Cargando horarios disponibles...</Text>
@@ -626,8 +638,8 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
 
                   {!loadingHorarios && horariosDisponibles.length > 0 && (
                     <>
-                      <Text style={styles.label}>Horarios Disponibles</Text>
-                      <ScrollView style={styles.horariosContainer} horizontal>
+                      <Text style={styles.label}>Horarios Disponibles *</Text>
+                      <View style={styles.horariosGrid}>
                         {horariosDisponibles.map((horario, index) => (
                           <TouchableOpacity
                             key={index}
@@ -647,12 +659,33 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                               {new Date(horario.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                             </Text>
                             {horario.veterinarioNombre && (
-                              <Text style={styles.horarioVet}>{horario.veterinarioNombre}</Text>
+                              <Text style={[
+                                styles.horarioVet,
+                                formData.fechaHora === horario.fechaHora.substring(0, 16) && styles.horarioVetSelected
+                              ]}>
+                                Dr. {horario.veterinarioNombre}
+                              </Text>
                             )}
+                            <View style={styles.horarioBadge}>
+                              <Text style={styles.horarioBadgeText}>
+                                {horario.disponible ? '✓ Disponible' : '✗ Ocupado'}
+                              </Text>
+                            </View>
                           </TouchableOpacity>
                         ))}
-                      </ScrollView>
+                      </View>
                     </>
+                  )}
+                  
+                  {!loadingHorarios && fechaSeleccionada && horariosDisponibles.length === 0 && (
+                    <View style={styles.noHorariosContainer}>
+                      <Text style={styles.noHorariosText}>
+                        📅 No hay horarios disponibles para esta fecha
+                      </Text>
+                      <Text style={styles.noHorariosSubtext}>
+                        Por favor, seleccione otra fecha
+                      </Text>
+                    </View>
                   )}
 
                   {!loadingHorarios && fechaSeleccionada && horariosDisponibles.length === 0 && (
@@ -794,85 +827,173 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
   header: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#1e40af',
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 50,
+    paddingBottom: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: '#1e40af',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  backButton: { width: 40, height: 40, justifyContent: 'center' },
-  backIcon: { fontSize: 24, color: '#fff', fontWeight: 'bold' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#fff', flex: 1 },
-  addButton: {
-    width: 45,
-    height: 45,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 22,
+  backButton: { 
+    width: 40, 
+    height: 40, 
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 10,
   },
-  addIcon: { fontSize: 28, color: '#fff' },
-  content: { padding: 20 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 15,
+  backIcon: { fontSize: 22, color: '#fff', fontWeight: 'bold' },
+  title: { 
+    fontSize: 22, 
+    fontWeight: '700', 
+    color: '#fff', 
+    flex: 1,
+    marginLeft: 15,
+  },
+  addButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  addIcon: { fontSize: 26, color: '#fff', fontWeight: 'bold' },
+  content: { padding: 16 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', flex: 1 },
+  cardTitle: { fontSize: 19, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 10 },
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  badgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   cardActions: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#f1f5f9',
   },
-  editBtn: { flex: 1, backgroundColor: '#f59e0b', padding: 10, borderRadius: 8, alignItems: 'center' },
-  deleteBtn: { flex: 1, backgroundColor: '#ef4444', padding: 10, borderRadius: 8, alignItems: 'center' },
-  cancelarBtn: { flex: 1, backgroundColor: '#dc2626', padding: 10, borderRadius: 8, alignItems: 'center' },
-  actionText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  cardText: { fontSize: 14, color: '#6b7280', marginBottom: 5 },
+  editBtn: { 
+    flex: 1, 
+    backgroundColor: '#f59e0b', 
+    padding: 12, 
+    borderRadius: 10, 
+    alignItems: 'center',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  deleteBtn: { 
+    flex: 1, 
+    backgroundColor: '#ef4444', 
+    padding: 12, 
+    borderRadius: 10, 
+    alignItems: 'center',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cancelarBtn: { 
+    flex: 1, 
+    backgroundColor: '#dc2626', 
+    padding: 12, 
+    borderRadius: 10, 
+    alignItems: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  actionText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  cardText: { fontSize: 15, color: '#64748b', marginBottom: 6, fontWeight: '500' },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15,23,42,0.6)',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
-  formContainer: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
-  formTitle: { fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  formContainer: { 
+    backgroundColor: '#fff', 
+    borderRadius: 24, 
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  formTitle: { 
+    fontSize: 24, 
+    fontWeight: '800', 
+    color: '#1e293b', 
+    marginBottom: 24,
+    letterSpacing: 0.3,
+  },
+  label: { 
+    fontSize: 15, 
+    fontWeight: '700', 
+    color: '#1e293b', 
+    marginBottom: 10,
+  },
   input: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    padding: 15,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 16,
     fontSize: 16,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
-    marginBottom: 15,
+    borderColor: '#e2e8f0',
+    marginBottom: 18,
+    fontWeight: '500',
+    color: '#1e293b',
   },
   textArea: {
     minHeight: 80,
@@ -921,34 +1042,46 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     fontWeight: '600',
   },
-  horariosContainer: {
-    maxHeight: 120,
-    marginBottom: 15,
+  horariosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 18,
   },
   horarioButton: {
-    padding: 12,
-    marginRight: 10,
-    borderRadius: 8,
-    minWidth: 80,
+    width: '48%',
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   horarioDisponible: {
     backgroundColor: '#d1fae5',
     borderColor: '#10b981',
+    shadowColor: '#10b981',
   },
   horarioNoDisponible: {
     backgroundColor: '#fee2e2',
     borderColor: '#ef4444',
+    shadowColor: '#ef4444',
+    opacity: 0.6,
   },
   horarioSeleccionado: {
-    backgroundColor: '#667eea',
-    borderColor: '#5a67d8',
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.3,
+    elevation: 4,
   },
   horarioText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 6,
   },
   horarioTextDisabled: {
     color: '#9ca3af',
@@ -957,13 +1090,67 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   horarioVet: {
-    fontSize: 10,
-    color: '#6b7280',
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 4,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  horarioVetSelected: {
+    color: '#dbeafe',
+  },
+  horarioBadge: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
     marginTop: 4,
   },
-  formButtons: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  button: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' },
-  cancelButton: { backgroundColor: '#ef4444' },
-  saveButton: { backgroundColor: '#10b981' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  horarioBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  noHorariosContainer: {
+    backgroundColor: '#fef3c7',
+    padding: 20,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+  },
+  noHorariosText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#92400e',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  noHorariosSubtext: {
+    fontSize: 13,
+    color: '#b45309',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  formButtons: { flexDirection: 'row', gap: 12, marginTop: 12 },
+  button: { 
+    flex: 1, 
+    padding: 18, 
+    borderRadius: 14, 
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cancelButton: { 
+    backgroundColor: '#ef4444',
+    shadowColor: '#ef4444',
+  },
+  saveButton: { 
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
+  },
+  buttonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

@@ -886,8 +886,52 @@ const CitaManagement: React.FC = () => {
           <Modal.Body>
             {error && <Alert variant="danger">{error}</Alert>}
             
-            <Row>
-              <Col md={12}>
+            {/* Sección 1: Información de la Clínica */}
+            <Card className="mb-4 border-primary">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-hospital me-2"></i>
+                  Paso 1: Seleccione la Clínica
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-0">
+                  <Form.Label>Veterinaria <span className="text-danger">*</span></Form.Label>
+                  {modalMode === 'view' && selectedCita ? (
+                    <Form.Control
+                      type="text"
+                      value={selectedCita.veterinariaNombre || 'No especificada'}
+                      disabled
+                    />
+                  ) : (
+                    <Form.Select
+                      name="veterinariaId"
+                      value={formData.veterinariaId}
+                      onChange={handleInputChange}
+                      disabled={modalMode === 'view'}
+                      required
+                    >
+                      <option value="">Seleccione una veterinaria</option>
+                      {veterinarias.map(veterinaria => (
+                        <option key={veterinaria.id} value={veterinaria.id}>
+                          {veterinaria.nombre}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
+                </Form.Group>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 2: Fecha y Horario */}
+            <Card className="mb-4 border-success">
+              <Card.Header className="bg-success text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-calendar-alt me-2"></i>
+                  Paso 2: Seleccione Fecha y Horario
+                </h6>
+              </Card.Header>
+              <Card.Body>
                 <Form.Group className="mb-3">
                   <Form.Label>Seleccionar Fecha *</Form.Label>
                   <Form.Control
@@ -900,179 +944,187 @@ const CitaManagement: React.FC = () => {
                   />
                   {!formData.veterinariaId && modalMode !== 'view' && (
                     <Form.Text className="text-muted">
-                      Primero seleccione una veterinaria para ver horarios disponibles
+                      <i className="fas fa-info-circle me-1"></i>
+                      Primero seleccione una veterinaria
                     </Form.Text>
                   )}
                 </Form.Group>
-              </Col>
-            </Row>
-            
-            {/* Mostrar horarios disponibles */}
-            {modalMode !== 'view' && fechaSeleccionada && formData.veterinariaId && (
-              <Row className="mb-3">
-                <Col md={12}>
-                  <Form.Label>Horarios Disponibles *</Form.Label>
-                  {loadingHorarios ? (
-                    <div className="text-center p-3">
-                      <Spinner animation="border" size="sm" /> Cargando horarios...
-                    </div>
-                  ) : horariosDisponibles.length > 0 ? (
-                    <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '4px', padding: '10px' }}>
-                      <ListGroup>
-                        {horariosDisponibles.map((horario, index) => {
-                          const hora = new Date(horario.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                          const isSelected = formData.fechaHora === horario.fechaHora.substring(0, 16);
-                          return (
-                            <ListGroup.Item
-                              key={index}
-                              action
-                              variant={isSelected ? 'primary' : horario.disponible ? 'light' : 'danger'}
-                              onClick={(e) => handleSelectHorario(e, horario)}
-                              disabled={!horario.disponible}
-                              style={{ cursor: horario.disponible ? 'pointer' : 'not-allowed' }}
-                            >
-                              <div className="d-flex justify-content-between align-items-center">
-                                <span>{hora}</span>
-                                {horario.disponible ? (
-                                  <Badge bg="success">Disponible</Badge>
-                                ) : (
-                                  <Badge bg="danger">Ocupado</Badge>
-                                )}
-                              </div>
-                            </ListGroup.Item>
-                          );
-                        })}
-                      </ListGroup>
-                    </div>
-                  ) : (
-                    <Alert variant="info">No hay horarios disponibles para esta fecha</Alert>
-                  )}
-                </Col>
-              </Row>
-            )}
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Hora Seleccionada</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.fechaHora ? new Date(formData.fechaHora).toLocaleString('es-ES') : ''}
-                    disabled
-                    placeholder="Seleccione un horario disponible"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Cliente *</Form.Label>
-                  {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={`${selectedCita.clienteNombre || ''} ${selectedCita.clienteApellido || ''} - ${selectedCita.clienteDocumento || ''}`}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="clienteId"
-                      value={formData.clienteId}
-                      onChange={handleInputChange}
-                      required
-                      disabled={modalMode === 'view' || authService.isCliente()}
-                    >
-                      <option value="">Seleccione un cliente</option>
-                      {clientes.map(cliente => (
-                        <option key={cliente.documento} value={cliente.documento}>
-                          {`${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Mascota *</Form.Label>
-                  {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={`${selectedCita.mascotaNombre || ''} (${selectedCita.mascotaEspecie || ''})`}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="mascotaId"
-                      value={formData.mascotaId}
-                      onChange={handleInputChange}
-                      required
-                      disabled={modalMode === 'view' || !formData.clienteId}
-                    >
-                      <option value="">
-                        {formData.clienteId 
-                          ? 'Seleccione una mascota' 
-                          : 'Primero seleccione un cliente'}
-                      </option>
-                      {getMascotasByCliente().map(mascota => (
-                        <option key={mascota.id} value={mascota.id}>
-                          {`${mascota.nombre} (${mascota.especie})`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                  {modalMode !== 'view' && modalMode !== 'edit' && formData.clienteId && getMascotasByCliente().length === 0 && (
-                    <Form.Text className="text-warning">
-                      El cliente seleccionado no tiene mascotas registradas
-                    </Form.Text>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Veterinaria <span className="text-danger">*</span></Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={selectedCita.veterinariaNombre || 'No especificada'}
-                      disabled
-                    />
-                  ) : (
-                    <>
-                      <Form.Select
-                        name="veterinariaId"
-                        value={formData.veterinariaId}
-                        onChange={handleInputChange}
-                        disabled={modalMode === 'view'}
-                        required
-                      >
-                        <option value="">Seleccione una veterinaria</option>
-                        {veterinarias.map(veterinaria => (
-                          <option key={veterinaria.id} value={veterinaria.id}>
-                            {veterinaria.nombre}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <Form.Text className="text-muted">
-                        Primero seleccione la veterinaria para ver los veterinarios disponibles
-                      </Form.Text>
-                    </>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-
-            {/* Solo mostrar campo de veterinario si NO es veterinario */}
-            {!authService.isVeterinario() && (
-              <Row>
-                <Col md={12}>
+                
+                {/* Mostrar horarios disponibles */}
+                {modalMode !== 'view' && fechaSeleccionada && formData.veterinariaId && (
                   <Form.Group className="mb-3">
+                    <Form.Label>Horarios Disponibles *</Form.Label>
+                    {loadingHorarios ? (
+                      <div className="text-center p-4 bg-light rounded">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <span>Cargando horarios disponibles...</span>
+                      </div>
+                    ) : horariosDisponibles.length > 0 ? (
+                      <div style={{ 
+                        maxHeight: '250px', 
+                        overflowY: 'auto', 
+                        border: '2px solid #e9ecef', 
+                        borderRadius: '8px', 
+                        padding: '12px',
+                        backgroundColor: '#f8f9fa'
+                      }}>
+                        <Row className="g-2">
+                          {horariosDisponibles.map((horario, index) => {
+                            const hora = new Date(horario.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            const isSelected = formData.fechaHora === horario.fechaHora.substring(0, 16);
+                            return (
+                              <Col xs={6} md={4} key={index}>
+                                <div
+                                  onClick={(e) => horario.disponible && handleSelectHorario(e, horario)}
+                                  className={`p-3 rounded text-center ${
+                                    isSelected 
+                                      ? 'bg-primary text-white' 
+                                      : horario.disponible 
+                                      ? 'bg-white border border-success' 
+                                      : 'bg-light border border-danger'
+                                  }`}
+                                  style={{ 
+                                    cursor: horario.disponible ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.2s',
+                                    opacity: horario.disponible ? 1 : 0.6
+                                  }}
+                                >
+                                  <div className="fw-bold fs-5">{hora}</div>
+                                  {horario.veterinarioNombre && (
+                                    <small className={isSelected ? 'text-white' : 'text-muted'}>
+                                      Dr. {horario.veterinarioNombre}
+                                    </small>
+                                  )}
+                                  <div className="mt-1">
+                                    <Badge bg={isSelected ? 'light' : horario.disponible ? 'success' : 'danger'} 
+                                           className={isSelected ? 'text-primary' : ''}>
+                                      {horario.disponible ? '✓ Disponible' : '✗ Ocupado'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </Col>
+                            );
+                          })}
+                        </Row>
+                      </div>
+                    ) : (
+                      <Alert variant="warning" className="mb-0">
+                        <i className="fas fa-exclamation-triangle me-2"></i>
+                        No hay horarios disponibles para esta fecha
+                      </Alert>
+                    )}
+                  </Form.Group>
+                )}
+                
+                {formData.fechaHora && (
+                  <Alert variant="info" className="mb-0">
+                    <i className="fas fa-clock me-2"></i>
+                    <strong>Horario seleccionado:</strong> {new Date(formData.fechaHora).toLocaleString('es-ES', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Alert>
+                )}
+              </Card.Body>
+            </Card>
+
+            {/* Sección 3: Información del Cliente y Mascota */}
+            <Card className="mb-4 border-info">
+              <Card.Header className="bg-info text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-user-friends me-2"></i>
+                  Paso 3: Cliente y Mascota
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Cliente *</Form.Label>
+                      {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
+                        <Form.Control
+                          type="text"
+                          value={`${selectedCita.clienteNombre || ''} ${selectedCita.clienteApellido || ''} - ${selectedCita.clienteDocumento || ''}`}
+                          disabled
+                        />
+                      ) : (
+                        <Form.Select
+                          name="clienteId"
+                          value={formData.clienteId}
+                          onChange={handleInputChange}
+                          required
+                          disabled={modalMode === 'view' || authService.isCliente()}
+                        >
+                          <option value="">Seleccione un cliente</option>
+                          {clientes.map(cliente => (
+                            <option key={cliente.documento} value={cliente.documento}>
+                              {`${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Mascota *</Form.Label>
+                      {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
+                        <Form.Control
+                          type="text"
+                          value={`${selectedCita.mascotaNombre || ''} (${selectedCita.mascotaEspecie || ''})`}
+                          disabled
+                        />
+                      ) : (
+                        <>
+                          <Form.Select
+                            name="mascotaId"
+                            value={formData.mascotaId}
+                            onChange={handleInputChange}
+                            required
+                            disabled={modalMode === 'view' || !formData.clienteId}
+                          >
+                            <option value="">
+                              {formData.clienteId 
+                                ? 'Seleccione una mascota' 
+                                : 'Primero seleccione un cliente'}
+                            </option>
+                            {getMascotasByCliente().map(mascota => (
+                              <option key={mascota.id} value={mascota.id}>
+                                {`${mascota.nombre} (${mascota.especie})`}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {modalMode !== 'view' && modalMode !== 'edit' && formData.clienteId && getMascotasByCliente().length === 0 && (
+                            <Form.Text className="text-warning">
+                              <i className="fas fa-exclamation-circle me-1"></i>
+                              El cliente seleccionado no tiene mascotas registradas
+                            </Form.Text>
+                          )}
+                        </>
+                      )}
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 4: Veterinario */}
+            {!authService.isVeterinario() && (
+              <Card className="mb-4 border-warning">
+                <Card.Header className="bg-warning">
+                  <h6 className="mb-0">
+                    <i className="fas fa-user-md me-2"></i>
+                    Paso 4: Asignación de Veterinario
+                  </h6>
+                </Card.Header>
+                <Card.Body>
+                  <Form.Group className="mb-0">
                     <Form.Label>
-                      Veterinario {authService.isRecepcionista() && modalMode === 'create' && '*'}
+                      Veterinario {authService.isRecepcionista() && modalMode === 'create' && <span className="text-danger">*</span>}
                     </Form.Label>
                     {modalMode === 'view' && selectedCita ? (
                       <Form.Control
@@ -1102,48 +1154,60 @@ const CitaManagement: React.FC = () => {
                         </Form.Select>
                         {!formData.veterinariaId && (
                           <Form.Text className="text-muted">
+                            <i className="fas fa-info-circle me-1"></i>
                             Seleccione primero una veterinaria
                           </Form.Text>
                         )}
                       </>
                     )}
                   </Form.Group>
-                </Col>
-              </Row>
+                </Card.Body>
+              </Card>
             )}
             
-            {/* Mostrar mensaje informativo si es veterinario */}
+            {/* Mensaje informativo para veterinarios */}
             {authService.isVeterinario() && modalMode !== 'view' && (
-              <Alert variant="info" className="mb-3">
+              <Alert variant="info" className="mb-4">
                 <i className="fas fa-info-circle me-2"></i>
-                Como veterinario, serás asignado automáticamente a esta cita
+                <strong>Nota:</strong> Como veterinario, serás asignado automáticamente a esta cita
               </Alert>
             )}
 
-            <Form.Group className="mb-3">
-              <Form.Label>Motivo</Form.Label>
-              <Form.Control
-                type="text"
-                name="motivo"
-                value={formData.motivo}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-                placeholder="Motivo de la consulta"
-              />
-            </Form.Group>
+            {/* Sección 5: Detalles Adicionales */}
+            <Card className="mb-0 border-secondary">
+              <Card.Header className="bg-secondary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-clipboard me-2"></i>
+                  Paso 5: Detalles de la Consulta
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-3">
+                  <Form.Label>Motivo de la Consulta</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="motivo"
+                    value={formData.motivo}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Ej: Vacunación, Control general, Consulta de urgencia..."
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Observaciones</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="observaciones"
-                value={formData.observaciones}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-                placeholder="Observaciones adicionales"
-              />
-            </Form.Group>
+                <Form.Group className="mb-0">
+                  <Form.Label>Observaciones Adicionales</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="observaciones"
+                    value={formData.observaciones}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Información adicional que el veterinario deba conocer..."
+                  />
+                </Form.Group>
+              </Card.Body>
+            </Card>
 
             {modalMode === 'view' && selectedCita && (
               <>

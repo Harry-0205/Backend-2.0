@@ -707,10 +707,13 @@ const HistoriaClinicaManagement: React.FC = () => {
           <Form onSubmit={handleSubmit} id="historiaClinicaForm">
             {error && <Alert variant="danger">{error}</Alert>}
             
-            {/* Información General */}
-            <Card className="mb-3">
+            {/* Sección 1: Información General */}
+            <Card className="mb-4 border-primary">
               <Card.Header className="bg-primary text-white">
-                <strong>Información General</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-info-circle me-2"></i>
+                  Paso 1: Información General de la Consulta
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -829,10 +832,13 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Motivo y Síntomas */}
-            <Card className="mb-3">
+            {/* Sección 2: Motivo y Síntomas */}
+            <Card className="mb-4 border-info">
               <Card.Header className="bg-info text-white">
-                <strong>Motivo de Consulta y Síntomas</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-stethoscope me-2"></i>
+                  Paso 2: Motivo de Consulta y Síntomas
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
@@ -863,10 +869,13 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Signos Vitales */}
-            <Card className="mb-3">
+            {/* Sección 3: Signos Vitales */}
+            <Card className="mb-4 border-warning">
               <Card.Header className="bg-warning">
-                <strong>Signos Vitales</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-heartbeat me-2"></i>
+                  Paso 3: Signos Vitales y Mediciones
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -928,10 +937,13 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Diagnóstico y Tratamiento */}
-            <Card className="mb-3">
+            {/* Sección 4: Diagnóstico y Tratamiento */}
+            <Card className="mb-4 border-success">
               <Card.Header className="bg-success text-white">
-                <strong>Diagnóstico y Tratamiento</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-notes-medical me-2"></i>
+                  Paso 4: Diagnóstico y Plan de Tratamiento
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
@@ -975,36 +987,51 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Observaciones y Recomendaciones */}
-            <Card className="mb-3">
+            {/* Sección 5: Observaciones y Recomendaciones */}
+            <Card className="mb-0 border-secondary">
               <Card.Header className="bg-secondary text-white">
-                <strong>Observaciones y Recomendaciones</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-clipboard-list me-2"></i>
+                  Paso 5: Observaciones y Recomendaciones
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
                   <Form.Label>Observaciones Adicionales</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={2}
+                    rows={3}
                     name="observaciones"
                     value={formData.observaciones}
                     onChange={handleInputChange}
                     disabled={modalMode === 'view'}
-                    placeholder="Observaciones generales"
+                    placeholder="Cualquier observación relevante sobre el estado o comportamiento de la mascota..."
                   />
+                  {modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      Información adicional importante para el seguimiento
+                    </Form.Text>
+                  )}
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Recomendaciones</Form.Label>
+                <Form.Group className="mb-0">
+                  <Form.Label>Recomendaciones para el Propietario</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={2}
+                    rows={3}
                     name="recomendaciones"
                     value={formData.recomendaciones}
                     onChange={handleInputChange}
                     disabled={modalMode === 'view'}
-                    placeholder="Recomendaciones para el propietario"
+                    placeholder="Instrucciones y cuidados que el propietario debe seguir en casa..."
                   />
+                  {modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-home me-1"></i>
+                      Guías claras para el cuidado en casa
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Card.Body>
             </Card>

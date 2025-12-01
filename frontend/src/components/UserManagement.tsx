@@ -594,179 +594,252 @@ const UserManagement: React.FC = () => {
           <Modal.Body>
             {error && <Alert variant="danger">{error}</Alert>}
             
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Documento *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="documento"
-                    value={formData.documento}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view' || modalMode === 'edit'}
-                  />
-                  {modalMode === 'edit' && (
-                    <Form.Text className="text-muted">
-                      El documento no se puede modificar
-                    </Form.Text>
-                  )}
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Tipo de Documento *</Form.Label>
-                  <Form.Select
-                    name="tipoDocumento"
-                    value={formData.tipoDocumento || 'CC'}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  >
-                    <option value="CC">Cédula de Ciudadanía</option>
-                    <option value="CE">Cédula de Extranjería</option>
-                    <option value="TI">Tarjeta de Identidad</option>
-                    <option value="RC">Registro Civil</option>
-                    <option value="PA">Pasaporte</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Usuario *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="nombres"
-                    value={formData.nombres}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Apellido</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="apellidos"
-                    value={formData.apellidos}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="tel"
-                    name="telefono"
-                    value={formData.telefono}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Dirección</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-              />
-            </Form.Group>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Rol *</Form.Label>
-                  <Form.Select
-                    name="rol"
-                    value={formData.rol}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  >
-                    <option value="">Seleccione un rol</option>
-                    {authService.isAdmin() && <option value="ADMIN">Administrador</option>}
-                    <option value="VETERINARIO">Veterinario</option>
-                    <option value="RECEPCIONISTA">Recepcionista</option>
-                    <option value="CLIENTE">Cliente</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                {formData.rol === 'VETERINARIO' && (
-                  <Form.Group className="mb-3">
-                    <Form.Label>Veterinaria {modalMode !== 'view' && '*'}</Form.Label>
-                    {modalMode === 'view' ? (
-                      <Form.Control
-                        type="text"
-                        value={selectedUsuario?.veterinariaNombre || 'No asignada'}
-                        disabled
-                      />
-                    ) : (
+            {/* Sección 1: Identificación */}
+            <Card className="mb-4 border-primary">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-id-card me-2"></i>
+                  Información de Identificación
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tipo de Documento <span className="text-danger">*</span></Form.Label>
                       <Form.Select
-                        name="veterinariaId"
-                        value={formData.veterinariaId}
+                        name="tipoDocumento"
+                        value={formData.tipoDocumento || 'CC'}
                         onChange={handleInputChange}
                         required
+                        disabled={modalMode === 'view'}
                       >
-                        <option value="">Seleccione una veterinaria</option>
-                        {veterinarias.map((vet: any) => (
-                          <option key={vet.id} value={vet.id}>
-                            {vet.nombre}
-                          </option>
-                        ))}
+                        <option value="CC">CC - Cédula de Ciudadanía</option>
+                        <option value="CE">CE - Cédula de Extranjería</option>
+                        <option value="TI">TI - Tarjeta de Identidad</option>
+                        <option value="RC">RC - Registro Civil</option>
+                        <option value="PA">PA - Pasaporte</option>
                       </Form.Select>
-                    )}
-                  </Form.Group>
-                )}
-              </Col>
-            </Row>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Número de Documento <span className="text-danger">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="documento"
+                        value={formData.documento}
+                        onChange={handleInputChange}
+                        required
+                        disabled={modalMode === 'view' || modalMode === 'edit'}
+                        placeholder="Ej: 1234567890"
+                      />
+                      {modalMode === 'edit' && (
+                        <Form.Text className="text-warning">
+                          <i className="fas fa-lock me-1"></i>
+                          El documento no se puede modificar
+                        </Form.Text>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombre de Usuario <span className="text-danger">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        required
+                        disabled={modalMode === 'view'}
+                        placeholder="Usuario para login"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
 
-            <Row>
-              <Col md={6}>
-                {modalMode !== 'view' && (
-                  <Form.Group className="mb-3">
+            {/* Sección 2: Información Personal */}
+            <Card className="mb-4 border-success">
+              <Card.Header className="bg-success text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-user me-2"></i>
+                  Información Personal
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombres</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="nombres"
+                        value={formData.nombres}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="Nombres completos"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Apellidos</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="apellidos"
+                        value={formData.apellidos}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="Apellidos completos"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 3: Información de Contacto */}
+            <Card className="mb-4 border-info">
+              <Card.Header className="bg-info text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-address-book me-2"></i>
+                  Información de Contacto
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>
+                        <i className="fas fa-envelope me-1"></i>
+                        Correo Electrónico
+                      </Form.Label>
+                      <Form.Control
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="correo@ejemplo.com"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>
+                        <i className="fas fa-phone me-1"></i>
+                        Teléfono
+                      </Form.Label>
+                      <Form.Control
+                        type="tel"
+                        name="telefono"
+                        value={formData.telefono}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="3001234567"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-0">
+                  <Form.Label>
+                    <i className="fas fa-map-marker-alt me-1"></i>
+                    Dirección
+                  </Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="direccion"
+                    value={formData.direccion}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Dirección completa de residencia"
+                  />
+                </Form.Group>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 4: Rol y Asignaciones */}
+            <Card className="mb-4 border-warning">
+              <Card.Header className="bg-warning">
+                <h6 className="mb-0">
+                  <i className="fas fa-user-tag me-2"></i>
+                  Rol y Permisos
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={formData.rol === 'VETERINARIO' ? 6 : 12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Rol del Usuario <span className="text-danger">*</span></Form.Label>
+                      <Form.Select
+                        name="rol"
+                        value={formData.rol}
+                        onChange={handleInputChange}
+                        required
+                        disabled={modalMode === 'view'}
+                      >
+                        <option value="">Seleccione un rol</option>
+                        {authService.isAdmin() && <option value="ADMIN">👑 Administrador</option>}
+                        <option value="VETERINARIO">👨‍⚕️ Veterinario</option>
+                        <option value="RECEPCIONISTA">📋 Recepcionista</option>
+                        <option value="CLIENTE">👤 Cliente</option>
+                      </Form.Select>
+                      {modalMode !== 'view' && (
+                        <Form.Text className="text-muted">
+                          <i className="fas fa-info-circle me-1"></i>
+                          Define los permisos y accesos del usuario
+                        </Form.Text>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  {formData.rol === 'VETERINARIO' && (
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Veterinaria Asignada <span className="text-danger">*</span></Form.Label>
+                        {modalMode === 'view' ? (
+                          <Form.Control
+                            type="text"
+                            value={selectedUsuario?.veterinariaNombre || 'No asignada'}
+                            disabled
+                          />
+                        ) : (
+                          <Form.Select
+                            name="veterinariaId"
+                            value={formData.veterinariaId}
+                            onChange={handleInputChange}
+                            required
+                          >
+                            <option value="">Seleccione una veterinaria</option>
+                            {veterinarias.map((vet: any) => (
+                              <option key={vet.id} value={vet.id}>
+                                {vet.nombre}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        )}
+                      </Form.Group>
+                    </Col>
+                  )}
+                </Row>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 5: Seguridad */}
+            {modalMode !== 'view' && (
+              <Card className="mb-0 border-danger">
+                <Card.Header className="bg-danger text-white">
+                  <h6 className="mb-0">
+                    <i className="fas fa-lock me-2"></i>
+                    Seguridad y Contraseña
+                  </h6>
+                </Card.Header>
+                <Card.Body>
+                  <Form.Group className="mb-0">
                     <Form.Label>
-                      Contraseña {modalMode === 'create' ? '*' : '(opcional)'}
+                      Contraseña {modalMode === 'create' ? <span className="text-danger">*</span> : '(Opcional)'}
                     </Form.Label>
                     <Form.Control
                       type="password"
@@ -774,12 +847,24 @@ const UserManagement: React.FC = () => {
                       value={formData.password}
                       onChange={handleInputChange}
                       required={modalMode === 'create'}
-                      placeholder={modalMode === 'edit' ? 'Dejar vacío para no cambiar' : ''}
+                      placeholder={modalMode === 'edit' ? 'Dejar vacío si no desea cambiar la contraseña' : 'Mínimo 6 caracteres'}
                     />
+                    {modalMode === 'create' && (
+                      <Form.Text className="text-muted">
+                        <i className="fas fa-shield-alt me-1"></i>
+                        La contraseña debe tener al menos 6 caracteres
+                      </Form.Text>
+                    )}
+                    {modalMode === 'edit' && (
+                      <Form.Text className="text-warning">
+                        <i className="fas fa-exclamation-triangle me-1"></i>
+                        Solo complete este campo si desea cambiar la contraseña actual
+                      </Form.Text>
+                    )}
                   </Form.Group>
-                )}
-              </Col>
-            </Row>
+                </Card.Body>
+              </Card>
+            )}
 
             {modalMode === 'view' && selectedUsuario && (
               <Row>
