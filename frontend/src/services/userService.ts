@@ -152,6 +152,34 @@ export const changePassword = async (documento: string, currentPassword: string,
   console.log('✅ Contraseña cambiada exitosamente:', res.data);
 };
 
+export interface UpdatePerfilData {
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  passwordActual?: string;
+  passwordNueva?: string;
+}
+
+export const updatePerfil = async (data: UpdatePerfilData): Promise<Usuario> => {
+  console.log('📤 Actualizando perfil del usuario autenticado:', data);
+  const res = await apiClient.put('/usuarios/perfil', data);
+  console.log('📥 Respuesta updatePerfil:', res.data);
+  
+  // El backend devuelve ApiResponse<UsuarioResponse>
+  let responseData = res.data;
+  
+  // Si es string, parsearlo
+  if (typeof responseData === 'string') {
+    responseData = JSON.parse(responseData);
+  }
+  
+  // Extraer el campo 'data' de la respuesta ApiResponse
+  const usuarioActualizado = responseData.data || responseData;
+  console.log('✅ Perfil actualizado:', usuarioActualizado);
+  
+  return usuarioActualizado;
+};
+
 // Export default object
 const userService = {
   getAllUsuarios,
@@ -163,7 +191,8 @@ const userService = {
   deleteUsuario,
   deactivateUsuario,
   activateUsuario,
-  changePassword
+  changePassword,
+  updatePerfil
 };
 
 export default userService;

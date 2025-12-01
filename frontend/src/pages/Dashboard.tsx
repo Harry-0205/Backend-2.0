@@ -129,7 +129,6 @@ const Dashboard: React.FC = () => {
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <FaHospital className="logo-icon" />
-            {sidebarOpen && <span className="logo-text">VetSystem</span>}
           </div>
         </div>
 

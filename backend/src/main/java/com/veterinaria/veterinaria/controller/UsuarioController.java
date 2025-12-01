@@ -5,6 +5,7 @@ import com.veterinaria.veterinaria.entity.Rol;
 import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.dto.UsuarioResponse;
 import com.veterinaria.veterinaria.dto.UsuarioRequest;
+import com.veterinaria.veterinaria.dto.UpdatePerfilRequest;
 import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import com.veterinaria.veterinaria.service.VeterinariaService;
@@ -361,6 +362,88 @@ public class UsuarioController {
             return ResponseEntity.badRequest().body(
                 ApiResponse.error("Error al crear usuario", errorMessage)
             );
+        }
+    }
+    
+    @PutMapping("/perfil")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> updatePerfil(
+            @RequestBody UpdatePerfilRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        try {
+            // Obtener el usuario autenticado
+            Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+            if (!usuarioOpt.isPresent()) {
+                return ResponseEntity.status(404).body(ApiResponse.error("Usuario no encontrado"));
+            }
+            
+            Usuario usuario = usuarioOpt.get();
+            boolean cambiosRealizados = false;
+            
+            // Actualizar email si se proporciona
+            if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+                // Validar formato de email
+                if (!request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("Formato de email inválido"));
+                }
+                
+                // Verificar si el email ya existe para otro usuario
+                Optional<Usuario> usuarioConEmail = usuarioService.findByEmail(request.getEmail());
+                if (usuarioConEmail.isPresent() && !usuarioConEmail.get().getDocumento().equals(usuario.getDocumento())) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("El email ya está registrado por otro usuario"));
+                }
+                
+                usuario.setEmail(request.getEmail());
+                cambiosRealizados = true;
+                System.out.println("✅ Email actualizado para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar teléfono si se proporciona
+            if (request.getTelefono() != null && !request.getTelefono().trim().isEmpty()) {
+                usuario.setTelefono(request.getTelefono());
+                cambiosRealizados = true;
+                System.out.println("✅ Teléfono actualizado para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar dirección si se proporciona
+            if (request.getDireccion() != null && !request.getDireccion().trim().isEmpty()) {
+                usuario.setDireccion(request.getDireccion());
+                cambiosRealizados = true;
+                System.out.println("✅ Dirección actualizada para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar contraseña si se proporciona tanto la actual como la nueva
+            if (request.getPasswordActual() != null && !request.getPasswordActual().trim().isEmpty() &&
+                request.getPasswordNueva() != null && !request.getPasswordNueva().trim().isEmpty()) {
+                
+                // Verificar la contraseña actual
+                if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("La contraseña actual es incorrecta"));
+                }
+                
+                // Validar la nueva contraseña
+                if (request.getPasswordNueva().length() < 6) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("La nueva contraseña debe tener al menos 6 caracteres"));
+                }
+                
+                usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+                cambiosRealizados = true;
+                System.out.println("✅ Contraseña actualizada para usuario: " + usuario.getUsername());
+            }
+            
+            if (!cambiosRealizados) {
+                return ResponseEntity.status(400).body(ApiResponse.error("No se proporcionaron datos para actualizar"));
+            }
+            
+            // Guardar los cambios
+            Usuario usuarioActualizado = usuarioService.save(usuario);
+            UsuarioResponse response = new UsuarioResponse(usuarioActualizado);
+            
+            return ResponseEntity.ok(ApiResponse.success("Perfil actualizado exitosamente", response));
+        } catch (Exception e) {
+            System.err.println("❌ Error al actualizar perfil: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("Error al actualizar el perfil: " + e.getMessage()));
         }
     }
     

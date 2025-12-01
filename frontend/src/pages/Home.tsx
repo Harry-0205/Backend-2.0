@@ -338,17 +338,17 @@ const Home: React.FC = () => {
           filter: 'blur(80px)'
         }}></div>
         <Container style={{ position: 'relative', zIndex: 1 }}>
-          <Row style={{ marginBottom: '50px', textAlign: 'center' }}>
-            <Col lg={4} md={6} style={{ marginBottom: '40px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '20px' }}>
+          <Row style={{ marginBottom: '50px', alignItems: 'flex-start' }}>
+            <Col lg={4} md={12} style={{ marginBottom: '40px', textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                 <img src={`${process.env.PUBLIC_URL}/Logo.png`} alt="Pet-History" style={{ height: '55px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 <h4 style={{ margin: 0, fontWeight: '800', fontSize: '1.5rem', letterSpacing: '-0.01em' }}>Pet-History</h4>
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '1rem', lineHeight: '1.6', maxWidth: '300px', margin: '0 auto' }}>
+              <p style={{ color: '#94a3b8', fontSize: '1rem', lineHeight: '1.6', maxWidth: '350px' }}>
                 Gestiona la historia clínica de tus pacientes de forma sencilla y eficiente.
               </p>
             </Col>
-            <Col lg={6} md={6} style={{ marginBottom: '40px' }}>
+            <Col lg={4} md={6} style={{ marginBottom: '40px', textAlign: 'center' }}>
               <h5 style={{ fontWeight: '800', marginBottom: '25px', fontSize: '1.2rem', color: 'white' }}>Acceso</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
                 <Link to="/login" style={{ 
@@ -370,7 +370,7 @@ const Home: React.FC = () => {
                 </Link>
               </div>
             </Col>
-            <Col lg={6} md={6} style={{ marginBottom: '40px' }}>
+            <Col lg={4} md={6} style={{ marginBottom: '40px', textAlign: 'center' }}>
               <h5 style={{ fontWeight: '800', marginBottom: '25px', fontSize: '1.2rem', color: 'white' }}>Síguenos</h5>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
                 {[

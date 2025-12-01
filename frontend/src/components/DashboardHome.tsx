@@ -167,7 +167,7 @@ const DashboardHome: React.FC = () => {
       <div className="welcome-header">
         <div>
           <h1 className="welcome-title">
-            {getGreeting()}, {currentUser?.nombres || currentUser?.username}! <span className="wave-emoji">👋</span>
+            <span>{getGreeting()}, {currentUser?.nombres || currentUser?.username}!</span> <span className="wave-emoji">👋</span>
           </h1>
           <p className="welcome-subtitle">
             Rol: <strong>{getRoleName()}</strong> | {new Date().toLocaleDateString('es-ES', { 

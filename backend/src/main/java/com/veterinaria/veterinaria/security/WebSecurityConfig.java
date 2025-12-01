@@ -66,6 +66,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/health", "/api/info").permitAll()
                 .requestMatchers("/api/usuarios/veterinarios/public").permitAll()
+                .requestMatchers("/api/usuarios/perfil").authenticated()
                 .requestMatchers("/api/usuarios/veterinarios/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "CLIENTE", "VETERINARIO")
                 .requestMatchers("/api/usuarios/veterinarios").hasAnyRole("ADMIN", "RECEPCIONISTA", "CLIENTE", "VETERINARIO")
                 .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN", "VETERINARIO", "RECEPCIONISTA")

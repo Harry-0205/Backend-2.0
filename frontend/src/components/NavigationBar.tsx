@@ -173,10 +173,10 @@ const NavigationBar: React.FC = () => {
           gap: '20px'
         }}>
           {/* Logo */}
-          <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <img src={`${process.env.PUBLIC_URL}/Logo.png`} alt="Pet-History" style={{ height: '40px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <h3 style={{ margin: 0, color: '#1e40af', fontWeight: '700' }}>Pet-History</h3>
-          </Link>
+          </div>
 
           {/* Navigation Links */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>

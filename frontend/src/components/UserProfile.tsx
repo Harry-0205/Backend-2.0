@@ -11,7 +11,7 @@ import {
 } from 'react-bootstrap';
 import { FaUsers, FaChartLine } from 'react-icons/fa';
 import authService from '../services/authService';
-import { updateUsuario, changePassword } from '../services/userService';
+import { updatePerfil } from '../services/userService';
 
 const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -78,20 +78,31 @@ const UserProfile: React.FC = () => {
       setError('');
       setSuccess('');
 
-      // Crear objeto de actualización con solo los campos permitidos
-      const updateData = {
-        ...currentUser,
-        telefono: profileData.telefono,
-        direccion: profileData.direccion,
-        email: profileData.email
-      };
+      // Crear objeto de actualización solo con los campos que cambiaron
+      const updateData: any = {};
+      if (profileData.email && profileData.email !== currentUser.email) {
+        updateData.email = profileData.email;
+      }
+      if (profileData.telefono && profileData.telefono !== currentUser.telefono) {
+        updateData.telefono = profileData.telefono;
+      }
+      if (profileData.direccion && profileData.direccion !== currentUser.direccion) {
+        updateData.direccion = profileData.direccion;
+      }
 
-      console.log('📝 Actualizando perfil del usuario:', currentUser.documento);
-      await updateUsuario(currentUser.documento, updateData);
+      // Verificar si hay cambios
+      if (Object.keys(updateData).length === 0) {
+        setError('No hay cambios para guardar');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📝 Actualizando perfil del usuario:', currentUser.username);
+      const updatedUser = await updatePerfil(updateData);
       
       // Actualizar el usuario en localStorage
-      const updatedUser = { ...currentUser, ...profileData };
-      authService.updateCurrentUser(updatedUser);
+      authService.updateCurrentUser({ ...currentUser, ...updatedUser });
+      setCurrentUser({ ...currentUser, ...updatedUser });
       
       setSuccess('Perfil actualizado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
@@ -133,8 +144,11 @@ const UserProfile: React.FC = () => {
       setError('');
       setSuccess('');
 
-      console.log('🔒 Cambiando contraseña del usuario:', currentUser.documento);
-      await changePassword(currentUser.documento, passwordData.currentPassword, passwordData.newPassword);
+      console.log('🔒 Cambiando contraseña del usuario:', currentUser.username);
+      await updatePerfil({
+        passwordActual: passwordData.currentPassword,
+        passwordNueva: passwordData.newPassword
+      });
       
       setSuccess('Contraseña actualizada exitosamente');
       setPasswordData({

@@ -303,6 +303,9 @@
   font-weight: 700;
   margin: 0;
   color: var(--dark-bg);
+}
+
+.welcome-title > span:first-child {
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -318,7 +321,17 @@
 
 .wave-emoji {
   display: inline-block;
-  filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(10deg) saturate(8);
+  font-size: 1.2em;
+  animation: wave 2.5s ease-in-out infinite;
+  transform-origin: 70% 70%;
+}
+
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(14deg); }
+  20%, 40% { transform: rotate(-8deg); }
+  50% { transform: rotate(14deg); }
+  60% { transform: rotate(0deg); }
 }
 
 /* ============================================
