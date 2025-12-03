@@ -45,6 +45,9 @@ public class Veterinaria {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
     private Boolean activo = true;
     
+    @Column(name = "creado_por_documento", length = 20)
+    private String creadoPorDocumento;
+    
     @OneToMany(mappedBy = "veterinaria", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Cita> citas = new HashSet<>();
     
@@ -147,6 +150,14 @@ public class Veterinaria {
     
     public void setActivo(Boolean activo) {
         this.activo = activo;
+    }
+    
+    public String getCreadoPorDocumento() {
+        return creadoPorDocumento;
+    }
+    
+    public void setCreadoPorDocumento(String creadoPorDocumento) {
+        this.creadoPorDocumento = creadoPorDocumento;
     }
     
     public Set<Cita> getCitas() {

@@ -40,35 +40,98 @@ public class HistoriaClinicaController {
     private CitaService citaService;
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE')")
     public ResponseEntity<List<HistoriaClinicaResponse>> getAllHistorias() {
-        // Obtener el usuario autenticado
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        
-        // Verificar si el usuario tiene rol VETERINARIO
-        boolean isVeterinario = authentication.getAuthorities().stream()
-            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
-        
-        List<HistoriaClinica> historias;
-        
-        if (isVeterinario) {
-            // Si es veterinario, obtener solo sus historias clínicas
-            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
-            if (veterinario.isPresent()) {
-                historias = historiaClinicaService.findByVeterinarioDocumento(veterinario.get().getDocumento());
+        try {
+            // Obtener el usuario autenticado
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            
+            Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
+            if (!usuarioAutenticadoOpt.isPresent()) {
+                return ResponseEntity.ok(List.of());
+            }
+            
+            Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+            
+            // Verificar roles
+            boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean isVeterinario = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isCliente = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+            
+            List<HistoriaClinica> historias;
+            
+            if (isCliente) {
+                // Si es cliente, obtener historias de sus mascotas
+                historias = historiaClinicaService.findByPropietarioDocumento(usuarioAutenticado.getDocumento());
+                System.out.println("=== DEBUG: Cliente " + username + " consultando historias de sus mascotas: " + historias.size());
+            } else if (isVeterinario) {
+                // Si es veterinario, obtener solo sus historias clínicas activas (no archivadas)
+                historias = historiaClinicaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
+                System.out.println("=== DEBUG: Veterinario " + username + " total historias antes de filtrar: " + historias.size());
+                
+                // Mostrar estado de cada historia
+                for (HistoriaClinica h : historias) {
+                    System.out.println("  Historia ID " + h.getId() + " - activo: " + h.getActivo());
+                }
+                
+                // Filtrar EXCLUYENDO las archivadas (activo = false)
+                // NULL o true se consideran activas
+                historias = historias.stream()
+                    .filter(h -> {
+                        boolean esArchivada = h.getActivo() != null && !h.getActivo();
+                        if (esArchivada) {
+                            System.out.println("  ❌ Filtrando historia archivada ID: " + h.getId());
+                        }
+                        return !esArchivada; // Retornar las que NO están archivadas
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+                System.out.println("=== DEBUG: Veterinario " + username + " historias activas después de filtrar: " + historias.size());
+            } else if (isAdmin || isRecepcionista) {
+                // Admin y Recepcionista ven TODAS las historias de su veterinaria (activas e inactivas)
+                System.out.println("=== DEBUG HISTORIAS: Usuario " + username + " tiene veterinaria? " + (usuarioAutenticado.getVeterinaria() != null));
+                
+                if (usuarioAutenticado.getVeterinaria() != null) {
+                    Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                    System.out.println("=== DEBUG HISTORIAS: Buscando historias para veterinaria ID: " + veterinariaId);
+                    System.out.println("=== DEBUG HISTORIAS: Nombre veterinaria: " + usuarioAutenticado.getVeterinaria().getNombre());
+                    
+                    historias = historiaClinicaService.findByVeterinariaId(veterinariaId);
+                    
+                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                        " consultando historias de veterinaria ID " + veterinariaId + ": " + historias.size() + " historias");
+                    
+                    // Debug: mostrar detalles de cada historia
+                    for (HistoriaClinica h : historias) {
+                        System.out.println("  - Historia ID " + h.getId() + 
+                                         ", Mascota: " + (h.getMascota() != null ? h.getMascota().getNombre() : "null") +
+                                         ", Veterinario: " + (h.getVeterinario() != null ? h.getVeterinario().getNombres() : "null") +
+                                         ", Activo: " + h.getActivo());
+                    }
+                } else {
+                    // Si no tiene veterinaria asignada, no puede ver ninguna historia
+                    historias = List.of();
+                    System.out.println("=== DEBUG ALERTA HISTORIAS: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                        " sin veterinaria asignada! Documento: " + usuarioAutenticado.getDocumento());
+                }
             } else {
                 historias = List.of();
             }
-        } else {
-            // Si es admin o recepcionista, obtener todas las historias
-            historias = historiaClinicaService.findAll();
+            
+            List<HistoriaClinicaResponse> response = historias.stream()
+                    .map(HistoriaClinicaResponse::new)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener historias clínicas: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of()); // Devolver lista vacía en lugar de error 500
         }
-        
-        List<HistoriaClinicaResponse> response = historias.stream()
-                .map(HistoriaClinicaResponse::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/pageable")
@@ -235,20 +298,30 @@ public class HistoriaClinicaController {
     
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO')")
-    public ResponseEntity<Void> deleteHistoria(@PathVariable Long id) {
+    public ResponseEntity<?> deleteHistoria(@PathVariable Long id, Authentication authentication) {
         Optional<HistoriaClinica> optionalHistoria = historiaClinicaService.findById(id);
         
         if (optionalHistoria.isPresent()) {
             HistoriaClinica historia = optionalHistoria.get();
             
-            // Desasociar la cita antes de eliminar para evitar problemas de FK
-            if (historia.getCita() != null) {
-                historia.setCita(null);
-                historiaClinicaService.save(historia);
-            }
+            // Verificar si el usuario es ADMIN
+            boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
             
-            historiaClinicaService.deleteById(id);
-            return ResponseEntity.ok().build();
+            if (isAdmin) {
+                // ADMIN puede eliminar físicamente
+                if (historia.getCita() != null) {
+                    historia.setCita(null);
+                    historiaClinicaService.save(historia);
+                }
+                historiaClinicaService.deleteById(id);
+                return ResponseEntity.ok().build();
+            } else {
+                // VETERINARIO solo puede archivar (cambiar activo a false)
+                historia.setActivo(false);
+                historiaClinicaService.save(historia);
+                return ResponseEntity.ok().build();
+            }
         } else {
             return ResponseEntity.notFound().build();
         }

@@ -32,12 +32,27 @@ public class VeterinariaController {
     
     @GetMapping
     public ResponseEntity<ApiResponse<List<VeterinariaResponse>>> getAllVeterinarias(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        System.out.println("=== DEBUG GET VETERINARIAS ===");
+        System.out.println("UserDetails: " + (userDetails != null ? userDetails.getUsername() : "null"));
+        if (userDetails != null) {
+            System.out.println("Authorities: " + userDetails.getAuthorities());
+        }
+        
         List<Veterinaria> veterinarias;
         
         // Verificar si el usuario autenticado es veterinario
         if (userDetails != null) {
             boolean isVeterinario = userDetails.getAuthorities().stream()
                 .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean isCliente = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+            
+            System.out.println("Roles detectados - Veterinario: " + isVeterinario + ", Admin: " + isAdmin + 
+                             ", Recepcionista: " + isRecepcionista + ", Cliente: " + isCliente);
             
             if (isVeterinario) {
                 // Si es veterinario, solo retornar la veterinaria donde trabaja
@@ -49,8 +64,32 @@ public class VeterinariaController {
                     veterinarias = new ArrayList<>();
                     System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " no tiene veterinaria asignada");
                 }
+            } else if (isAdmin) {
+                // Admin solo ve las veterinarias que él ha creado
+                Optional<Usuario> adminOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (adminOpt.isPresent()) {
+                    veterinarias = veterinariaService.findByCreadoPorDocumento(adminOpt.get().getDocumento());
+                    System.out.println("=== DEBUG: Admin " + userDetails.getUsername() + " consultando veterinarias creadas por él: " + veterinarias.size() + " veterinarias");
+                } else {
+                    veterinarias = new ArrayList<>();
+                    System.out.println("=== ALERTA: Admin " + userDetails.getUsername() + " no encontrado en la base de datos");
+                }
+            } else if (isRecepcionista) {
+                // Recepcionista ve solo su veterinaria asignada
+                Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (usuarioOpt.isPresent() && usuarioOpt.get().getVeterinaria() != null) {
+                    veterinarias = List.of(usuarioOpt.get().getVeterinaria());
+                    System.out.println("=== DEBUG: Recepcionista " + userDetails.getUsername() + " consultando su veterinaria: " + usuarioOpt.get().getVeterinaria().getNombre());
+                } else {
+                    veterinarias = new ArrayList<>();
+                    System.out.println("=== ALERTA: Recepcionista " + userDetails.getUsername() + " sin veterinaria asignada");
+                }
+            } else if (isCliente) {
+                // Cliente puede ver todas las veterinarias para agendar citas
+                veterinarias = veterinariaService.findAll();
+                System.out.println("=== DEBUG: Cliente " + userDetails.getUsername() + " consultando todas las veterinarias para agendar cita");
             } else {
-                // Admin, Recepcionista o Cliente pueden ver todas
+                // Otros usuarios pueden ver todas
                 veterinarias = veterinariaService.findAll();
             }
         } else {
@@ -153,9 +192,19 @@ public class VeterinariaController {
     
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Veterinaria>> createVeterinaria(@Valid @RequestBody Veterinaria veterinaria) {
+    public ResponseEntity<ApiResponse<Veterinaria>> createVeterinaria(@Valid @RequestBody Veterinaria veterinaria, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
             System.out.println("=== Creando veterinaria: " + veterinaria.getNombre());
+            
+            // Asignar el documento del usuario creador
+            if (userDetails != null) {
+                Optional<Usuario> creadorOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (creadorOpt.isPresent()) {
+                    veterinaria.setCreadoPorDocumento(creadorOpt.get().getDocumento());
+                    System.out.println("=== Veterinaria creada por: " + userDetails.getUsername() + " (Doc: " + creadorOpt.get().getDocumento() + ")");
+                }
+            }
+            
             Veterinaria nuevaVeterinaria = veterinariaService.save(veterinaria);
             return ResponseEntity.ok(
                 ApiResponse.success("Veterinaria creada exitosamente", nuevaVeterinaria)

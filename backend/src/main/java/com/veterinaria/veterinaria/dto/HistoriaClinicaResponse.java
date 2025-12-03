@@ -19,6 +19,7 @@ public class HistoriaClinicaResponse {
     private String observaciones;
     private String recomendaciones;
     private LocalDateTime fechaCreacion;
+    private Boolean activo;
     
     // Información básica de la mascota (sin datos sensibles)
     private MascotaBasicInfo mascota;
@@ -31,50 +32,77 @@ public class HistoriaClinicaResponse {
     
     // Constructor
     public HistoriaClinicaResponse(HistoriaClinica historia) {
-        this.id = historia.getId();
-        this.fechaConsulta = historia.getFechaConsulta();
-        this.motivoConsulta = historia.getMotivoConsulta();
-        this.sintomas = historia.getSintomas();
-        this.diagnostico = historia.getDiagnostico();
-        this.tratamiento = historia.getTratamiento();
-        this.medicamentos = historia.getMedicamentos();
-        this.peso = historia.getPeso();
-        this.temperatura = historia.getTemperatura();
-        this.frecuenciaCardiaca = historia.getFrecuenciaCardiaca();
-        this.frecuenciaRespiratoria = historia.getFrecuenciaRespiratoria();
-        this.observaciones = historia.getObservaciones();
-        this.recomendaciones = historia.getRecomendaciones();
-        this.fechaCreacion = historia.getFechaCreacion();
-        
-        // Solo información básica de la mascota
-        if (historia.getMascota() != null) {
-            this.mascota = new MascotaBasicInfo(
-                historia.getMascota().getId(),
-                historia.getMascota().getNombre(),
-                historia.getMascota().getEspecie(),
-                historia.getMascota().getRaza(),
-                historia.getMascota().getPropietario() != null ? 
-                    historia.getMascota().getPropietario().getNombres() + " " + 
-                    historia.getMascota().getPropietario().getApellidos() : null
-            );
-        }
-        
-        // Solo información básica del veterinario
-        if (historia.getVeterinario() != null) {
-            this.veterinario = new VeterinarioBasicInfo(
-                historia.getVeterinario().getDocumento(),
-                historia.getVeterinario().getNombres(),
-                historia.getVeterinario().getApellidos()
-            );
-        }
-        
-        // Solo información básica de la cita
-        if (historia.getCita() != null) {
-            this.cita = new CitaBasicInfo(
-                historia.getCita().getId(),
-                historia.getCita().getFechaHora(),
-                historia.getCita().getEstado().toString()
-            );
+        try {
+            this.id = historia.getId();
+            this.fechaConsulta = historia.getFechaConsulta();
+            this.motivoConsulta = historia.getMotivoConsulta();
+            this.sintomas = historia.getSintomas();
+            this.diagnostico = historia.getDiagnostico();
+            this.tratamiento = historia.getTratamiento();
+            this.medicamentos = historia.getMedicamentos();
+            this.peso = historia.getPeso();
+            this.temperatura = historia.getTemperatura();
+            this.frecuenciaCardiaca = historia.getFrecuenciaCardiaca();
+            this.frecuenciaRespiratoria = historia.getFrecuenciaRespiratoria();
+            this.observaciones = historia.getObservaciones();
+            this.recomendaciones = historia.getRecomendaciones();
+            this.fechaCreacion = historia.getFechaCreacion();
+            this.activo = historia.getActivo();
+            
+            // Solo información básica de la mascota
+            try {
+                if (historia.getMascota() != null) {
+                    String propietarioNombre = null;
+                    try {
+                        if (historia.getMascota().getPropietario() != null) {
+                            propietarioNombre = historia.getMascota().getPropietario().getNombres() + " " + 
+                                historia.getMascota().getPropietario().getApellidos();
+                        }
+                    } catch (Exception e) {
+                        System.err.println("⚠️ Error obteniendo propietario de mascota: " + e.getMessage());
+                    }
+                    
+                    this.mascota = new MascotaBasicInfo(
+                        historia.getMascota().getId(),
+                        historia.getMascota().getNombre(),
+                        historia.getMascota().getEspecie(),
+                        historia.getMascota().getRaza(),
+                        propietarioNombre
+                    );
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando mascota de historia " + historia.getId() + ": " + e.getMessage());
+            }
+            
+            // Solo información básica del veterinario
+            try {
+                if (historia.getVeterinario() != null) {
+                    this.veterinario = new VeterinarioBasicInfo(
+                        historia.getVeterinario().getDocumento(),
+                        historia.getVeterinario().getNombres(),
+                        historia.getVeterinario().getApellidos()
+                    );
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando veterinario de historia " + historia.getId() + ": " + e.getMessage());
+            }
+            
+            // Solo información básica de la cita
+            try {
+                if (historia.getCita() != null) {
+                    this.cita = new CitaBasicInfo(
+                        historia.getCita().getId(),
+                        historia.getCita().getFechaHora(),
+                        historia.getCita().getEstado().toString()
+                    );
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando cita de historia " + historia.getId() + ": " + e.getMessage());
+            }
+        } catch (Exception e) {
+            System.err.println("❌ ERROR CRÍTICO en HistoriaClinicaResponse para historia " + 
+                (historia != null ? historia.getId() : "null") + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -93,6 +121,7 @@ public class HistoriaClinicaResponse {
     public String getObservaciones() { return observaciones; }
     public String getRecomendaciones() { return recomendaciones; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
+    public Boolean getActivo() { return activo; }
     public MascotaBasicInfo getMascota() { return mascota; }
     public VeterinarioBasicInfo getVeterinario() { return veterinario; }
     public CitaBasicInfo getCita() { return cita; }

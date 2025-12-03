@@ -19,6 +19,13 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
     List<HistoriaClinica> findByFechaConsultaBetween(LocalDateTime inicio, LocalDateTime fin);
     List<HistoriaClinica> findByMascotaIdOrderByFechaConsultaDesc(Long mascotaId);
     
+    // Encontrar historias clínicas por veterinaria del veterinario
+    @EntityGraph(attributePaths = {"mascota", "mascota.propietario", "veterinario", "veterinario.veterinaria", "cita"})
+    @Query("SELECT DISTINCT h FROM HistoriaClinica h " +
+           "JOIN h.veterinario v " +
+           "WHERE v.veterinaria.id = :veterinariaId")
+    List<HistoriaClinica> findByVeterinariaId(@Param("veterinariaId") Long veterinariaId);
+    
     // Métodos de conteo
     long countByMascota(Mascota mascota);
     
@@ -38,4 +45,8 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
     @EntityGraph(attributePaths = {"mascota", "mascota.propietario", "veterinario", "cita"})
     @Query("SELECT h FROM HistoriaClinica h WHERE h.veterinario.documento = :veterinarioDocumento")
     List<HistoriaClinica> findByVeterinarioDocumentoWithRelations(@Param("veterinarioDocumento") String veterinarioDocumento);
+    
+    @EntityGraph(attributePaths = {"mascota", "mascota.propietario", "veterinario", "cita"})
+    @Query("SELECT h FROM HistoriaClinica h WHERE h.mascota.propietario.documento = :propietarioDocumento ORDER BY h.fechaConsulta DESC")
+    List<HistoriaClinica> findByPropietarioDocumento(@Param("propietarioDocumento") String propietarioDocumento);
 }

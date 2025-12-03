@@ -12,4 +12,5 @@ public interface VeterinariaRepository extends JpaRepository<Veterinaria, Long> 
     List<Veterinaria> findByNombreContainingIgnoreCase(String nombre);
     List<Veterinaria> findByCiudadIgnoreCase(String ciudad);
     List<Veterinaria> findByActivoTrueAndCiudadIgnoreCase(String ciudad);
+    List<Veterinaria> findByCreadoPorDocumento(String creadoPorDocumento);
 }

@@ -59,26 +59,47 @@ const MascotaManagement: React.FC = () => {
   const loadMascotas = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 Iniciando carga de mascotas...');
       let data: any;
       
       // Si es cliente, solo cargar sus propias mascotas
       if (authService.isCliente()) {
         const currentUser = authService.getCurrentUser();
         if (currentUser && currentUser.documento) {
+          console.log('🐶 Cargando mascotas del cliente:', currentUser.documento);
           data = await mascotaService.getMascotasByPropietario(currentUser.documento);
         } else {
           data = [];
         }
       } else {
         // Admin, Recepcionista y Veterinario ven todas
+        console.log('🐶 Cargando todas las mascotas...');
         data = await mascotaService.getAllMascotas();
       }
       
-      setMascotas(Array.isArray(data) ? data : []);
-      setError('');
-    } catch (error) {
-      setError('Error al cargar las mascotas');
-      console.error('Error loading mascotas:', error);
+      console.log('📥 Mascotas recibidas:', data);
+      console.log('📊 Total de mascotas:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Mascotas cargadas exitosamente');
+        setMascotas(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron mascotas');
+        setMascotas([]);
+        if (!authService.isCliente()) {
+          setError('No se encontraron mascotas. Verifica que existan datos en la base de datos.');
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las mascotas';
+      console.error('❌ Error loading mascotas:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setMascotas([]);
     } finally {
       setLoading(false);
@@ -160,6 +181,13 @@ const MascotaManagement: React.FC = () => {
         mascota.especie?.toLowerCase() === filterByEspecie.toLowerCase()
       );
     }
+
+    // Ordenar por fecha de registro (más recientes primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
+      const fechaB = b.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
+      return fechaB - fechaA;
+    });
 
     setFilteredMascotas(filtered);
   };
@@ -601,135 +629,170 @@ const MascotaManagement: React.FC = () => {
           <Modal.Body>
             {error && <Alert variant="danger">{error}</Alert>}
             
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                    placeholder="Nombre de la mascota"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Especie *</Form.Label>
-                  {modalMode === 'view' ? (
-                    <Form.Control
-                      type="text"
-                      value={formData.especie || 'No especificada'}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="especie"
-                      value={formData.especie}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Seleccione una especie</option>
-                      <option value="Perro">Perro</option>
-                      <option value="Gato">Gato</option>
-                      <option value="Ave">Ave</option>
-                      <option value="Conejo">Conejo</option>
-                      <option value="Hamster">Hamster</option>
-                      <option value="Reptil">Reptil</option>
-                      <option value="Otro">Otro</option>
-                    </Form.Select>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Sección 1: Información Básica */}
+            <Card className="mb-4 border-primary">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-paw me-2"></i>
+                  Información Básica de la Mascota
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombre <span className="text-danger">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="nombre"
+                        value={formData.nombre}
+                        onChange={handleInputChange}
+                        required
+                        disabled={modalMode === 'view'}
+                        placeholder="Ej: Max, Luna, Coco..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Especie <span className="text-danger">*</span></Form.Label>
+                      {modalMode === 'view' ? (
+                        <Form.Control
+                          type="text"
+                          value={formData.especie || 'No especificada'}
+                          disabled
+                        />
+                      ) : (
+                        <Form.Select
+                          name="especie"
+                          value={formData.especie}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Seleccione una especie</option>
+                          <option value="Perro">🐕 Perro</option>
+                          <option value="Gato">🐈 Gato</option>
+                          <option value="Ave">🦜 Ave</option>
+                          <option value="Conejo">🐰 Conejo</option>
+                          <option value="Hamster">🐹 Hamster</option>
+                          <option value="Reptil">🦎 Reptil</option>
+                          <option value="Otro">🐾 Otro</option>
+                        </Form.Select>
+                      )}
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-0">
+                      <Form.Label>Raza</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="raza"
+                        value={formData.raza}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="Ej: Labrador, Persa, Mestizo..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-0">
+                      <Form.Label>Sexo</Form.Label>
+                      {modalMode === 'view' ? (
+                        <Form.Control
+                          type="text"
+                          value={formData.sexo ? (formData.sexo === 'Macho' ? 'Macho ♂' : formData.sexo === 'Hembra' ? 'Hembra ♀' : formData.sexo) : 'No especificado'}
+                          disabled
+                        />
+                      ) : (
+                        <Form.Select
+                          name="sexo"
+                          value={formData.sexo}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">Seleccione el sexo</option>
+                          <option value="Macho">♂ Macho</option>
+                          <option value="Hembra">♀ Hembra</option>
+                        </Form.Select>
+                      )}
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Raza</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="raza"
-                    value={formData.raza}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                    placeholder="Raza de la mascota"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Sexo</Form.Label>
-                  {modalMode === 'view' ? (
-                    <Form.Control
-                      type="text"
-                      value={formData.sexo ? (formData.sexo === 'Macho' ? 'Macho ♂' : formData.sexo === 'Hembra' ? 'Hembra ♀' : formData.sexo) : 'No especificado'}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="sexo"
-                      value={formData.sexo}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Seleccione el sexo</option>
-                      <option value="Macho">Macho ♂</option>
-                      <option value="Hembra">Hembra ♀</option>
-                    </Form.Select>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Sección 2: Características Físicas */}
+            <Card className="mb-4 border-success">
+              <Card.Header className="bg-success text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-ruler-combined me-2"></i>
+                  Características Físicas
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Fecha de Nacimiento</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="fechaNacimiento"
+                        value={formData.fechaNacimiento}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        max={new Date().toISOString().split('T')[0]}
+                      />
+                      {formData.fechaNacimiento && (
+                        <Form.Text className="text-muted">
+                          <i className="fas fa-birthday-cake me-1"></i>
+                          Edad: {calcularEdad(formData.fechaNacimiento)}
+                        </Form.Text>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Peso (kg)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="peso"
+                        value={formData.peso}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="0.00"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Color</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="color"
+                        value={formData.color}
+                        onChange={handleInputChange}
+                        disabled={modalMode === 'view'}
+                        placeholder="Ej: Café, Negro, Blanco..."
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha de Nacimiento</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="fechaNacimiento"
-                    value={formData.fechaNacimiento}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Peso (kg)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    name="peso"
-                    value={formData.peso}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                    placeholder="Peso en kilogramos"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Color</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="color"
-                    value={formData.color}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                    placeholder="Color del pelaje/plumaje"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Propietario *</Form.Label>
+            {/* Sección 3: Propietario */}
+            <Card className="mb-4 border-info">
+              <Card.Header className="bg-info text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-user me-2"></i>
+                  Información del Propietario
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-0">
+                  <Form.Label>Propietario <span className="text-danger">*</span></Form.Label>
                   {modalMode === 'view' ? (
                     <Form.Control
                       type="text"
@@ -746,6 +809,7 @@ const MascotaManagement: React.FC = () => {
                       value={formData.propietarioId}
                       onChange={handleInputChange}
                       required
+                      disabled={authService.isCliente()}
                     >
                       <option value="">Seleccione un propietario</option>
                       {propietarios.map(propietario => (
@@ -755,22 +819,45 @@ const MascotaManagement: React.FC = () => {
                       ))}
                     </Form.Select>
                   )}
+                  {authService.isCliente() && modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-lock me-1"></i>
+                      Asignado automáticamente a tu perfil
+                    </Form.Text>
+                  )}
                 </Form.Group>
-              </Col>
-            </Row>
+              </Card.Body>
+            </Card>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Observaciones</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="observaciones"
-                value={formData.observaciones}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-                placeholder="Alergias, enfermedades, tratamientos especiales, etc."
-              />
-            </Form.Group>
+            {/* Sección 4: Observaciones Médicas */}
+            <Card className="mb-0 border-warning">
+              <Card.Header className="bg-warning">
+                <h6 className="mb-0">
+                  <i className="fas fa-notes-medical me-2"></i>
+                  Observaciones Médicas
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-0">
+                  <Form.Label>Observaciones</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={4}
+                    name="observaciones"
+                    value={formData.observaciones}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Alergias conocidas, enfermedades crónicas, tratamientos especiales, comportamiento, etc."
+                  />
+                  {modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      Información importante que el veterinario debe conocer
+                    </Form.Text>
+                  )}
+                </Form.Group>
+              </Card.Body>
+            </Card>
 
             {modalMode === 'view' && selectedMascota && (
               <Row>

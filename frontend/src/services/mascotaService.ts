@@ -4,12 +4,26 @@ import { Mascota } from '../types';
 class MascotaService {
   getAllMascotas(): Promise<Mascota[]> {
     return apiClient.get('/mascotas').then(response => {
+      console.log('📥 Respuesta getAllMascotas:', response.data);
+      
       let data = response.data;
+      
+      // Si es string, parsearlo
       if (typeof data === 'string') {
         data = JSON.parse(data);
       }
       
-      return Array.isArray(data) ? data : [];
+      // Si tiene estructura ApiResponse, extraer el campo 'data'
+      if (data && data.data !== undefined) {
+        data = data.data;
+      }
+      
+      const mascotas = Array.isArray(data) ? data : [];
+      console.log('✅ Mascotas extraídas:', mascotas.length);
+      return mascotas;
+    }).catch(error => {
+      console.error('❌ Error al obtener mascotas:', error);
+      return [];
     });
   }
 

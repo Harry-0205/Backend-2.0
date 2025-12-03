@@ -137,4 +137,11 @@ public class MascotaService {
         
         return mascotaRepository.findAllById(mascotaIds);
     }
+    
+    /**
+     * Obtiene las mascotas cuyos propietarios pertenecen a una veterinaria específica.
+     */
+    public List<Mascota> findByPropietarioVeterinariaId(Long veterinariaId) {
+        return mascotaRepository.findByPropietarioVeterinariaId(veterinariaId);
+    }
 }

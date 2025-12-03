@@ -55,11 +55,34 @@ public class AuthService {
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
         
-        return new JwtResponse(jwt,
+        // Obtener el usuario completo de la base de datos
+        Usuario usuario = usuarioRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        JwtResponse response = new JwtResponse(jwt,
                 userDetails.getDocumento(),
                 userDetails.getUsername(),
                 userDetails.getEmail(),
                 roles);
+        
+        // Poblar información adicional del usuario
+        response.setNombres(usuario.getNombres());
+        response.setApellidos(usuario.getApellidos());
+        response.setTelefono(usuario.getTelefono());
+        response.setDireccion(usuario.getDireccion());
+        
+        // Si el usuario tiene veterinaria, agregar la información
+        if (usuario.getVeterinaria() != null) {
+            JwtResponse.VeterinariaInfo vetInfo = new JwtResponse.VeterinariaInfo(
+                    usuario.getVeterinaria().getId(),
+                    usuario.getVeterinaria().getNombre(),
+                    usuario.getVeterinaria().getTelefono(),
+                    usuario.getVeterinaria().getDireccion()
+            );
+            response.setVeterinaria(vetInfo);
+        }
+        
+        return response;
     }
     
     public ResponseEntity<?> registerUser(SignupRequest signUpRequest) {

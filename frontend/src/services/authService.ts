@@ -67,6 +67,15 @@ class AuthService {
   isCliente(): boolean {
     return this.hasRole('CLIENTE');
   }
+
+  updateCurrentUser(updatedData: any): void {
+    const user = this.getCurrentUser();
+    if (user) {
+      const updatedUser = { ...user, ...updatedData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('💾 Usuario actualizado en localStorage:', updatedUser);
+    }
+  }
 }
 
 const authServiceInstance = new AuthService();

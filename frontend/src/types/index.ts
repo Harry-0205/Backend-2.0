@@ -111,6 +111,7 @@ export interface HistoriaClinica {
   recomendaciones?: string;
   proximaCita?: string;
   fechaCreacion: string;
+  activo?: boolean;
   mascota: Mascota;
   veterinario: Usuario | string; // Puede ser objeto Usuario o string (DTO)
   cita?: Cita;
@@ -155,4 +156,14 @@ export interface JwtResponse {
   username: string;
   email: string;
   roles: string[];
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string;
+  direccion?: string;
+  veterinaria?: {
+    id: number;
+    nombre: string;
+    telefono?: string;
+    direccion?: string;
+  };
 }

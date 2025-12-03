@@ -3,6 +3,8 @@ package com.veterinaria.veterinaria.repository;
 import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,6 +16,10 @@ public interface MascotaRepository extends JpaRepository<Mascota, Long> {
     List<Mascota> findByPropietarioDocumentoAndActivoTrue(String propietarioDocumento);
     List<Mascota> findByEspecieContainingIgnoreCase(String especie);
     List<Mascota> findByNombreContainingIgnoreCase(String nombre);
+    
+    // Encontrar mascotas cuyos propietarios pertenecen a una veterinaria específica
+    @Query("SELECT m FROM Mascota m WHERE m.propietario.veterinaria.id = :veterinariaId")
+    List<Mascota> findByPropietarioVeterinariaId(@Param("veterinariaId") Long veterinariaId);
     
     // Métodos de conteo
     long countByActivoTrue();

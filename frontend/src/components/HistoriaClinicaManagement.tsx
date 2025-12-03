@@ -14,11 +14,10 @@ import {
   Spinner,
   Accordion
 } from 'react-bootstrap';
-import { HistoriaClinica, EstadoCita } from '../types';
+import { HistoriaClinica } from '../types';
 import historiaClinicaService from '../services/historiaClinicaService';
 import mascotaService from '../services/mascotaService';
 import { getAllUsuarios } from '../services/userService';
-import citaService from '../services/citaService';
 import authService from '../services/authService';
 
 const HistoriaClinicaManagement: React.FC = () => {
@@ -28,7 +27,6 @@ const HistoriaClinicaManagement: React.FC = () => {
   const [filteredMascotas, setFilteredMascotas] = useState<any[]>([]);
   const [propietarios, setPropietarios] = useState<any[]>([]);
   const [veterinarios, setVeterinarios] = useState<any[]>([]);
-  const [citas, setCitas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
@@ -37,6 +35,8 @@ const HistoriaClinicaManagement: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Estados para disponibilidad de horarios de próxima cita - REMOVIDO
 
   // Form state
   const [formData, setFormData] = useState({
@@ -52,7 +52,6 @@ const HistoriaClinicaManagement: React.FC = () => {
     frecuenciaRespiratoria: '',
     observaciones: '',
     recomendaciones: '',
-    proximaCita: '',
     propietarioId: '',
     mascotaId: '',
     veterinarioId: '',
@@ -63,7 +62,6 @@ const HistoriaClinicaManagement: React.FC = () => {
     loadHistoriasClinicas();
     loadMascotas();
     loadVeterinarios();
-    loadCitas();
     loadPropietarios();
   }, []);
 
@@ -95,6 +93,18 @@ const HistoriaClinicaManagement: React.FC = () => {
       } else {
         // Otros roles ven todas las historias
         data = await historiaClinicaService.getAllHistoriasClinicas();
+      }
+      
+      console.log('📋 Historias cargadas desde backend:', data.length);
+      if (authService.isAdmin() || authService.isRecepcionista()) {
+        const activas = data.filter((h: any) => h.activo !== false).length;
+        const archivadas = data.filter((h: any) => h.activo === false).length;
+        console.log('✅ Activas:', activas, '📦 Archivadas:', archivadas);
+        data.forEach((h: any) => {
+          if (h.activo === false) {
+            console.log('📦 Historia archivada ID:', h.id, 'Mascota:', h.mascota?.nombre);
+          }
+        });
       }
       
       setHistoriasClinicas(Array.isArray(data) ? data : []);
@@ -169,29 +179,7 @@ const HistoriaClinicaManagement: React.FC = () => {
     }
   };
 
-  const loadCitas = async () => {
-    try {
-      let data: any;
-      
-      // Si es cliente, solo cargar sus propias citas
-      if (authService.isCliente()) {
-        const currentUser = authService.getCurrentUser();
-        if (currentUser && currentUser.documento) {
-          data = await citaService.getCitasByCliente(currentUser.documento);
-        } else {
-          data = [];
-        }
-      } else {
-        // Otros roles ven todas las citas
-        data = await citaService.getAllCitas();
-      }
-      
-      setCitas(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error loading citas:', error);
-      setCitas([]);
-    }
-  };
+  // Función loadCitas - REMOVIDA
 
   const loadPropietarios = async () => {
     try {
@@ -237,6 +225,13 @@ const HistoriaClinicaManagement: React.FC = () => {
       });
     }
 
+    // Ordenar por fecha de creación (más recientes primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : 0;
+      const fechaB = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : 0;
+      return fechaB - fechaA;
+    });
+
     setFilteredHistorias(filtered);
   };
 
@@ -254,15 +249,17 @@ const HistoriaClinicaManagement: React.FC = () => {
       frecuenciaRespiratoria: '',
       observaciones: '',
       recomendaciones: '',
-      proximaCita: '',
       mascotaId: '',
       veterinarioId: '',
       citaId: '',
       propietarioId: ''
     });
+    // Limpiar estados de próxima cita - REMOVIDO
   };
 
-  const handleShowModal = (mode: 'create' | 'edit' | 'view', historia?: HistoriaClinica) => {
+  // Función buscarProximaCita - REMOVIDA
+
+  const handleShowModal = async (mode: 'create' | 'edit' | 'view', historia?: HistoriaClinica) => {
     setModalMode(mode);
     setSelectedHistoria(historia || null);
     
@@ -280,7 +277,6 @@ const HistoriaClinicaManagement: React.FC = () => {
         frecuenciaRespiratoria: historia.frecuenciaRespiratoria?.toString() || '',
         observaciones: historia.observaciones || '',
         recomendaciones: historia.recomendaciones || '',
-        proximaCita: historia.proximaCita ? historia.proximaCita.slice(0, 16) : '',
         mascotaId: historia.mascota?.id?.toString() || '',
         veterinarioId: historia.veterinario && typeof historia.veterinario === 'object' 
           ? historia.veterinario.documento || ''
@@ -376,81 +372,16 @@ const HistoriaClinicaManagement: React.FC = () => {
         frecuenciaRespiratoria: formData.frecuenciaRespiratoria ? parseInt(formData.frecuenciaRespiratoria) : null,
         observaciones: formData.observaciones || null,
         recomendaciones: formData.recomendaciones || null,
-        proximaCita: formData.proximaCita ? new Date(formData.proximaCita + ':00.000').toISOString() : null,
-        mascota: {
-          id: parseInt(formData.mascotaId)
-        },
-        veterinario: {
-          documento: formData.veterinarioId
-        },
+        mascotaId: parseInt(formData.mascotaId),
+        veterinarioDocumento: formData.veterinarioId,
         ...(formData.citaId && {
-          cita: {
-            id: parseInt(formData.citaId)
-          }
+          citaId: parseInt(formData.citaId)
         })
       };
       
       if (modalMode === 'create') {
-        const nuevaHistoria = await historiaClinicaService.createHistoriaClinica(historiaData);
-        
-        // Si hay próxima cita, crear una cita en el sistema
-        if (formData.proximaCita) {
-          try {
-            const mascota = mascotas.find(m => m.id === parseInt(formData.mascotaId));
-            console.log('Mascota encontrada:', mascota);
-            
-            // Obtener el documento del propietario
-            let propietarioDocumento = '';
-            if (mascota) {
-              if (typeof mascota.propietario === 'string') {
-                propietarioDocumento = mascota.propietario;
-                console.log('Propietario es string:', propietarioDocumento);
-              } else if (mascota.propietario?.documento) {
-                propietarioDocumento = mascota.propietario.documento;
-                console.log('Propietario es objeto con documento:', propietarioDocumento);
-              }
-            }
-            
-            if (!propietarioDocumento) {
-              console.error('No se pudo obtener el documento del propietario');
-              setSuccess('Historia clínica creada. No se pudo crear la próxima cita: falta información del propietario');
-            } else {
-              console.log('Creando cita con datos:', {
-                fechaHora: formData.proximaCita + ':00.000',
-                propietarioDocumento,
-                mascotaId: formData.mascotaId,
-                veterinarioId: formData.veterinarioId
-              });
-              
-              const citaData: any = {
-                fechaHora: formData.proximaCita + ':00.000',
-                motivo: 'Seguimiento - Próxima consulta',
-                observaciones: formData.recomendaciones || 'Cita de seguimiento',
-                estado: EstadoCita.PROGRAMADA,
-                cliente: {
-                  documento: propietarioDocumento
-                },
-                mascota: {
-                  id: parseInt(formData.mascotaId)
-                },
-                veterinario: {
-                  documento: formData.veterinarioId
-                }
-              };
-              
-              await citaService.createCita(citaData);
-              console.log('Cita creada exitosamente');
-              setSuccess('Historia clínica y próxima cita creadas exitosamente');
-            }
-          } catch (citaError: any) {
-            console.error('Error al crear la próxima cita:', citaError);
-            console.error('Detalles del error:', citaError.response?.data);
-            const errorMsg = citaError.response?.data?.message || citaError.message || 'Error desconocido';
-            setSuccess('Historia clínica creada, pero hubo un error al crear la próxima cita: ' + errorMsg);
-          }
-        } else {
-          setSuccess('Historia clínica creada exitosamente');
-        }
+        await historiaClinicaService.createHistoriaClinica(historiaData);
+        setSuccess('Historia clínica creada exitosamente');
       } else if (modalMode === 'edit' && selectedHistoria) {
         await historiaClinicaService.updateHistoriaClinica(selectedHistoria.id, historiaData);
         setSuccess('Historia clínica actualizada exitosamente');
@@ -487,16 +418,35 @@ const HistoriaClinicaManagement: React.FC = () => {
   };
 
   const handleDelete = async (historia: HistoriaClinica) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar esta historia clínica?`)) {
+    const isAdmin = authService.isAdmin();
+    const isVeterinario = authService.isVeterinario();
+    const accion = isAdmin ? 'eliminar' : 'archivar';
+    const accionPasado = isAdmin ? 'eliminada' : 'archivada';
+    
+    if (window.confirm(`¿Está seguro de que desea ${accion} esta historia clínica?${!isAdmin ? ' (Se ocultará de su vista pero no se eliminará del sistema)' : ''}`)) {
       try {
         setLoading(true);
-        console.log('Intentando eliminar historia clínica ID:', historia.id);
+        console.log(`Intentando ${accion} historia clínica ID:`, historia.id);
         await historiaClinicaService.deleteHistoriaClinica(historia.id);
-        console.log('Historia clínica eliminada exitosamente del backend');
-        setSuccess('Historia clínica eliminada exitosamente');
-        console.log('Recargando lista de historias clínicas...');
-        await loadHistoriasClinicas();
-        console.log('Lista recargada');
+        console.log(`Historia clínica ${accionPasado} exitosamente del backend`);
+        setSuccess(`Historia clínica ${accionPasado} exitosamente`);
+        
+        if (isVeterinario) {
+          // Para veterinarios, simplemente filtrar la historia archivada del estado local
+          console.log('Veterinario: filtrando historia archivada del estado local');
+          setHistoriasClinicas(prev => prev.filter(h => h.id !== historia.id));
+          setFilteredHistorias(prev => prev.filter(h => h.id !== historia.id));
+        } else if (isAdmin || authService.isRecepcionista()) {
+          // Para admin y recepcionista, actualizar el estado de la historia a archivada (activo=false)
+          console.log(`${isAdmin ? 'Admin' : 'Recepcionista'}: actualizando estado de historia a archivada`);
+          setHistoriasClinicas(prev => prev.map(h => 
+            h.id === historia.id ? { ...h, activo: false } : h
+          ));
+          setFilteredHistorias(prev => prev.map(h => 
+            h.id === historia.id ? { ...h, activo: false } : h
+          ));
+        }
+        
         setTimeout(() => setSuccess(''), 3000);
       } catch (error: any) {
         console.error('Error completo al eliminar:', error);
@@ -554,22 +504,23 @@ const HistoriaClinicaManagement: React.FC = () => {
   };
 
   const formatFechaHora = (fecha: string) => {
-    return new Date(fecha).toLocaleString('es-ES', {
+    const date = new Date(fecha);
+    const fechaStr = date.toLocaleDateString('es-ES', {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'long',
+      day: 'numeric'
     });
+    const horaStr = date.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return `${fechaStr} - ${horaStr}`;
   };
 
-  const getCitasByMascota = () => {
-    if (!formData.mascotaId) return [];
-    return citas.filter(cita => {
-      const mascotaId = cita.mascotaId || cita.mascota?.id;
-      return mascotaId?.toString() === formData.mascotaId;
-    });
-  };
+  // Función getCitasByMascota - REMOVIDA
+  
+  // Funciones loadHorariosDisponibles, handleFechaProximaCitaChange y handleSelectHorario - REMOVIDAS
 
   return (
     <Container className="mt-4">
@@ -636,13 +587,14 @@ const HistoriaClinicaManagement: React.FC = () => {
                       <th>Veterinario</th>
                       <th>Motivo</th>
                       <th>Diagnóstico</th>
+                      {(authService.isAdmin() || authService.isRecepcionista()) && <th>Estado</th>}
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredHistorias.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-4">
+                        <td colSpan={(authService.isAdmin() || authService.isRecepcionista()) ? 8 : 7} className="text-center py-4">
                           No se encontraron historias clínicas
                         </td>
                       </tr>
@@ -684,6 +636,13 @@ const HistoriaClinicaManagement: React.FC = () => {
                               <span>{historia.diagnostico.substring(0, 50)}{historia.diagnostico.length > 50 ? '...' : ''}</span>
                             ) : '-'}
                           </td>
+                          {(authService.isAdmin() || authService.isRecepcionista()) && (
+                            <td>
+                              <Badge bg={historia.activo !== false ? 'success' : 'secondary'}>
+                                {historia.activo !== false ? 'Activa' : 'Archivada'}
+                              </Badge>
+                            </td>
+                          )}
                           <td>
                             <div className="d-flex gap-1">
                               <Button
@@ -715,11 +674,11 @@ const HistoriaClinicaManagement: React.FC = () => {
                               {(authService.isAdmin() || authService.isVeterinario()) && (
                                 <Button
                                   size="sm"
-                                  variant="danger"
+                                  variant={authService.isAdmin() ? "danger" : "secondary"}
                                   onClick={() => handleDelete(historia)}
-                                  title="Eliminar"
+                                  title={authService.isAdmin() ? "Eliminar" : "Archivar"}
                                 >
-                                  <i className="fas fa-trash"></i>
+                                  <i className={authService.isAdmin() ? "fas fa-trash" : "fas fa-archive"}></i>
                                 </Button>
                               )}
                             </div>
@@ -748,10 +707,13 @@ const HistoriaClinicaManagement: React.FC = () => {
           <Form onSubmit={handleSubmit} id="historiaClinicaForm">
             {error && <Alert variant="danger">{error}</Alert>}
             
-            {/* Información General */}
-            <Card className="mb-3">
+            {/* Sección 1: Información General */}
+            <Card className="mb-4 border-primary">
               <Card.Header className="bg-primary text-white">
-                <strong>Información General</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-info-circle me-2"></i>
+                  Paso 1: Información General de la Consulta
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -867,45 +829,16 @@ const HistoriaClinicaManagement: React.FC = () => {
                     </Form.Group>
                   </Col>
                 </Row>
-
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Cita Asociada (opcional)</Form.Label>
-                      {modalMode === 'view' || authService.isCliente() ? (
-                        <Form.Control
-                          type="text"
-                          value={selectedHistoria?.cita 
-                            ? `${formatFechaHora(selectedHistoria.cita.fechaHora)} - ${selectedHistoria.cita.motivo || 'Sin motivo'} (${selectedHistoria.cita.estado})`
-                            : 'Sin cita asociada'}
-                          disabled
-                          readOnly
-                        />
-                      ) : (
-                        <Form.Select
-                          name="citaId"
-                          value={formData.citaId}
-                          onChange={handleInputChange}
-                          disabled={!formData.mascotaId}
-                        >
-                          <option value="">Sin cita asociada</option>
-                          {getCitasByMascota().map(cita => (
-                            <option key={cita.id} value={cita.id}>
-                              {`${formatFechaHora(cita.fechaHora)} - ${cita.motivo || 'Sin motivo'} (${cita.estado})`}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      )}
-                    </Form.Group>
-                  </Col>
-                </Row>
               </Card.Body>
             </Card>
 
-            {/* Motivo y Síntomas */}
-            <Card className="mb-3">
+            {/* Sección 2: Motivo y Síntomas */}
+            <Card className="mb-4 border-info">
               <Card.Header className="bg-info text-white">
-                <strong>Motivo de Consulta y Síntomas</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-stethoscope me-2"></i>
+                  Paso 2: Motivo de Consulta y Síntomas
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
@@ -936,10 +869,13 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Signos Vitales */}
-            <Card className="mb-3">
+            {/* Sección 3: Signos Vitales */}
+            <Card className="mb-4 border-warning">
               <Card.Header className="bg-warning">
-                <strong>Signos Vitales</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-heartbeat me-2"></i>
+                  Paso 3: Signos Vitales y Mediciones
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -1001,10 +937,13 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Diagnóstico y Tratamiento */}
-            <Card className="mb-3">
+            {/* Sección 4: Diagnóstico y Tratamiento */}
+            <Card className="mb-4 border-success">
               <Card.Header className="bg-success text-white">
-                <strong>Diagnóstico y Tratamiento</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-notes-medical me-2"></i>
+                  Paso 4: Diagnóstico y Plan de Tratamiento
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
@@ -1048,47 +987,51 @@ const HistoriaClinicaManagement: React.FC = () => {
               </Card.Body>
             </Card>
 
-            {/* Observaciones y Recomendaciones */}
-            <Card className="mb-3">
+            {/* Sección 5: Observaciones y Recomendaciones */}
+            <Card className="mb-0 border-secondary">
               <Card.Header className="bg-secondary text-white">
-                <strong>Observaciones y Recomendaciones</strong>
+                <h6 className="mb-0">
+                  <i className="fas fa-clipboard-list me-2"></i>
+                  Paso 5: Observaciones y Recomendaciones
+                </h6>
               </Card.Header>
               <Card.Body>
                 <Form.Group className="mb-3">
                   <Form.Label>Observaciones Adicionales</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={2}
+                    rows={3}
                     name="observaciones"
                     value={formData.observaciones}
                     onChange={handleInputChange}
                     disabled={modalMode === 'view'}
-                    placeholder="Observaciones generales"
+                    placeholder="Cualquier observación relevante sobre el estado o comportamiento de la mascota..."
                   />
+                  {modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      Información adicional importante para el seguimiento
+                    </Form.Text>
+                  )}
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Recomendaciones</Form.Label>
+                <Form.Group className="mb-0">
+                  <Form.Label>Recomendaciones para el Propietario</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={2}
+                    rows={3}
                     name="recomendaciones"
                     value={formData.recomendaciones}
                     onChange={handleInputChange}
                     disabled={modalMode === 'view'}
-                    placeholder="Recomendaciones para el propietario"
+                    placeholder="Instrucciones y cuidados que el propietario debe seguir en casa..."
                   />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Próxima Cita</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
-                    name="proximaCita"
-                    value={formData.proximaCita}
-                    onChange={handleInputChange}
-                    disabled={modalMode === 'view'}
-                  />
+                  {modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-home me-1"></i>
+                      Guías claras para el cuidado en casa
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Card.Body>
             </Card>

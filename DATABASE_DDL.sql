@@ -45,9 +45,11 @@ CREATE TABLE veterinarias (
     horario_atencion VARCHAR(255),
     fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     activo BOOLEAN DEFAULT TRUE NOT NULL,
+    creado_por_documento VARCHAR(20) NULL COMMENT 'Documento del usuario que creó esta veterinaria',
     INDEX idx_veterinarias_nombre (nombre),
     INDEX idx_veterinarias_ciudad (ciudad),
-    INDEX idx_veterinarias_activo (activo)
+    INDEX idx_veterinarias_activo (activo),
+    INDEX idx_veterinarias_creado_por (creado_por_documento)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Clínicas veterinarias registradas';
 
 -- Tabla de usuarios
@@ -74,6 +76,13 @@ CREATE TABLE usuarios (
         REFERENCES veterinarias(id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Usuarios del sistema (Admin, Veterinarios, Clientes, Recepcionistas)';
+
+-- Agregar constraint para creado_por_documento después de crear usuarios
+ALTER TABLE veterinarias
+ADD CONSTRAINT fk_veterinaria_creado_por
+    FOREIGN KEY (creado_por_documento)
+    REFERENCES usuarios(documento)
+    ON DELETE SET NULL;
 
 -- Tabla intermedia para usuarios y roles (relación muchos a muchos)
 CREATE TABLE usuarios_roles (
@@ -167,6 +176,7 @@ CREATE TABLE historias_clinicas (
     observaciones TEXT,
     recomendaciones TEXT,
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     mascota_id BIGINT NOT NULL,
     veterinario_documento VARCHAR(20) NOT NULL,
     cita_id BIGINT,

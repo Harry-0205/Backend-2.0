@@ -5,6 +5,7 @@ import com.veterinaria.veterinaria.entity.Rol;
 import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.dto.UsuarioResponse;
 import com.veterinaria.veterinaria.dto.UsuarioRequest;
+import com.veterinaria.veterinaria.dto.UpdatePerfilRequest;
 import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import com.veterinaria.veterinaria.service.VeterinariaService;
@@ -45,24 +46,48 @@ public class UsuarioController {
     public ResponseEntity<ApiResponse<List<UsuarioResponse>>> getAllUsuarios(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         List<Usuario> usuarios;
         
-        // Verificar si el usuario autenticado es veterinario
+        // Obtener el usuario autenticado
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+        
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.ok(ApiResponse.success("No se encontró el usuario autenticado", List.of()));
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+        
+        // Verificar roles
+        boolean isAdmin = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
         boolean isVeterinario = userDetails.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        boolean isRecepcionista = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         
         if (isVeterinario) {
             // Si es veterinario, solo obtener los clientes que ha atendido
-            Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
-            if (veterinarioOpt.isPresent()) {
-                String veterinarioDocumento = veterinarioOpt.get().getDocumento();
-                usuarios = usuarioService.findClientesAtendidosPorVeterinario(veterinarioDocumento);
-                System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
+            usuarios = usuarioService.findClientesAtendidosPorVeterinario(usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
+        } else if (isAdmin || isRecepcionista) {
+            // Admin y Recepcionista ven solo usuarios de su veterinaria
+            System.out.println("=== DEBUG DETALLADO: Usuario " + userDetails.getUsername());
+            System.out.println("=== DEBUG DETALLADO: Documento: " + usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG DETALLADO: Veterinaria: " + usuarioAutenticado.getVeterinaria());
+            System.out.println("=== DEBUG DETALLADO: Veterinaria es null? " + (usuarioAutenticado.getVeterinaria() == null));
+            
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaId);
+                usuarios = usuarioService.findByVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
+                    " consultando usuarios de veterinaria ID " + veterinariaId + ": " + usuarios.size() + " usuarios");
             } else {
-                usuarios = List.of(); // Lista vacía si no se encuentra el veterinario
+                // Si no tiene veterinaria asignada, no puede ver ningún usuario
+                usuarios = List.of();
+                System.out.println("=== DEBUG ALERTA: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
+                    " sin veterinaria asignada, no puede ver usuarios. ESTO DEBE SER CORREGIDO EN LA BD!");
             }
         } else {
-            // Admin y Recepcionista pueden ver todos los usuarios
-            usuarios = usuarioService.findAll();
-            System.out.println("=== DEBUG: Total usuarios encontrados: " + usuarios.size());
+            usuarios = List.of();
         }
         
         List<UsuarioResponse> response = usuarios.stream()
@@ -71,7 +96,7 @@ public class UsuarioController {
         
         String message = isVeterinario 
             ? "Clientes atendidos obtenidos exitosamente" 
-            : "Usuarios obtenidos exitosamente";
+            : "Usuarios de la veterinaria obtenidos exitosamente";
         
         return ResponseEntity.ok(ApiResponse.success(message, response));
     }
@@ -272,19 +297,153 @@ public class UsuarioController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UsuarioResponse>> createUsuario(@RequestBody UsuarioRequest usuarioRequest) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> createUsuario(
+            @RequestBody UsuarioRequest usuarioRequest,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
+            System.out.println("=== DEBUG CREATE USER: Request recibido");
+            System.out.println("=== Documento: " + usuarioRequest.getDocumento());
+            System.out.println("=== Username: " + usuarioRequest.getUsername());
+            System.out.println("=== Tipo Documento: " + usuarioRequest.getTipoDocumento());
+            System.out.println("=== Roles: " + usuarioRequest.getRoles());
+            System.out.println("=== Veterinaria ID actual: " + usuarioRequest.getVeterinariaId());
+            
+            // Obtener la veterinaria del usuario autenticado (admin o recepcionista)
+            Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+            
+            // Verificar si el usuario autenticado es recepcionista
+            boolean esRecepcionista = userDetails.getAuthorities().stream()
+                    .anyMatch(authority -> authority.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            
+            // Si es recepcionista, validar que no esté intentando crear un administrador
+            if (esRecepcionista && usuarioRequest.getRoles() != null) {
+                boolean intentaCrearAdmin = usuarioRequest.getRoles().stream()
+                        .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN"));
+                
+                if (intentaCrearAdmin) {
+                    System.out.println("=== DEBUG: Recepcionista intentó crear un usuario con rol ADMIN - BLOQUEADO");
+                    return ResponseEntity.badRequest().body(
+                        ApiResponse.error("No tiene permisos para crear usuarios con rol Administrador", null)
+                    );
+                }
+            }
+            
+            if (usuarioAutenticadoOpt.isPresent()) {
+                Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+                
+                // Asignar automáticamente la veterinaria del admin/recepcionista al nuevo usuario
+                if (usuarioAutenticado.getVeterinaria() != null) {
+                    usuarioRequest.setVeterinariaId(usuarioAutenticado.getVeterinaria().getId());
+                    System.out.println("=== DEBUG: Asignando veterinaria " + usuarioAutenticado.getVeterinaria().getNombre() + 
+                                     " (ID: " + usuarioAutenticado.getVeterinaria().getId() + ") al nuevo usuario " + usuarioRequest.getUsername());
+                } else {
+                    System.out.println("=== DEBUG ALERTA: Usuario autenticado NO tiene veterinaria asignada!");
+                }
+            }
+            
             Usuario usuario = convertToEntity(usuarioRequest);
             Usuario savedUsuario = usuarioService.save(usuario);
+            System.out.println("=== DEBUG: Usuario guardado exitosamente con ID: " + savedUsuario.getDocumento());
+            
             return ResponseEntity.ok(
                 ApiResponse.success("Usuario creado exitosamente", new UsuarioResponse(savedUsuario))
             );
         } catch (Exception e) {
-            System.err.println("Error creating usuario: " + e.getMessage());
+            System.err.println("❌ ERROR COMPLETO creating usuario: " + e.getClass().getName());
+            System.err.println("❌ Mensaje: " + e.getMessage());
+            e.printStackTrace();
+            
+            String errorMessage = e.getMessage();
+            if (errorMessage == null || errorMessage.isEmpty()) {
+                errorMessage = "Error desconocido: " + e.getClass().getSimpleName();
+            }
+            
             return ResponseEntity.badRequest().body(
-                ApiResponse.error("Error al crear usuario", e.getMessage())
+                ApiResponse.error("Error al crear usuario", errorMessage)
             );
+        }
+    }
+    
+    @PutMapping("/perfil")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> updatePerfil(
+            @RequestBody UpdatePerfilRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        try {
+            // Obtener el usuario autenticado
+            Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+            if (!usuarioOpt.isPresent()) {
+                return ResponseEntity.status(404).body(ApiResponse.error("Usuario no encontrado"));
+            }
+            
+            Usuario usuario = usuarioOpt.get();
+            boolean cambiosRealizados = false;
+            
+            // Actualizar email si se proporciona
+            if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+                // Validar formato de email
+                if (!request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("Formato de email inválido"));
+                }
+                
+                // Verificar si el email ya existe para otro usuario
+                Optional<Usuario> usuarioConEmail = usuarioService.findByEmail(request.getEmail());
+                if (usuarioConEmail.isPresent() && !usuarioConEmail.get().getDocumento().equals(usuario.getDocumento())) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("El email ya está registrado por otro usuario"));
+                }
+                
+                usuario.setEmail(request.getEmail());
+                cambiosRealizados = true;
+                System.out.println("✅ Email actualizado para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar teléfono si se proporciona
+            if (request.getTelefono() != null && !request.getTelefono().trim().isEmpty()) {
+                usuario.setTelefono(request.getTelefono());
+                cambiosRealizados = true;
+                System.out.println("✅ Teléfono actualizado para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar dirección si se proporciona
+            if (request.getDireccion() != null && !request.getDireccion().trim().isEmpty()) {
+                usuario.setDireccion(request.getDireccion());
+                cambiosRealizados = true;
+                System.out.println("✅ Dirección actualizada para usuario: " + usuario.getUsername());
+            }
+            
+            // Actualizar contraseña si se proporciona tanto la actual como la nueva
+            if (request.getPasswordActual() != null && !request.getPasswordActual().trim().isEmpty() &&
+                request.getPasswordNueva() != null && !request.getPasswordNueva().trim().isEmpty()) {
+                
+                // Verificar la contraseña actual
+                if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("La contraseña actual es incorrecta"));
+                }
+                
+                // Validar la nueva contraseña
+                if (request.getPasswordNueva().length() < 6) {
+                    return ResponseEntity.status(400).body(ApiResponse.error("La nueva contraseña debe tener al menos 6 caracteres"));
+                }
+                
+                usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+                cambiosRealizados = true;
+                System.out.println("✅ Contraseña actualizada para usuario: " + usuario.getUsername());
+            }
+            
+            if (!cambiosRealizados) {
+                return ResponseEntity.status(400).body(ApiResponse.error("No se proporcionaron datos para actualizar"));
+            }
+            
+            // Guardar los cambios
+            Usuario usuarioActualizado = usuarioService.save(usuario);
+            UsuarioResponse response = new UsuarioResponse(usuarioActualizado);
+            
+            return ResponseEntity.ok(ApiResponse.success("Perfil actualizado exitosamente", response));
+        } catch (Exception e) {
+            System.err.println("❌ Error al actualizar perfil: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("Error al actualizar el perfil: " + e.getMessage()));
         }
     }
     
@@ -325,6 +484,19 @@ public class UsuarioController {
                 
                 // Actualizar roles solo si se proporcionan
                 if (usuarioRequest.getRoles() != null && !usuarioRequest.getRoles().isEmpty()) {
+                    // Si es recepcionista, validar que no esté intentando asignar rol de administrador
+                    if (isRecepcionista) {
+                        boolean intentaAsignarAdmin = usuarioRequest.getRoles().stream()
+                                .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN"));
+                        
+                        if (intentaAsignarAdmin) {
+                            System.out.println("=== DEBUG: Recepcionista intentó asignar rol ADMIN - BLOQUEADO");
+                            return ResponseEntity.status(403).body(
+                                ApiResponse.error("No tiene permisos para asignar el rol de Administrador", null)
+                            );
+                        }
+                    }
+                    
                     Set<Rol> roles = new HashSet<>();
                     for (String roleName : usuarioRequest.getRoles()) {
                         // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
@@ -339,24 +511,32 @@ public class UsuarioController {
                     existing.setRoles(roles);
                 }
                 
-                // Actualizar veterinaria si es veterinario y se proporciona veterinariaId
+                // Actualizar veterinaria si se proporciona veterinariaId
                 if (usuarioRequest.getVeterinariaId() != null) {
-                    boolean esVeterinario = existing.getRoles().stream()
-                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
+                    // Permitir asociar veterinaria a ADMIN, RECEPCIONISTA y VETERINARIO
+                    boolean puedeAsociarVeterinaria = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_ADMIN") || 
+                                      r.getNombre().equals("ROLE_RECEPCIONISTA") || 
+                                      r.getNombre().equals("ROLE_VETERINARIO"));
                     
-                    if (esVeterinario) {
+                    if (puedeAsociarVeterinaria) {
                         Optional<Veterinaria> veterinaria = veterinariaService.findById(usuarioRequest.getVeterinariaId());
                         if (veterinaria.isPresent()) {
                             existing.setVeterinaria(veterinaria.get());
+                            System.out.println("✅ Veterinaria " + veterinaria.get().getNombre() + " asociada al usuario " + existing.getUsername());
                         } else {
-                            System.err.println("Veterinaria not found: " + usuarioRequest.getVeterinariaId());
+                            System.err.println("❌ Veterinaria not found: " + usuarioRequest.getVeterinariaId());
                         }
+                    } else {
+                        System.out.println("⚠️ El usuario no tiene un rol que permita asociar veterinaria");
                     }
                 } else if (usuarioRequest.getVeterinariaId() == null) {
-                    // Si veterinariaId es null explícitamente, limpiar la veterinaria
-                    boolean esVeterinario = existing.getRoles().stream()
-                        .anyMatch(r -> r.getNombre().equals("ROLE_VETERINARIO"));
-                    if (!esVeterinario) {
+                    // Si veterinariaId es null explícitamente, limpiar la veterinaria solo si NO es admin, vet o recep
+                    boolean mantenerVeterinaria = existing.getRoles().stream()
+                        .anyMatch(r -> r.getNombre().equals("ROLE_ADMIN") || 
+                                      r.getNombre().equals("ROLE_RECEPCIONISTA") || 
+                                      r.getNombre().equals("ROLE_VETERINARIO"));
+                    if (!mantenerVeterinaria) {
                         existing.setVeterinaria(null);
                     }
                 }
@@ -411,19 +591,19 @@ public class UsuarioController {
             usuario.setRoles(roles);
         }
         
-        // Asignar veterinaria si es veterinario y se proporciona veterinariaId
+        // Asignar veterinaria si se proporciona veterinariaId
         if (request.getVeterinariaId() != null) {
-            boolean esVeterinario = request.getRoles() != null && 
-                request.getRoles().stream().anyMatch(r -> r.equals("ROLE_VETERINARIO"));
-            
-            if (esVeterinario) {
-                Optional<Veterinaria> veterinaria = veterinariaService.findById(request.getVeterinariaId());
-                if (veterinaria.isPresent()) {
-                    usuario.setVeterinaria(veterinaria.get());
-                } else {
-                    System.err.println("Veterinaria not found: " + request.getVeterinariaId());
-                }
+            Optional<Veterinaria> veterinaria = veterinariaService.findById(request.getVeterinariaId());
+            if (veterinaria.isPresent()) {
+                usuario.setVeterinaria(veterinaria.get());
+                System.out.println("=== DEBUG convertToEntity: Veterinaria " + veterinaria.get().getNombre() + 
+                                 " asignada al usuario " + usuario.getUsername());
+            } else {
+                System.err.println("Veterinaria not found: " + request.getVeterinariaId());
             }
+        } else {
+            System.out.println("=== DEBUG convertToEntity: No veterinariaId proporcionado para usuario " + 
+                             (request.getUsername() != null ? request.getUsername() : "nuevo"));
         }
         
         return usuario;
@@ -490,6 +670,74 @@ public class UsuarioController {
         } catch (Exception e) {
             System.err.println("Error getting veterinarios by veterinaria: " + e.getMessage());
             return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PostMapping("/{documento}/cambiar-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> changePassword(
+            @PathVariable String documento,
+            @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        try {
+            // Verificar que el usuario solo pueda cambiar su propia contraseña (excepto admin)
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            
+            if (!isAdmin && !userDetails.getUsername().equals(documento)) {
+                return ResponseEntity.status(403).body(ApiResponse.error("No tiene permisos para cambiar la contraseña de otro usuario"));
+            }
+            
+            // Buscar el usuario
+            Optional<Usuario> usuarioOpt = usuarioService.findById(documento);
+            if (!usuarioOpt.isPresent()) {
+                return ResponseEntity.status(404).body(ApiResponse.error("Usuario no encontrado"));
+            }
+            
+            Usuario usuario = usuarioOpt.get();
+            
+            // Verificar la contraseña actual
+            if (!passwordEncoder.matches(request.getCurrentPassword(), usuario.getPassword())) {
+                return ResponseEntity.status(400).body(ApiResponse.error("La contraseña actual es incorrecta"));
+            }
+            
+            // Validar la nueva contraseña
+            if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+                return ResponseEntity.status(400).body(ApiResponse.error("La nueva contraseña debe tener al menos 6 caracteres"));
+            }
+            
+            // Cambiar la contraseña
+            usuario.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            usuarioService.save(usuario);
+            
+            System.out.println("✅ Contraseña cambiada exitosamente para usuario: " + documento);
+            return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente", null));
+        } catch (Exception e) {
+            System.err.println("❌ Error al cambiar contraseña: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("Error al cambiar la contraseña: " + e.getMessage()));
+        }
+    }
+    
+    // Clase interna para el request de cambio de contraseña
+    public static class ChangePasswordRequest {
+        private String currentPassword;
+        private String newPassword;
+        
+        public String getCurrentPassword() {
+            return currentPassword;
+        }
+        
+        public void setCurrentPassword(String currentPassword) {
+            this.currentPassword = currentPassword;
+        }
+        
+        public String getNewPassword() {
+            return newPassword;
+        }
+        
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
         }
     }
 }

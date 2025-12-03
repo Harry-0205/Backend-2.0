@@ -11,10 +11,11 @@ import {
   Alert,
   Badge,
   InputGroup,
-  Spinner
+  Spinner,
+  ListGroup
 } from 'react-bootstrap';
 import { Cita, EstadoCita } from '../types';
-import citaService from '../services/citaService';
+import citaService, { HorarioDisponible } from '../services/citaService';
 import mascotaService from '../services/mascotaService';
 import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
@@ -37,6 +38,11 @@ const CitaManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByEstado, setFilterByEstado] = useState<string>('');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Estados para disponibilidad de horarios
+  const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -65,26 +71,47 @@ const CitaManagement: React.FC = () => {
   const loadCitas = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 Iniciando carga de citas...');
       let data: any;
       
       // Si es cliente, solo cargar sus propias citas
       if (authService.isCliente()) {
         const currentUser = authService.getCurrentUser();
         if (currentUser && currentUser.documento) {
+          console.log('📅 Cargando citas del cliente:', currentUser.documento);
           data = await citaService.getCitasByCliente(currentUser.documento);
         } else {
           data = [];
         }
       } else {
         // Otros roles ven todas las citas
+        console.log('📅 Cargando todas las citas...');
         data = await citaService.getAllCitas();
       }
       
-      setCitas(Array.isArray(data) ? data : []);
-      setError('');
-    } catch (error) {
-      setError('Error al cargar las citas');
-      console.error('Error loading citas:', error);
+      console.log('📥 Citas recibidas:', data);
+      console.log('📊 Total de citas:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('✅ Citas cargadas exitosamente');
+        setCitas(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('⚠️ No se encontraron citas');
+        setCitas([]);
+        if (!authService.isCliente()) {
+          setError('No se encontraron citas. Verifica que existan datos en la base de datos.');
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las citas';
+      console.error('❌ Error loading citas:', error);
+      console.error('❌ Detalles del error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      setError(errorMessage);
       setCitas([]);
     } finally {
       setLoading(false);
@@ -182,13 +209,26 @@ const CitaManagement: React.FC = () => {
   const loadVeterinarias = async () => {
     try {
       console.log('🏥 Cargando veterinarias...');
+      console.log('🔐 Usuario actual:', authService.getCurrentUser());
+      console.log('🔐 Token:', authService.getToken()?.substring(0, 20) + '...');
+      console.log('🔐 Es cliente?:', authService.isCliente());
+      console.log('🔐 Roles:', authService.getCurrentUser()?.roles);
+      
       const data = await getAllVeterinarias();
       console.log('🏥 Veterinarias cargadas:', data);
       console.log('🏥 Cantidad de veterinarias:', data?.length || 0);
       setVeterinarias(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error('❌ Error loading veterinarias:', error);
+      console.error('❌ Código de estado:', error.response?.status);
+      console.error('❌ Mensaje:', error.response?.data?.message);
       console.error('❌ Error completo veterinarias:', error.response || error);
+      
+      // No cerrar sesión si es un error de permisos, solo mostrar mensaje
+      if (error.response?.status === 403) {
+        console.warn('⚠️ No tienes permisos para ver veterinarias, pero puedes continuar');
+      }
+      
       setVeterinarias([]);
     }
   };
@@ -226,6 +266,13 @@ const CitaManagement: React.FC = () => {
       });
     }
 
+    // Ordenar por fecha y hora (más próximas primero)
+    filtered.sort((a, b) => {
+      const fechaA = a.fechaHora ? new Date(a.fechaHora).getTime() : 0;
+      const fechaB = b.fechaHora ? new Date(b.fechaHora).getTime() : 0;
+      return fechaA - fechaB;
+    });
+
     setFilteredCitas(filtered);
   };
 
@@ -253,25 +300,63 @@ const CitaManagement: React.FC = () => {
         fechaHora = cita.fechaHora.slice(0, 16);
       }
       
+      const veterinariaId = cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || '';
+      const clienteDocumento = cita.clienteDocumento || cita.cliente?.documento || '';
+      
+      console.log('📋 Cargando cita para editar:', {
+        citaId: cita.id,
+        clienteDocumento: clienteDocumento,
+        clienteFromDTO: cita.clienteDocumento,
+        clienteFromObj: cita.cliente?.documento,
+        mascotaId: cita.mascotaId,
+        veterinarioDocumento: cita.veterinarioDocumento,
+        veterinariaId: veterinariaId
+      });
+      
+      if (!clienteDocumento) {
+        console.error('⚠️ ADVERTENCIA: No se pudo obtener el documento del cliente de la cita');
+      }
+      
       setFormData({
         fechaHora: fechaHora,
         motivo: cita.motivo || '',
         observaciones: cita.observaciones || '',
         // Usar los campos del DTO o los objetos completos como fallback
-        clienteId: cita.clienteDocumento || cita.cliente?.documento || '',
+        clienteId: clienteDocumento,
         mascotaId: cita.mascotaId?.toString() || cita.mascota?.id?.toString() || '',
         veterinarioId: cita.veterinarioDocumento || cita.veterinario?.documento || '',
-        veterinariaId: cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || ''
+        veterinariaId: veterinariaId
       });
       
-      // Si hay veterinaria seleccionada, filtrar veterinarios
-      if (cita.veterinariaId || cita.veterinaria?.id) {
-        setFilteredVeterinarios(veterinarios);
+      // Si hay veterinaria seleccionada, filtrar veterinarios por esa veterinaria
+      if (veterinariaId) {
+        getVeterinariosByVeterinaria(parseInt(veterinariaId))
+          .then(vetsFiltered => {
+            console.log('🏥 Veterinarios filtrados para edición:', vetsFiltered);
+            setFilteredVeterinarios(vetsFiltered);
+          })
+          .catch(error => {
+            console.error('❌ Error al filtrar veterinarios para edición:', error);
+            setFilteredVeterinarios(veterinarios); // Fallback a todos los veterinarios
+          });
       } else {
         setFilteredVeterinarios([]);
       }
     } else {
       resetForm();
+      
+      // Si es cliente, establecer automáticamente su documento
+      if (authService.isCliente()) {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser && currentUser.documento) {
+          setFormData(prev => ({
+            ...prev,
+            clienteId: currentUser.documento
+          }));
+          console.log('👤 Cliente detectado - documento establecido automáticamente:', currentUser.documento);
+        }
+      }
+      
       setFilteredVeterinarios([]); // Inicialmente vacío hasta que seleccione veterinaria
     }
     
@@ -296,8 +381,12 @@ const CitaManagement: React.FC = () => {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        veterinarioId: '' // Limpiar veterinario seleccionado
+        veterinarioId: '', // Limpiar veterinario seleccionado
+        fechaHora: '' // Limpiar fecha/hora cuando cambia veterinaria
       }));
+      
+      setHorariosDisponibles([]); // Limpiar horarios
+      setFechaSeleccionada(''); // Limpiar fecha seleccionada
       
       // Filtrar veterinarios por veterinaria seleccionada
       if (value) {
@@ -320,41 +409,163 @@ const CitaManagement: React.FC = () => {
       }));
     }
   };
+  
+  const loadHorariosDisponibles = async (fecha: string) => {
+    if (!formData.veterinariaId || !fecha) {
+      return;
+    }
+    
+    try {
+      setLoadingHorarios(true);
+      const horarios = await citaService.getHorariosDisponibles(fecha, parseInt(formData.veterinariaId));
+      setHorariosDisponibles(horarios);
+      setFechaSeleccionada(fecha);
+    } catch (error: any) {
+      console.error('Error al cargar horarios disponibles:', error);
+      setError('Error al cargar horarios disponibles');
+    } finally {
+      setLoadingHorarios(false);
+    }
+  };
+  
+  const handleFechaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fecha = e.target.value;
+    setFechaSeleccionada(fecha);
+    setFormData(prev => ({ ...prev, fechaHora: '' }));
+    if (fecha && formData.veterinariaId) {
+      loadHorariosDisponibles(fecha);
+    }
+  };
+  
+  const handleSelectHorario = (e: React.MouseEvent, horario: HorarioDisponible) => {
+    e.preventDefault(); // Prevenir submit del formulario
+    e.stopPropagation(); // Detener propagación del evento
+    
+    if (horario.disponible) {
+      // El backend espera formato "yyyy-MM-ddTHH:mm"
+      const fechaHora = horario.fechaHora.substring(0, 16);
+      setFormData(prev => ({ ...prev, fechaHora }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.fechaHora || !formData.clienteId || !formData.mascotaId) {
-      setError('Fecha/hora, cliente y mascota son obligatorios');
+    // Validar campos obligatorios
+    if (!formData.fechaHora) {
+      setError('La fecha y hora de la cita son obligatorias');
       return;
+    }
+    
+    if (!formData.clienteId || formData.clienteId.trim() === '') {
+      setError('El cliente es obligatorio');
+      return;
+    }
+    
+    if (!formData.mascotaId || formData.mascotaId.trim() === '') {
+      setError('La mascota es obligatoria');
+      return;
+    }
+    
+    // Validar que recepcionista complete veterinaria y veterinario
+    if (authService.isRecepcionista() && modalMode === 'create') {
+      if (!formData.veterinariaId) {
+        setError('Debe seleccionar una veterinaria para crear la cita');
+        return;
+      }
+      if (!formData.veterinarioId) {
+        setError('Debe seleccionar un veterinario para crear la cita');
+        return;
+      }
     }
 
     try {
       setLoading(true);
       
-      // El input datetime-local ya está en formato local, solo agregamos ':00.000Z' para el backend
+      // Validación adicional de seguridad
+      console.log('📝 FormData antes de enviar:', {
+        modalMode,
+        formData: { ...formData },
+        clienteIdLength: formData.clienteId?.length,
+        clienteIdType: typeof formData.clienteId
+      });
+      
+      if (!formData.clienteId || formData.clienteId.trim() === '') {
+        console.error('❌ ClienteId está vacío:', formData.clienteId);
+        setError('Error: El documento del cliente no puede estar vacío');
+        setLoading(false);
+        return;
+      }
+      
+      // En modo edición, usar los datos originales de la cita para cliente y mascota
+      let clienteDocumento = '';
+      let mascotaIdValue = 0;
+      
+      if (modalMode === 'edit' && selectedCita) {
+        // Para edición, SIEMPRE usar los datos de selectedCita
+        clienteDocumento = selectedCita.clienteDocumento || selectedCita.cliente?.documento || '';
+        mascotaIdValue = selectedCita.mascotaId || selectedCita.mascota?.id || 0;
+        
+        console.log('🔄 Modo EDIT - Extrayendo datos de selectedCita:', {
+          clienteDocumento,
+          mascotaIdValue,
+          selectedCita: {
+            clienteDocumento: selectedCita.clienteDocumento,
+            clienteObjeto: selectedCita.cliente,
+            mascotaId: selectedCita.mascotaId,
+            mascotaObjeto: selectedCita.mascota
+          }
+        });
+      } else {
+        // Para creación, usar formData
+        clienteDocumento = formData.clienteId || '';
+        mascotaIdValue = parseInt(formData.mascotaId) || 0;
+        
+        console.log('✨ Modo CREATE - Usando formData:', {
+          clienteDocumento,
+          mascotaIdValue
+        });
+      }
+      
+      // Crear objeto en formato CitaRequest (DTO del backend)
       const citaData: any = {
-        fechaHora: formData.fechaHora + ':00.000',
+        fechaHora: formData.fechaHora + ':00',
         motivo: formData.motivo || null,
         observaciones: formData.observaciones || null,
         estado: modalMode === 'create' ? EstadoCita.PROGRAMADA : selectedCita?.estado,
-        cliente: {
-          documento: formData.clienteId
-        },
-        mascota: {
-          id: parseInt(formData.mascotaId)
-        },
-        ...(formData.veterinarioId && {
-          veterinario: {
-            documento: formData.veterinarioId
-          }
-        }),
-        ...(formData.veterinariaId && {
-          veterinaria: {
-            id: parseInt(formData.veterinariaId)
-          }
-        })
+        clienteDocumento: clienteDocumento ? clienteDocumento.trim() : null,
+        mascotaId: mascotaIdValue,
+        veterinarioDocumento: formData.veterinarioId && formData.veterinarioId.trim() !== '' ? formData.veterinarioId.trim() : null,
+        veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : null
       };
+      
+      console.log('📤 CitaData a enviar:', citaData);
+      console.log('📤 ClienteDocumento específicamente:', citaData.clienteDocumento);
+      
+      // Validación final CRÍTICA antes de enviar
+      if (!citaData.clienteDocumento || 
+          citaData.clienteDocumento === 'null' || 
+          citaData.clienteDocumento === null ||
+          citaData.clienteDocumento.toString().trim() === '') {
+        
+        console.error('❌❌❌ ERROR CRÍTICO: clienteDocumento es null o vacío en citaData ❌❌❌');
+        console.error('📊 Datos completos de depuración:', {
+          modalMode,
+          'selectedCita completa': selectedCita,
+          'formData completo': formData,
+          'citaData.clienteDocumento': citaData.clienteDocumento,
+          'tipo de clienteDocumento': typeof citaData.clienteDocumento,
+          'selectedCita.clienteDocumento': selectedCita?.clienteDocumento,
+          'selectedCita.cliente': selectedCita?.cliente,
+          'formData.clienteId': formData.clienteId
+        });
+        
+        setError('Error crítico: No se pudo obtener el documento del cliente. La cita puede estar corrupta. Por favor, contacte al administrador.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ Validación pasada - clienteDocumento es válido:', citaData.clienteDocumento);
       
       if (modalMode === 'create') {
         await citaService.createCita(citaData);
@@ -589,7 +800,7 @@ const CitaManagement: React.FC = () => {
                               >
                                 <i className="fas fa-eye"></i>
                               </Button>
-                              {cita.estado !== EstadoCita.COMPLETADA && cita.estado !== EstadoCita.CANCELADA && (
+                              {cita.estado !== EstadoCita.COMPLETADA && cita.estado !== EstadoCita.CANCELADA && !authService.isCliente() && (
                                 <Button
                                   size="sm"
                                   variant="warning"
@@ -599,7 +810,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-edit"></i>
                                 </Button>
                               )}
-                              {cita.estado === EstadoCita.PROGRAMADA && (
+                              {cita.estado === EstadoCita.PROGRAMADA && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario()) && (
                                 <Button
                                   size="sm"
                                   variant="success"
@@ -629,7 +840,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-check-double"></i>
                                 </Button>
                               )}
-                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (
+                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario() || authService.isCliente()) && (
                                 <Button
                                   size="sm"
                                   variant="danger"
@@ -675,91 +886,16 @@ const CitaManagement: React.FC = () => {
           <Modal.Body>
             {error && <Alert variant="danger">{error}</Alert>}
             
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha y Hora *</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
-                    name="fechaHora"
-                    value={formData.fechaHora}
-                    onChange={handleInputChange}
-                    required
-                    disabled={modalMode === 'view'}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Cliente *</Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={`${selectedCita.clienteNombre || ''} ${selectedCita.clienteApellido || ''} - ${selectedCita.clienteDocumento || ''}`}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="clienteId"
-                      value={formData.clienteId}
-                      onChange={handleInputChange}
-                      required
-                      disabled={modalMode === 'view'}
-                    >
-                      <option value="">Seleccione un cliente</option>
-                      {clientes.map(cliente => (
-                        <option key={cliente.documento} value={cliente.documento}>
-                          {`${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Mascota *</Form.Label>
-                  {modalMode === 'view' && selectedCita ? (
-                    <Form.Control
-                      type="text"
-                      value={`${selectedCita.mascotaNombre || ''} (${selectedCita.mascotaEspecie || ''})`}
-                      disabled
-                    />
-                  ) : (
-                    <Form.Select
-                      name="mascotaId"
-                      value={formData.mascotaId}
-                      onChange={handleInputChange}
-                      required
-                      disabled={modalMode === 'view' || !formData.clienteId}
-                    >
-                      <option value="">
-                        {formData.clienteId 
-                          ? 'Seleccione una mascota' 
-                          : 'Primero seleccione un cliente'}
-                      </option>
-                      {getMascotasByCliente().map(mascota => (
-                        <option key={mascota.id} value={mascota.id}>
-                          {`${mascota.nombre} (${mascota.especie})`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                  {modalMode !== 'view' && formData.clienteId && getMascotasByCliente().length === 0 && (
-                    <Form.Text className="text-warning">
-                      El cliente seleccionado no tiene mascotas registradas
-                    </Form.Text>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
+            {/* Sección 1: Información de la Clínica */}
+            <Card className="mb-4 border-primary">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-hospital me-2"></i>
+                  Paso 1: Seleccione la Clínica
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-0">
                   <Form.Label>Veterinaria <span className="text-danger">*</span></Form.Label>
                   {modalMode === 'view' && selectedCita ? (
                     <Form.Control
@@ -768,36 +904,228 @@ const CitaManagement: React.FC = () => {
                       disabled
                     />
                   ) : (
-                    <>
-                      <Form.Select
-                        name="veterinariaId"
-                        value={formData.veterinariaId}
-                        onChange={handleInputChange}
-                        disabled={modalMode === 'view'}
-                        required
-                      >
-                        <option value="">Seleccione una veterinaria</option>
-                        {veterinarias.map(veterinaria => (
-                          <option key={veterinaria.id} value={veterinaria.id}>
-                            {veterinaria.nombre}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <Form.Text className="text-muted">
-                        Primero seleccione la veterinaria para ver los veterinarios disponibles
-                      </Form.Text>
-                    </>
+                    <Form.Select
+                      name="veterinariaId"
+                      value={formData.veterinariaId}
+                      onChange={handleInputChange}
+                      disabled={modalMode === 'view'}
+                      required
+                    >
+                      <option value="">Seleccione una veterinaria</option>
+                      {veterinarias.map(veterinaria => (
+                        <option key={veterinaria.id} value={veterinaria.id}>
+                          {veterinaria.nombre}
+                        </option>
+                      ))}
+                    </Form.Select>
                   )}
                 </Form.Group>
-              </Col>
-            </Row>
+              </Card.Body>
+            </Card>
 
-            {/* Solo mostrar campo de veterinario si NO es veterinario */}
-            {!authService.isVeterinario() && (
-              <Row>
-                <Col md={12}>
+            {/* Sección 2: Fecha y Horario */}
+            <Card className="mb-4 border-success">
+              <Card.Header className="bg-success text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-calendar-alt me-2"></i>
+                  Paso 2: Seleccione Fecha y Horario
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-3">
+                  <Form.Label>Seleccionar Fecha *</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={fechaSeleccionada}
+                    onChange={handleFechaChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                    disabled={modalMode === 'view' || !formData.veterinariaId}
+                  />
+                  {!formData.veterinariaId && modalMode !== 'view' && (
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      Primero seleccione una veterinaria
+                    </Form.Text>
+                  )}
+                </Form.Group>
+                
+                {/* Mostrar horarios disponibles */}
+                {modalMode !== 'view' && fechaSeleccionada && formData.veterinariaId && (
                   <Form.Group className="mb-3">
-                    <Form.Label>Veterinario</Form.Label>
+                    <Form.Label>Horarios Disponibles *</Form.Label>
+                    {loadingHorarios ? (
+                      <div className="text-center p-4 bg-light rounded">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <span>Cargando horarios disponibles...</span>
+                      </div>
+                    ) : horariosDisponibles.length > 0 ? (
+                      <div style={{ 
+                        maxHeight: '250px', 
+                        overflowY: 'auto', 
+                        border: '2px solid #e9ecef', 
+                        borderRadius: '8px', 
+                        padding: '12px',
+                        backgroundColor: '#f8f9fa'
+                      }}>
+                        <Row className="g-2">
+                          {horariosDisponibles.map((horario, index) => {
+                            const hora = new Date(horario.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            const isSelected = formData.fechaHora === horario.fechaHora.substring(0, 16);
+                            return (
+                              <Col xs={6} md={4} key={index}>
+                                <div
+                                  onClick={(e) => horario.disponible && handleSelectHorario(e, horario)}
+                                  className={`p-3 rounded text-center ${
+                                    isSelected 
+                                      ? 'bg-primary text-white' 
+                                      : horario.disponible 
+                                      ? 'bg-white border border-success' 
+                                      : 'bg-light border border-danger'
+                                  }`}
+                                  style={{ 
+                                    cursor: horario.disponible ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.2s',
+                                    opacity: horario.disponible ? 1 : 0.6
+                                  }}
+                                >
+                                  <div className="fw-bold fs-5">{hora}</div>
+                                  {horario.veterinarioNombre && (
+                                    <small className={isSelected ? 'text-white' : 'text-muted'}>
+                                      Dr. {horario.veterinarioNombre}
+                                    </small>
+                                  )}
+                                  <div className="mt-1">
+                                    <Badge bg={isSelected ? 'light' : horario.disponible ? 'success' : 'danger'} 
+                                           className={isSelected ? 'text-primary' : ''}>
+                                      {horario.disponible ? '✓ Disponible' : '✗ Ocupado'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </Col>
+                            );
+                          })}
+                        </Row>
+                      </div>
+                    ) : (
+                      <Alert variant="warning" className="mb-0">
+                        <i className="fas fa-exclamation-triangle me-2"></i>
+                        No hay horarios disponibles para esta fecha
+                      </Alert>
+                    )}
+                  </Form.Group>
+                )}
+                
+                {formData.fechaHora && (
+                  <Alert variant="info" className="mb-0">
+                    <i className="fas fa-clock me-2"></i>
+                    <strong>Horario seleccionado:</strong> {new Date(formData.fechaHora).toLocaleString('es-ES', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Alert>
+                )}
+              </Card.Body>
+            </Card>
+
+            {/* Sección 3: Información del Cliente y Mascota */}
+            <Card className="mb-4 border-info">
+              <Card.Header className="bg-info text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-user-friends me-2"></i>
+                  Paso 3: Cliente y Mascota
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Cliente *</Form.Label>
+                      {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
+                        <Form.Control
+                          type="text"
+                          value={`${selectedCita.clienteNombre || ''} ${selectedCita.clienteApellido || ''} - ${selectedCita.clienteDocumento || ''}`}
+                          disabled
+                        />
+                      ) : (
+                        <Form.Select
+                          name="clienteId"
+                          value={formData.clienteId}
+                          onChange={handleInputChange}
+                          required
+                          disabled={modalMode === 'view' || authService.isCliente()}
+                        >
+                          <option value="">Seleccione un cliente</option>
+                          {clientes.map(cliente => (
+                            <option key={cliente.documento} value={cliente.documento}>
+                              {`${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Mascota *</Form.Label>
+                      {(modalMode === 'view' || modalMode === 'edit') && selectedCita ? (
+                        <Form.Control
+                          type="text"
+                          value={`${selectedCita.mascotaNombre || ''} (${selectedCita.mascotaEspecie || ''})`}
+                          disabled
+                        />
+                      ) : (
+                        <>
+                          <Form.Select
+                            name="mascotaId"
+                            value={formData.mascotaId}
+                            onChange={handleInputChange}
+                            required
+                            disabled={modalMode === 'view' || !formData.clienteId}
+                          >
+                            <option value="">
+                              {formData.clienteId 
+                                ? 'Seleccione una mascota' 
+                                : 'Primero seleccione un cliente'}
+                            </option>
+                            {getMascotasByCliente().map(mascota => (
+                              <option key={mascota.id} value={mascota.id}>
+                                {`${mascota.nombre} (${mascota.especie})`}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {modalMode !== 'view' && modalMode !== 'edit' && formData.clienteId && getMascotasByCliente().length === 0 && (
+                            <Form.Text className="text-warning">
+                              <i className="fas fa-exclamation-circle me-1"></i>
+                              El cliente seleccionado no tiene mascotas registradas
+                            </Form.Text>
+                          )}
+                        </>
+                      )}
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            {/* Sección 4: Veterinario */}
+            {!authService.isVeterinario() && (
+              <Card className="mb-4 border-warning">
+                <Card.Header className="bg-warning">
+                  <h6 className="mb-0">
+                    <i className="fas fa-user-md me-2"></i>
+                    Paso 4: Asignación de Veterinario
+                  </h6>
+                </Card.Header>
+                <Card.Body>
+                  <Form.Group className="mb-0">
+                    <Form.Label>
+                      Veterinario {authService.isRecepcionista() && modalMode === 'create' && <span className="text-danger">*</span>}
+                    </Form.Label>
                     {modalMode === 'view' && selectedCita ? (
                       <Form.Control
                         type="text"
@@ -813,8 +1141,11 @@ const CitaManagement: React.FC = () => {
                           value={formData.veterinarioId}
                           onChange={handleInputChange}
                           disabled={modalMode === 'view' || !formData.veterinariaId}
+                          required={authService.isRecepcionista() && modalMode === 'create'}
                         >
-                          <option value="">Sin asignar</option>
+                          <option value="">
+                            {authService.isRecepcionista() && modalMode === 'create' ? 'Seleccione un veterinario' : 'Sin asignar'}
+                          </option>
                           {filteredVeterinarios.map(veterinario => (
                             <option key={veterinario.documento} value={veterinario.documento}>
                               {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
@@ -823,48 +1154,60 @@ const CitaManagement: React.FC = () => {
                         </Form.Select>
                         {!formData.veterinariaId && (
                           <Form.Text className="text-muted">
+                            <i className="fas fa-info-circle me-1"></i>
                             Seleccione primero una veterinaria
                           </Form.Text>
                         )}
                       </>
                     )}
                   </Form.Group>
-                </Col>
-              </Row>
+                </Card.Body>
+              </Card>
             )}
             
-            {/* Mostrar mensaje informativo si es veterinario */}
+            {/* Mensaje informativo para veterinarios */}
             {authService.isVeterinario() && modalMode !== 'view' && (
-              <Alert variant="info" className="mb-3">
+              <Alert variant="info" className="mb-4">
                 <i className="fas fa-info-circle me-2"></i>
-                Como veterinario, serás asignado automáticamente a esta cita
+                <strong>Nota:</strong> Como veterinario, serás asignado automáticamente a esta cita
               </Alert>
             )}
 
-            <Form.Group className="mb-3">
-              <Form.Label>Motivo</Form.Label>
-              <Form.Control
-                type="text"
-                name="motivo"
-                value={formData.motivo}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-                placeholder="Motivo de la consulta"
-              />
-            </Form.Group>
+            {/* Sección 5: Detalles Adicionales */}
+            <Card className="mb-0 border-secondary">
+              <Card.Header className="bg-secondary text-white">
+                <h6 className="mb-0">
+                  <i className="fas fa-clipboard me-2"></i>
+                  Paso 5: Detalles de la Consulta
+                </h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-3">
+                  <Form.Label>Motivo de la Consulta</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="motivo"
+                    value={formData.motivo}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Ej: Vacunación, Control general, Consulta de urgencia..."
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Observaciones</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="observaciones"
-                value={formData.observaciones}
-                onChange={handleInputChange}
-                disabled={modalMode === 'view'}
-                placeholder="Observaciones adicionales"
-              />
-            </Form.Group>
+                <Form.Group className="mb-0">
+                  <Form.Label>Observaciones Adicionales</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="observaciones"
+                    value={formData.observaciones}
+                    onChange={handleInputChange}
+                    disabled={modalMode === 'view'}
+                    placeholder="Información adicional que el veterinario deba conocer..."
+                  />
+                </Form.Group>
+              </Card.Body>
+            </Card>
 
             {modalMode === 'view' && selectedCita && (
               <>
@@ -912,7 +1255,17 @@ const CitaManagement: React.FC = () => {
               {modalMode === 'view' ? 'Cerrar' : 'Cancelar'}
             </Button>
             {modalMode !== 'view' && (
-              <Button variant="primary" type="submit" disabled={loading}>
+              <Button 
+                variant="primary" 
+                type="submit" 
+                disabled={
+                  loading || 
+                  !formData.fechaHora || 
+                  !formData.clienteId || 
+                  !formData.mascotaId ||
+                  (authService.isRecepcionista() && modalMode === 'create' && (!formData.veterinariaId || !formData.veterinarioId))
+                }
+              >
                 {loading && <Spinner animation="border" size="sm" className="me-2" />}
                 {modalMode === 'create' ? 'Crear' : 'Actualizar'}
               </Button>
