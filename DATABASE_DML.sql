@@ -84,115 +84,104 @@ INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, ap
 ('22222222', 'CC', 'recepcion1', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
  'Ana', 'González Torres', 'recepcion@veterinaria.com', '3004567890', 'Recepción', true, @vet1_id, NOW());
 
--- Obtener IDs de usuarios para las relaciones
-SET @admin_id = (SELECT id FROM usuarios WHERE documento = '12345678' LIMIT 1);
-SET @dr_garcia_id = (SELECT id FROM usuarios WHERE documento = '87654321' LIMIT 1);
-SET @dra_martinez_id = (SELECT id FROM usuarios WHERE documento = '11111111' LIMIT 1);
-SET @dr_rodriguez_id = (SELECT id FROM usuarios WHERE documento = '99999999' LIMIT 1);
-SET @cliente1_id = (SELECT id FROM usuarios WHERE documento = '33333333' LIMIT 1);
-SET @cliente2_id = (SELECT id FROM usuarios WHERE documento = '44444444' LIMIT 1);
-SET @cliente3_id = (SELECT id FROM usuarios WHERE documento = '55555555' LIMIT 1);
-SET @cliente4_id = (SELECT id FROM usuarios WHERE documento = '66666666' LIMIT 1);
-SET @recepcion_id = (SELECT id FROM usuarios WHERE documento = '22222222' LIMIT 1);
+-- Actualizar creado_por_documento en veterinarias (asignar al admin)
+UPDATE veterinarias SET creado_por_documento = '12345678' WHERE id IN (@vet1_id, @vet2_id, @vet3_id);
 
--- Actualizar creado_por_id en veterinarias (asignar al admin)
-UPDATE veterinarias SET creado_por_id = @admin_id WHERE id IN (@vet1_id, @vet2_id, @vet3_id);
-
--- Asignar roles a usuarios usando usuario_id
-INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES
-(@admin_id, 1),  -- Admin -> ROLE_ADMIN
-(@dr_garcia_id, 2),  -- Dr. García -> ROLE_VETERINARIO
-(@dra_martinez_id, 2),  -- Dra. Martínez -> ROLE_VETERINARIO
-(@dr_rodriguez_id, 2),  -- Dr. Rodríguez -> ROLE_VETERINARIO
-(@cliente1_id, 3),  -- Cliente1 -> ROLE_CLIENTE
-(@cliente2_id, 3),  -- Cliente2 -> ROLE_CLIENTE
-(@cliente3_id, 3),  -- Cliente3 -> ROLE_CLIENTE
-(@cliente4_id, 3),  -- Cliente4 -> ROLE_CLIENTE
-(@recepcion_id, 4);  -- Recepcionista -> ROLE_RECEPCIONISTA
+-- Asignar roles a usuarios
+INSERT INTO usuarios_roles (usuario_documento, rol_id) VALUES
+('12345678', 1),  -- Admin -> ROLE_ADMIN
+('87654321', 2),  -- Dr. García -> ROLE_VETERINARIO
+('11111111', 2),  -- Dra. Martínez -> ROLE_VETERINARIO
+('99999999', 2),  -- Dr. Rodríguez -> ROLE_VETERINARIO
+('33333333', 3),  -- Cliente1 -> ROLE_CLIENTE
+('44444444', 3),  -- Cliente2 -> ROLE_CLIENTE
+('55555555', 3),  -- Cliente3 -> ROLE_CLIENTE
+('66666666', 3),  -- Cliente4 -> ROLE_CLIENTE
+('22222222', 4);  -- Recepcionista -> ROLE_RECEPCIONISTA
 
 -- ============================================================================
 -- INSERCIÓN DE MASCOTAS
 -- ============================================================================
 
-INSERT INTO mascotas (nombre, especie, raza, color, sexo, fecha_nacimiento, peso, observaciones, activo, propietario_id, fecha_registro) VALUES
--- Mascotas de Pedro Pérez (Cliente1)
+INSERT INTO mascotas (nombre, especie, raza, color, sexo, fecha_nacimiento, peso, observaciones, activo, propietario_documento, fecha_registro) VALUES
+-- Mascotas de Pedro Pérez (Cliente1 - 33333333)
 ('Max', 'Perro', 'Golden Retriever', 'Dorado', 'Macho', DATE_SUB(CURDATE(), INTERVAL 3 YEAR), 28.5, 
- 'Muy juguetón y amigable. Le encanta nadar.', true, @cliente1_id, NOW()),
+ 'Muy juguetón y amigable. Le encanta nadar.', true, '33333333', NOW()),
 ('Luna', 'Gato', 'Siamés', 'Crema con puntos oscuros', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 2 YEAR), 4.2, 
- 'Tranquila y cariñosa. Esterilizada.', true, @cliente1_id, NOW()),
+ 'Tranquila y cariñosa. Esterilizada.', true, '33333333', NOW()),
 ('Rocky', 'Perro', 'Pastor Alemán', 'Negro y café', 'Macho', DATE_SUB(CURDATE(), INTERVAL 5 YEAR), 32.0, 
- 'Muy protector y leal. Bien entrenado.', true, @cliente1_id, NOW()),
+ 'Muy protector y leal. Bien entrenado.', true, '33333333', NOW()),
 
--- Mascotas de Laura Gómez (Cliente2)
+-- Mascotas de Laura Gómez (Cliente2 - 44444444)
 ('Bella', 'Perro', 'Labrador', 'Negro', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 4 YEAR), 25.0, 
- 'Obediente y cariñosa. Esterilizada.', true, @cliente2_id, NOW()),
+ 'Obediente y cariñosa. Esterilizada.', true, '44444444', NOW()),
 ('Mimi', 'Gato', 'Persa', 'Blanco', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 1 YEAR), 3.5, 
- 'Muy independiente. Requiere cepillado diario.', true, @cliente2_id, NOW()),
+ 'Muy independiente. Requiere cepillado diario.', true, '44444444', NOW()),
 
--- Mascotas de Juan Ramírez (Cliente3)
+-- Mascotas de Juan Ramírez (Cliente3 - 55555555)
 ('Zeus', 'Perro', 'Pastor Alemán', 'Negro y marrón', 'Macho', DATE_SUB(CURDATE(), INTERVAL 6 YEAR), 32.5, 
- 'Muy protector, excelente guardián.', true, @cliente3_id, NOW()),
+ 'Muy protector, excelente guardián.', true, '55555555', NOW()),
 ('Kira', 'Gato', 'Angora', 'Blanco con manchas grises', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 3 YEAR), 3.8, 
- 'Muy cariñosa y sociable.', true, @cliente3_id, NOW()),
+ 'Muy cariñosa y sociable.', true, '55555555', NOW()),
 
--- Mascotas de Sofia Martín (Cliente4)
+-- Mascotas de Sofia Martín (Cliente4 - 66666666)
 ('Bruno', 'Perro', 'Beagle', 'Tricolor', 'Macho', DATE_SUB(CURDATE(), INTERVAL 2 YEAR), 15.2, 
- 'Enérgico y cazador. Le gusta rastrear olores.', true, @cliente4_id, NOW()),
+ 'Enérgico y cazador. Le gusta rastrear olores.', true, '66666666', NOW()),
 ('Pelusa', 'Gato', 'Común Europeo', 'Naranja atigrado', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 1 YEAR), 3.2, 
- 'Juguetona y activa.', true, @cliente4_id, NOW());
+ 'Juguetona y activa.', true, '66666666', NOW());
 
 -- ============================================================================
 -- INSERCIÓN DE CITAS
 -- ============================================================================
 
 -- Obtener IDs de mascotas dinámicamente
-SET @max_id = (SELECT id FROM mascotas WHERE nombre = 'Max' AND propietario_id = @cliente1_id LIMIT 1);
-SET @luna_id = (SELECT id FROM mascotas WHERE nombre = 'Luna' AND propietario_id = @cliente1_id LIMIT 1);
-SET @rocky_id = (SELECT id FROM mascotas WHERE nombre = 'Rocky' AND propietario_id = @cliente1_id LIMIT 1);
-SET @bella_id = (SELECT id FROM mascotas WHERE nombre = 'Bella' AND propietario_id = @cliente2_id LIMIT 1);
-SET @mimi_id = (SELECT id FROM mascotas WHERE nombre = 'Mimi' AND propietario_id = @cliente2_id LIMIT 1);
-SET @zeus_id = (SELECT id FROM mascotas WHERE nombre = 'Zeus' AND propietario_id = @cliente3_id LIMIT 1);
-SET @kira_id = (SELECT id FROM mascotas WHERE nombre = 'Kira' AND propietario_id = @cliente3_id LIMIT 1);
-SET @bruno_id = (SELECT id FROM mascotas WHERE nombre = 'Bruno' AND propietario_id = @cliente4_id LIMIT 1);
-SET @pelusa_id = (SELECT id FROM mascotas WHERE nombre = 'Pelusa' AND propietario_id = @cliente4_id LIMIT 1);
+SET @max_id = (SELECT id FROM mascotas WHERE nombre = 'Max' AND propietario_documento = '33333333' LIMIT 1);
+SET @luna_id = (SELECT id FROM mascotas WHERE nombre = 'Luna' AND propietario_documento = '33333333' LIMIT 1);
+SET @rocky_id = (SELECT id FROM mascotas WHERE nombre = 'Rocky' AND propietario_documento = '33333333' LIMIT 1);
+SET @bella_id = (SELECT id FROM mascotas WHERE nombre = 'Bella' AND propietario_documento = '44444444' LIMIT 1);
+SET @mimi_id = (SELECT id FROM mascotas WHERE nombre = 'Mimi' AND propietario_documento = '44444444' LIMIT 1);
+SET @zeus_id = (SELECT id FROM mascotas WHERE nombre = 'Zeus' AND propietario_documento = '55555555' LIMIT 1);
+SET @kira_id = (SELECT id FROM mascotas WHERE nombre = 'Kira' AND propietario_documento = '55555555' LIMIT 1);
+SET @bruno_id = (SELECT id FROM mascotas WHERE nombre = 'Bruno' AND propietario_documento = '66666666' LIMIT 1);
+SET @pelusa_id = (SELECT id FROM mascotas WHERE nombre = 'Pelusa' AND propietario_documento = '66666666' LIMIT 1);
 
 -- Insertar citas programadas y completadas
-INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_id, mascota_id, veterinario_id, veterinaria_id, fecha_creacion) VALUES
+INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_documento, mascota_id, veterinario_documento, veterinaria_id, fecha_creacion) VALUES
 -- Citas completadas (pasadas)
 (DATE_SUB(NOW(), INTERVAL 30 DAY), 'Vacunación anual y control', 'Primera vacuna del año', 'COMPLETADA', 
- @cliente1_id, @max_id, @dr_garcia_id, @vet1_id, DATE_SUB(NOW(), INTERVAL 30 DAY)),
+ '33333333', @max_id, '87654321', @vet1_id, DATE_SUB(NOW(), INTERVAL 30 DAY)),
 (DATE_SUB(NOW(), INTERVAL 15 DAY), 'Control post-operatorio', 'Revisión después de esterilización', 'COMPLETADA', 
- @cliente1_id, @luna_id, @dra_martinez_id, @vet2_id, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+ '33333333', @luna_id, '11111111', @vet2_id, DATE_SUB(NOW(), INTERVAL 15 DAY)),
 (DATE_SUB(NOW(), INTERVAL 60 DAY), 'Control geriátrico', 'Revisión de rutina para perro mayor', 'COMPLETADA', 
- @cliente1_id, @rocky_id, @dr_garcia_id, @vet1_id, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+ '33333333', @rocky_id, '87654321', @vet1_id, DATE_SUB(NOW(), INTERVAL 60 DAY)),
 (DATE_SUB(NOW(), INTERVAL 20 DAY), 'Vacunación antirrábica', 'Refuerzo anual', 'COMPLETADA', 
- @cliente2_id, @bella_id, @dra_martinez_id, @vet2_id, DATE_SUB(NOW(), INTERVAL 20 DAY)),
+ '44444444', @bella_id, '11111111', @vet2_id, DATE_SUB(NOW(), INTERVAL 20 DAY)),
 
 -- Citas programadas (futuras)
 (DATE_ADD(NOW(), INTERVAL 1 DAY), 'Control de rutina', 'Revisión general de salud', 'PROGRAMADA', 
- @cliente1_id, @max_id, @dr_garcia_id, @vet1_id, NOW()),
+ '33333333', @max_id, '87654321', @vet1_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 2 DAY), 'Consulta por tos', 'Ha estado tosiendo últimamente', 'CONFIRMADA', 
- @cliente1_id, @rocky_id, @dr_garcia_id, @vet1_id, NOW()),
+ '33333333', @rocky_id, '87654321', @vet1_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 3 DAY), 'Vacunación pentavalente', 'Segunda dosis', 'PROGRAMADA', 
- @cliente2_id, @bella_id, @dra_martinez_id, @vet2_id, NOW()),
+ '44444444', @bella_id, '11111111', @vet2_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 5 DAY), 'Consulta dermatológica', 'Revisión de piel - posible alergia', 'PROGRAMADA', 
- @cliente2_id, @mimi_id, @dr_rodriguez_id, @vet3_id, NOW()),
+ '44444444', @mimi_id, '99999999', @vet3_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 7 DAY), 'Control de peso', 'Seguimiento de dieta', 'PROGRAMADA', 
- @cliente3_id, @zeus_id, @dr_garcia_id, @vet1_id, NOW()),
+ '55555555', @zeus_id, '87654321', @vet1_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 10 DAY), 'Vacunación triple felina', 'Primera dosis', 'PROGRAMADA', 
- @cliente3_id, @kira_id, @dra_martinez_id, @vet2_id, NOW()),
+ '55555555', @kira_id, '11111111', @vet2_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 12 DAY), 'Chequeo general', 'Control de rutina', 'PROGRAMADA', 
- @cliente4_id, @bruno_id, @dr_rodriguez_id, @vet3_id, NOW()),
+ '66666666', @bruno_id, '99999999', @vet3_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 14 DAY), 'Esterilización', 'Cirugía programada', 'CONFIRMADA', 
- @cliente4_id, @pelusa_id, @dr_garcia_id, @vet1_id, NOW());
+ '66666666', @pelusa_id, '87654321', @vet1_id, NOW());
 
 -- ============================================================================
 -- INSERCIÓN DE HISTORIAS CLÍNICAS
 -- ============================================================================
 
-INSERT INTO historias_clinicas (mascota_id, veterinario_id, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, activo, fecha_creacion) VALUES
+INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, activo, fecha_creacion) VALUES
 -- Historias clínicas de Max
-(@max_id, @dr_garcia_id, DATE_SUB(NOW(), INTERVAL 30 DAY), 
+(@max_id, '87654321', DATE_SUB(NOW(), INTERVAL 30 DAY), 
  'Vacunación y control anual', 
  'Estado general óptimo', 
  'Aplicación de vacuna múltiple y desparasitación', 
@@ -202,7 +191,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_id, fecha_consulta, moti
  28.5, 38.5, 80, 25, true, DATE_SUB(NOW(), INTERVAL 30 DAY)),
 
 -- Historias clínicas de Luna
-(@luna_id, @dra_martinez_id, DATE_SUB(NOW(), INTERVAL 15 DAY), 
+(@luna_id, '11111111', DATE_SUB(NOW(), INTERVAL 15 DAY), 
  'Control post-operatorio (esterilización)', 
  'Recuperación post-quirúrgica satisfactoria', 
  'Curación de herida quirúrgica, antibióticos preventivos', 

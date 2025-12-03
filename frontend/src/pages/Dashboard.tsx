@@ -45,18 +45,18 @@ const Dashboard: React.FC = () => {
       roles: ['ROLE_ADMIN', 'ROLE_VETERINARIO', 'ROLE_RECEPCIONISTA', 'ROLE_CLIENTE']
     },
     {
-      id: 'usuarios',
-      label: 'Gestión de Usuarios',
-      icon: <FaUsers />,
-      path: '/dashboard/usuarios',
-      roles: ['ROLE_ADMIN', 'ROLE_RECEPCIONISTA']
-    },
-    {
       id: 'veterinarias',
       label: 'Gestión de Veterinarias',
       icon: <FaHospital />,
       path: '/dashboard/veterinarias',
       roles: ['ROLE_ADMIN']
+    },
+    {
+      id: 'usuarios',
+      label: 'Gestión de Usuarios',
+      icon: <FaUsers />,
+      path: '/dashboard/usuarios',
+      roles: ['ROLE_ADMIN', 'ROLE_RECEPCIONISTA']
     },
     {
       id: 'mascotas',

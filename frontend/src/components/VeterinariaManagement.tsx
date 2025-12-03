@@ -40,6 +40,12 @@ const VeterinariaManagement: React.FC = () => {
     horarioAtencion: ''
   });
 
+  // Estados para selector de horarios
+  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
+  const [horaInicio, setHoraInicio] = useState('');
+  const [horaFin, setHoraFin] = useState('');
+  const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
   useEffect(() => {
     loadVeterinarias();
   }, []);
@@ -63,7 +69,7 @@ const VeterinariaManagement: React.FC = () => {
       } else {
         console.warn('⚠️ No se encontraron veterinarias en la respuesta');
         setVeterinarias([]);
-        setError('No tienes una veterinaria asignada. Por favor, ve a "Mi Perfil" y selecciona tu veterinaria para poder gestionar esta sección.');
+        // No mostrar error, el componente mostrará el formulario de creación
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Error al cargar las veterinarias';
@@ -74,12 +80,7 @@ const VeterinariaManagement: React.FC = () => {
         data: error.response?.data
       });
       
-      // Mensaje personalizado si no tiene veterinaria asignada
-      if (error.response?.status === 403) {
-        setError('⚠️ No tienes una veterinaria asignada. Por favor, ve a "Mi Perfil" y asigna tu veterinaria para poder gestionar esta sección.');
-      } else {
-        setError(errorMessage);
-      }
+      // No mostrar error si no hay veterinarias, mostrar formulario de creación
       setVeterinarias([]);
     } finally {
       setLoading(false);
@@ -130,6 +131,92 @@ const VeterinariaManagement: React.FC = () => {
       servicios: '',
       horarioAtencion: ''
     });
+    setDiasSeleccionados([]);
+    setHoraInicio('');
+    setHoraFin('');
+  };
+
+  const handleDiaToggle = (dia: string) => {
+    setDiasSeleccionados(prev => {
+      if (prev.includes(dia)) {
+        return prev.filter(d => d !== dia);
+      } else {
+        return [...prev, dia];
+      }
+    });
+  };
+
+  const parseHorarioAtencion = (horario: string) => {
+    // Extraer días y horas del texto del horario
+    try {
+      // Ejemplo: "Lunes a Viernes: 8:00 AM - 6:00 PM"
+      const dias: string[] = [];
+      const horaMatch = horario.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/);
+      
+      if (horario.toLowerCase().includes('lunes a viernes')) {
+        dias.push('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes');
+      } else if (horario.toLowerCase().includes('todos los días')) {
+        dias.push(...diasSemana);
+      } else {
+        diasSemana.forEach(dia => {
+          if (horario.includes(dia)) {
+            dias.push(dia);
+          }
+        });
+      }
+      
+      if (horaMatch) {
+        const horaInicioNum = parseInt(horaMatch[1]);
+        const minInicioNum = horaMatch[2];
+        const ampmInicio = horaMatch[3];
+        const horaFinNum = parseInt(horaMatch[4]);
+        const minFinNum = horaMatch[5];
+        const ampmFin = horaMatch[6];
+        
+        const convertTo24 = (hora: number, min: string, ampm: string) => {
+          let h = hora;
+          if (ampm === 'PM' && h !== 12) h += 12;
+          if (ampm === 'AM' && h === 12) h = 0;
+          return `${h.toString().padStart(2, '0')}:${min}`;
+        };
+        
+        setHoraInicio(convertTo24(horaInicioNum, minInicioNum, ampmInicio));
+        setHoraFin(convertTo24(horaFinNum, minFinNum, ampmFin));
+      }
+      
+      setDiasSeleccionados(dias);
+    } catch (error) {
+      console.error('Error parsing horario:', error);
+    }
+  };
+
+  const generarHorarioTexto = (): string => {
+    if (diasSeleccionados.length === 0 || !horaInicio || !horaFin) {
+      return '';
+    }
+
+    const formatHora = (hora: string) => {
+      const [h, m] = hora.split(':');
+      const hour = parseInt(h);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12}:${m} ${ampm}`;
+    };
+
+    const diasOrdenados = diasSemana.filter(dia => diasSeleccionados.includes(dia));
+    
+    if (diasOrdenados.length === 7) {
+      return `Todos los días: ${formatHora(horaInicio)} - ${formatHora(horaFin)}`;
+    } else if (diasOrdenados.length === 5 && 
+               diasOrdenados.every(dia => ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].includes(dia))) {
+      return `Lunes a Viernes: ${formatHora(horaInicio)} - ${formatHora(horaFin)}`;
+    } else if (diasOrdenados.length === 2 && 
+               diasOrdenados.includes('Sábado') && diasOrdenados.includes('Domingo')) {
+      return `Sábados y Domingos: ${formatHora(horaInicio)} - ${formatHora(horaFin)}`;
+    } else {
+      const diasTexto = diasOrdenados.join(', ');
+      return `${diasTexto}: ${formatHora(horaInicio)} - ${formatHora(horaFin)}`;
+    }
   };
 
   const handleShowModal = (mode: 'create' | 'edit' | 'view', veterinaria?: Veterinaria) => {
@@ -147,6 +234,10 @@ const VeterinariaManagement: React.FC = () => {
         servicios: veterinaria.servicios || '',
         horarioAtencion: veterinaria.horarioAtencion || ''
       });
+      // Parsear horario para poblar selectores
+      if (veterinaria.horarioAtencion) {
+        parseHorarioAtencion(veterinaria.horarioAtencion);
+      }
     } else {
       resetForm();
     }
@@ -180,14 +271,32 @@ const VeterinariaManagement: React.FC = () => {
       return;
     }
 
+    // Validar días y horarios
+    if (diasSeleccionados.length === 0) {
+      setError('Debe seleccionar al menos un día de atención');
+      return;
+    }
+
+    if (!horaInicio || !horaFin) {
+      setError('Debe especificar la hora de inicio y fin de atención');
+      return;
+    }
+
     try {
       setLoading(true);
       
+      // Generar horario de atención a partir de los selectores
+      const horarioGenerado = generarHorarioTexto();
+      const dataToSend = {
+        ...formData,
+        horarioAtencion: horarioGenerado
+      };
+      
       if (modalMode === 'create') {
-        await veterinariaService.createVeterinaria(formData);
+        await veterinariaService.createVeterinaria(dataToSend);
         setSuccess('Veterinaria creada exitosamente');
       } else if (modalMode === 'edit' && selectedVeterinaria) {
-        await veterinariaService.updateVeterinaria(selectedVeterinaria.id, formData);
+        await veterinariaService.updateVeterinaria(selectedVeterinaria.id, dataToSend);
         setSuccess('Veterinaria actualizada exitosamente');
       }
       
@@ -297,35 +406,44 @@ const VeterinariaManagement: React.FC = () => {
                   <p className="mt-3 text-muted">Cargando veterinarias...</p>
                 </div>
               ) : filteredVeterinarias.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="fas fa-hospital fa-3x text-muted mb-3"></i>
-                  <h5 className="text-muted">
-                    {error ? 'Sin acceso a veterinarias' : 'No se encontraron veterinarias'}
-                  </h5>
-                  <p className="text-muted">
-                    {error 
-                      ? error
-                      : veterinarias.length === 0 
-                        ? 'No tienes veterinarias asignadas para gestionar' 
-                        : 'No hay veterinarias que coincidan con los filtros aplicados'}
-                  </p>
-                  {!error && veterinarias.length === 0 && (
-                    <Alert variant="info" className="mt-3 mx-auto" style={{ maxWidth: '600px' }}>
-                      <i className="fas fa-info-circle me-2"></i>
-                      <strong>Configuración requerida:</strong> Para gestionar veterinarias, primero debes asignarte una desde tu perfil.
-                      <br />
-                      <Button 
-                        variant="primary" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={() => window.location.href = '/dashboard'}
-                      >
-                        <i className="fas fa-user me-2"></i>
-                        Ir a Mi Perfil
-                      </Button>
+                veterinarias.length === 0 ? (
+                  // Mostrar formulario de creación si no hay veterinarias
+                  <div>
+                    <Alert variant="info" className="mb-4">
+                      <h5><i className="fas fa-hospital me-2"></i>¡Bienvenido!</h5>
+                      <p className="mb-0">No tienes ninguna veterinaria registrada. Completa el siguiente formulario para crear tu primera veterinaria.</p>
                     </Alert>
-                  )}
-                </div>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-100"
+                      onClick={() => handleShowModal('create')}
+                    >
+                      <i className="fas fa-plus me-2"></i>
+                      Crear Mi Veterinaria
+                    </Button>
+                  </div>
+                ) : (
+                  // Mostrar mensaje de "no se encontraron resultados" si hay veterinarias pero no coinciden con los filtros
+                  <div className="text-center py-5">
+                    <i className="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 className="text-muted">No se encontraron resultados</h5>
+                    <p className="text-muted">
+                      No hay veterinarias que coincidan con los filtros aplicados
+                    </p>
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      onClick={() => {
+                        setSearchTerm('');
+                        setShowActives(null);
+                      }}
+                    >
+                      <i className="fas fa-redo me-2"></i>
+                      Limpiar Filtros
+                    </Button>
+                  </div>
+                )
               ) : (
                 <Table responsive striped hover>
                   <thead>
@@ -573,28 +691,86 @@ const VeterinariaManagement: React.FC = () => {
                   )}
                 </Form.Group>
 
-                <Form.Group className="mb-0">
-                  <Form.Label>Horario de Atención</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>
-                      <i className="fas fa-clock"></i>
-                    </InputGroup.Text>
-                    <Form.Control
-                      type="text"
-                      name="horarioAtencion"
-                      value={formData.horarioAtencion}
-                      onChange={handleInputChange}
-                      placeholder="Ej: Lunes a Viernes 8:00 AM - 6:00 PM, Sábados 9:00 AM - 2:00 PM"
-                      disabled={modalMode === 'view'}
-                    />
-                  </InputGroup>
-                  {modalMode !== 'view' && (
-                    <Form.Text className="text-muted">
-                      <i className="fas fa-calendar-alt me-1"></i>
-                      Especifique días y horarios de funcionamiento
-                    </Form.Text>
-                  )}
-                </Form.Group>
+                {modalMode === 'view' ? (
+                  <Form.Group className="mb-0">
+                    <Form.Label>Horario de Atención</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text>
+                        <i className="fas fa-clock"></i>
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="text"
+                        value={formData.horarioAtencion}
+                        disabled
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                ) : (
+                  <>
+                    <Form.Group className="mb-3">
+                      <Form.Label>
+                        <i className="fas fa-calendar-check me-2"></i>
+                        Días de Atención *
+                      </Form.Label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {diasSemana.map((dia) => (
+                          <Button
+                            key={dia}
+                            variant={diasSeleccionados.includes(dia) ? 'primary' : 'outline-primary'}
+                            size="sm"
+                            onClick={() => handleDiaToggle(dia)}
+                            type="button"
+                            style={{ minWidth: '90px' }}
+                          >
+                            {dia}
+                          </Button>
+                        ))}
+                      </div>
+                      <Form.Text className="text-muted">
+                        <i className="fas fa-info-circle me-1"></i>
+                        Seleccione los días en que la veterinaria está abierta
+                      </Form.Text>
+                    </Form.Group>
+
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>
+                            <i className="fas fa-clock me-2"></i>
+                            Hora de Apertura *
+                          </Form.Label>
+                          <Form.Control
+                            type="time"
+                            value={horaInicio}
+                            onChange={(e) => setHoraInicio(e.target.value)}
+                            required
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>
+                            <i className="fas fa-clock me-2"></i>
+                            Hora de Cierre *
+                          </Form.Label>
+                          <Form.Control
+                            type="time"
+                            value={horaFin}
+                            onChange={(e) => setHoraFin(e.target.value)}
+                            required
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+
+                    {diasSeleccionados.length > 0 && horaInicio && horaFin && (
+                      <Alert variant="secondary" className="mb-0">
+                        <i className="fas fa-info-circle me-2"></i>
+                        <strong>Vista previa del horario:</strong> {generarHorarioTexto()}
+                      </Alert>
+                    )}
+                  </>
+                )}
               </Card.Body>
             </Card>
 

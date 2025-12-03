@@ -41,6 +41,10 @@ public class VeterinariaService {
         return veterinariaRepository.findByNombreContainingIgnoreCase(nombre);
     }
     
+    public List<Veterinaria> findByCreadoPorDocumento(String documento) {
+        return veterinariaRepository.findByCreadoPorDocumento(documento);
+    }
+    
     public Veterinaria save(Veterinaria veterinaria) {
         return veterinariaRepository.save(veterinaria);
     }
