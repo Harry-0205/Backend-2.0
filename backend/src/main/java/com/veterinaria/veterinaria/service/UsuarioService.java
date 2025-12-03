@@ -117,4 +117,8 @@ public class UsuarioService {
     public List<Usuario> findClientesAtendidosPorVeterinario(String veterinarioDocumento) {
         return usuarioRepository.findClientesAtendidosPorVeterinario(veterinarioDocumento);
     }
+    
+    public List<Usuario> findByVeterinariaId(Long veterinariaId) {
+        return usuarioRepository.findByVeterinaria_Id(veterinariaId);
+    }
 }

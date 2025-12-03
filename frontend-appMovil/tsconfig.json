@@ -1,0 +1,41 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "jsx": "react-native",
+    "lib": [
+      "esnext"
+    ],
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "target": "esnext",
+    "module": "esnext",
+    "forceConsistentCasingInFileNames": true,
+    "types": [
+      "react-native",
+      "react"
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "expo/index.js",
+    "App.tsx",
+    "screens/**/*",
+    "services/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "node_modules/**/*",
+    "**/node_modules/**",
+    "babel.config.js",
+    "metro.config.js",
+    "webpack.config.js"
+  ]
+}

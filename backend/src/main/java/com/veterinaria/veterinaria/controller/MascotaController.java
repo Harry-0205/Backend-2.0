@@ -35,7 +35,18 @@ public class MascotaController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         
-        // Verificar si el usuario tiene rol VETERINARIO
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(username);
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.ok(List.of());
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+        
+        // Verificar roles
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         boolean isVeterinario = authentication.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
         
@@ -43,15 +54,23 @@ public class MascotaController {
         
         if (isVeterinario) {
             // Si es veterinario, obtener solo las mascotas que ha atendido
-            Optional<Usuario> veterinario = usuarioService.findByUsername(username);
-            if (veterinario.isPresent()) {
-                mascotas = mascotaService.findMascotasAtendidasByVeterinario(veterinario.get().getDocumento());
+            mascotas = mascotaService.findMascotasAtendidasByVeterinario(usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG: Veterinario " + username + " consultando mascotas atendidas: " + mascotas.size());
+        } else if (isAdmin || isRecepcionista) {
+            // Admin y Recepcionista ven solo mascotas cuyos propietarios pertenecen a su veterinaria
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                mascotas = mascotaService.findByPropietarioVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " consultando mascotas de veterinaria ID " + veterinariaId + ": " + mascotas.size() + " mascotas");
             } else {
+                // Si no tiene veterinaria asignada, no puede ver ninguna mascota
                 mascotas = List.of();
+                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    " sin veterinaria asignada, no puede ver mascotas");
             }
         } else {
-            // Si es admin o recepcionista, obtener todas las mascotas
-            mascotas = mascotaService.findAll();
+            mascotas = List.of();
         }
         
         List<MascotaResponse> response = mascotas.stream()

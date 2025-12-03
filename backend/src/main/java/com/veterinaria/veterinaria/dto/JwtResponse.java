@@ -9,6 +9,11 @@ public class JwtResponse {
     private String username;
     private String email;
     private List<String> roles;
+    private String nombres;
+    private String apellidos;
+    private String telefono;
+    private String direccion;
+    private VeterinariaInfo veterinaria;
     
     public JwtResponse(String accessToken, String documento, String username, String email, List<String> roles) {
         this.token = accessToken;
@@ -16,6 +21,30 @@ public class JwtResponse {
         this.username = username;
         this.email = email;
         this.roles = roles;
+    }
+    
+    // Inner class para información de veterinaria
+    public static class VeterinariaInfo {
+        private Long id;
+        private String nombre;
+        private String telefono;
+        private String direccion;
+        
+        public VeterinariaInfo(Long id, String nombre, String telefono, String direccion) {
+            this.id = id;
+            this.nombre = nombre;
+            this.telefono = telefono;
+            this.direccion = direccion;
+        }
+        
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getNombre() { return nombre; }
+        public void setNombre(String nombre) { this.nombre = nombre; }
+        public String getTelefono() { return telefono; }
+        public void setTelefono(String telefono) { this.telefono = telefono; }
+        public String getDireccion() { return direccion; }
+        public void setDireccion(String direccion) { this.direccion = direccion; }
     }
     
     public String getToken() {
@@ -65,4 +94,44 @@ public class JwtResponse {
     public void setRoles(List<String> roles) {
         this.roles = roles;
     }
-}
+    
+    public String getNombres() { 
+        return nombres; 
+    }
+    
+    public void setNombres(String nombres) { 
+        this.nombres = nombres; 
+    }
+    
+    public String getApellidos() { 
+        return apellidos; 
+    }
+    
+    public void setApellidos(String apellidos) { 
+        this.apellidos = apellidos; 
+    }
+    
+    public String getTelefono() { 
+        return telefono; 
+    }
+    
+    public void setTelefono(String telefono) { 
+        this.telefono = telefono; 
+    }
+    
+    public String getDireccion() { 
+        return direccion; 
+    }
+    
+    public void setDireccion(String direccion) { 
+        this.direccion = direccion; 
+    }
+    
+    public VeterinariaInfo getVeterinaria() { 
+        return veterinaria; 
+    }
+    
+    public void setVeterinaria(VeterinariaInfo veterinaria) { 
+        this.veterinaria = veterinaria; 
+    }
+} 

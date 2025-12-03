@@ -27,7 +27,7 @@ public class PdfController {
     private JwtUtils jwtUtils;
     
     @GetMapping("/historia-clinica/{mascotaId}")
-    // @PreAuthorize("hasRole('CLIENTE') or hasRole('ADMIN') or hasRole('VETERINARIO')")
+    @PreAuthorize("hasRole('CLIENTE') or hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
     public ResponseEntity<?> descargarHistoriaClinicaPdf(
             @PathVariable Long mascotaId,
             HttpServletRequest request) {
@@ -49,7 +49,7 @@ public class PdfController {
             
             // Obtener roles del contexto de seguridad
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            boolean isAdminOrVet = false;
+            boolean isAdminVetOrRecep = false;
             
             if (auth != null) {
                 System.out.println("🔍 Auth name: " + auth.getName());
@@ -59,10 +59,12 @@ public class PdfController {
                     auth.getAuthorities().forEach(authority -> 
                         System.out.println("   🎭 Authority: " + authority.getAuthority()));
                     
-                    isAdminOrVet = auth.getAuthorities().stream()
+                    isAdminVetOrRecep = auth.getAuthorities().stream()
                         .anyMatch(grantedAuthority -> {
                             String authority = grantedAuthority.getAuthority();
-                            boolean match = authority.equals("ROLE_ADMIN") || authority.equals("ROLE_VETERINARIO");
+                            boolean match = authority.equals("ROLE_ADMIN") || 
+                                          authority.equals("ROLE_VETERINARIO") ||
+                                          authority.equals("ROLE_RECEPCIONISTA");
                             System.out.println("   🔍 Comparando " + authority + " -> " + match);
                             return match;
                         });
@@ -73,15 +75,15 @@ public class PdfController {
                 System.out.println("⚠️ Authentication context is null");
             }
             
-            System.out.println("🔍 Es Admin o Veterinario: " + isAdminOrVet);
+            System.out.println("🔍 Es Admin, Veterinario o Recepcionista: " + isAdminVetOrRecep);
             
             // Generar PDF con validación de permisos
             byte[] pdfBytes;
             try {
-                if (isAdminOrVet) {
-                    // Admin y veterinario pueden acceder a cualquier mascota
+                if (isAdminVetOrRecep) {
+                    // Admin, veterinario y recepcionista pueden acceder a cualquier mascota
                     pdfBytes = pdfService.generarHistoriaClinicaPdf(mascotaId, null);
-                    System.out.println("✅ PDF generado para Admin/Veterinario");
+                    System.out.println("✅ PDF generado para Admin/Veterinario/Recepcionista");
                 } else {
                     // Cliente solo puede acceder a sus propias mascotas
                     pdfBytes = pdfService.generarHistoriaClinicaPdf(mascotaId, documento);
@@ -120,11 +122,11 @@ public class PdfController {
     }
     
     @GetMapping("/historia-clinica-completa/{mascotaId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
     public ResponseEntity<?> descargarHistoriaClinicaCompletaPdf(@PathVariable Long mascotaId) {
         
         try {
-            // Para admin y veterinario, permitir acceso a cualquier mascota
+            // Para admin, veterinario y recepcionista, permitir acceso a cualquier mascota
             byte[] pdfBytes = pdfService.generarHistoriaClinicaPdf(mascotaId, null);
             
             HttpHeaders headers = new HttpHeaders();

@@ -32,38 +32,59 @@ public class CitaResponse {
     
     // Constructor desde entidad
     public CitaResponse(Cita cita) {
-        this.id = cita.getId();
-        this.fechaHora = cita.getFechaHora();
-        this.motivo = cita.getMotivo();
-        this.observaciones = cita.getObservaciones();
-        this.estado = cita.getEstado() != null ? cita.getEstado().name() : null;
-        this.fechaCreacion = cita.getFechaCreacion();
-        
-        // Cliente
-        if (cita.getCliente() != null) {
-            this.clienteDocumento = cita.getCliente().getDocumento();
-            this.clienteNombre = cita.getCliente().getNombres();
-            this.clienteApellido = cita.getCliente().getApellidos();
-        }
-        
-        // Mascota
-        if (cita.getMascota() != null) {
-            this.mascotaId = cita.getMascota().getId();
-            this.mascotaNombre = cita.getMascota().getNombre();
-            this.mascotaEspecie = cita.getMascota().getEspecie();
-        }
-        
-        // Veterinario
-        if (cita.getVeterinario() != null) {
-            this.veterinarioDocumento = cita.getVeterinario().getDocumento();
-            this.veterinarioNombre = cita.getVeterinario().getNombres();
-            this.veterinarioApellido = cita.getVeterinario().getApellidos();
-        }
-        
-        // Veterinaria
-        if (cita.getVeterinaria() != null) {
-            this.veterinariaId = cita.getVeterinaria().getId();
-            this.veterinariaNombre = cita.getVeterinaria().getNombre();
+        try {
+            this.id = cita.getId();
+            this.fechaHora = cita.getFechaHora();
+            this.motivo = cita.getMotivo();
+            this.observaciones = cita.getObservaciones();
+            this.estado = cita.getEstado() != null ? cita.getEstado().name() : null;
+            this.fechaCreacion = cita.getFechaCreacion();
+            
+            // Cliente
+            try {
+                if (cita.getCliente() != null) {
+                    this.clienteDocumento = cita.getCliente().getDocumento();
+                    this.clienteNombre = cita.getCliente().getNombres();
+                    this.clienteApellido = cita.getCliente().getApellidos();
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando cliente de cita " + cita.getId() + ": " + e.getMessage());
+            }
+            
+            // Mascota
+            try {
+                if (cita.getMascota() != null) {
+                    this.mascotaId = cita.getMascota().getId();
+                    this.mascotaNombre = cita.getMascota().getNombre();
+                    this.mascotaEspecie = cita.getMascota().getEspecie();
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando mascota de cita " + cita.getId() + ": " + e.getMessage());
+            }
+            
+            // Veterinario
+            try {
+                if (cita.getVeterinario() != null) {
+                    this.veterinarioDocumento = cita.getVeterinario().getDocumento();
+                    this.veterinarioNombre = cita.getVeterinario().getNombres();
+                    this.veterinarioApellido = cita.getVeterinario().getApellidos();
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando veterinario de cita " + cita.getId() + ": " + e.getMessage());
+            }
+            
+            // Veterinaria
+            try {
+                if (cita.getVeterinaria() != null) {
+                    this.veterinariaId = cita.getVeterinaria().getId();
+                    this.veterinariaNombre = cita.getVeterinaria().getNombre();
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error cargando veterinaria de cita " + cita.getId() + ": " + e.getMessage());
+            }
+        } catch (Exception e) {
+            System.err.println("❌ ERROR CRÍTICO en CitaResponse para cita " + (cita != null ? cita.getId() : "null") + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
     

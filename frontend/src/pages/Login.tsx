@@ -260,7 +260,8 @@ const Login: React.FC = () => {
                     )}
                   </Button>
 
-                  <div className="text-center">
+                  {/* Enlace de registro comentado - solo admin puede crear usuarios */}
+                  {/* <div className="text-center">
                     <p style={{ color: '#64748b', marginBottom: '15px', fontSize: '0.95rem' }}>
                       ¿No tienes cuenta?{' '}
                       <Link to="/register" style={{
@@ -275,6 +276,9 @@ const Login: React.FC = () => {
                         Regístrate aquí
                       </Link>
                     </p>
+                  </div> */}
+                  
+                  <div className="text-center">
                     <div style={{
                       background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
                       padding: '16px',

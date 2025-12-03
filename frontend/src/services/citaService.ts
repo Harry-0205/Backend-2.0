@@ -3,7 +3,28 @@ import { Cita, EstadoCita } from '../types';
 
 class CitaService {
   getAllCitas(): Promise<Cita[]> {
-    return apiClient.get('/citas').then(response => response.data);
+    return apiClient.get('/citas').then(response => {
+      console.log('📥 Respuesta getAllCitas:', response.data);
+      
+      let data = response.data;
+      
+      // Si es string, parsearlo
+      if (typeof data === 'string') {
+        data = JSON.parse(data);
+      }
+      
+      // Si tiene estructura ApiResponse, extraer el campo 'data'
+      if (data && data.data !== undefined) {
+        data = data.data;
+      }
+      
+      const citas = Array.isArray(data) ? data : [];
+      console.log('✅ Citas extraídas:', citas.length);
+      return citas;
+    }).catch(error => {
+      console.error('❌ Error al obtener citas:', error);
+      return [];
+    });
   }
 
   getCitaById(id: number): Promise<Cita> {
@@ -73,6 +94,26 @@ class CitaService {
   marcarNoAsistio(id: number): Promise<Cita> {
     return this.cambiarEstado(id, EstadoCita.NO_ASISTIO);
   }
+
+  // Nuevos métodos para gestión de disponibilidad
+  getHorariosDisponibles(fecha: string, veterinariaId: number): Promise<HorarioDisponible[]> {
+    return apiClient.get('/citas/disponibilidad', {
+      params: { fecha, veterinariaId }
+    }).then(response => response.data);
+  }
+
+  getCitasDelDia(fecha: string, veterinariaId: number): Promise<Cita[]> {
+    return apiClient.get('/citas/dia', {
+      params: { fecha, veterinariaId }
+    }).then(response => response.data);
+  }
+}
+
+export interface HorarioDisponible {
+  fechaHora: string;
+  disponible: boolean;
+  veterinarioNombre?: string;
+  veterinarioDocumento?: string;
 }
 
 export default new CitaService();

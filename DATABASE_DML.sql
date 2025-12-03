@@ -60,7 +60,7 @@ SET @vet3_id = (SELECT id FROM veterinarias WHERE nombre = 'Clínica Veterinaria
 INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, apellidos, email, telefono, direccion, activo, veterinaria_id, fecha_registro) VALUES
 -- Administrador
 ('12345678', 'CC', 'admin', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Administrador', 'Sistema', 'admin@veterinaria.com', '3001234567', 'Oficina Principal', true, NULL, NOW()),
+ 'Administrador', 'Sistema', 'admin@veterinaria.com', '3001234567', 'Oficina Principal', true, @vet1_id, NOW()),
 
 -- Veterinarios
 ('87654321', 'CC', 'dr.garcia', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
@@ -72,17 +72,20 @@ INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, ap
 
 -- Clientes
 ('33333333', 'CC', 'cliente1', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Pedro', 'Pérez González', 'pedro.perez@email.com', '3003456789', 'Calle 10 #20-30', true, NULL, NOW()),
+ 'Pedro', 'Pérez González', 'pedro.perez@email.com', '3003456789', 'Calle 10 #20-30', true, @vet1_id, NOW()),
 ('44444444', 'CC', 'cliente2', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Laura', 'Gómez Ramírez', 'laura.gomez@email.com', '3009999999', 'Zona Norte #456', true, NULL, NOW()),
+ 'Laura', 'Gómez Ramírez', 'laura.gomez@email.com', '3009999999', 'Zona Norte #456', true, @vet1_id, NOW()),
 ('55555555', 'CC', 'cliente3', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, NULL, NOW()),
+ 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, @vet2_id, NOW()),
 ('66666666', 'CC', 'cliente4', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Sofia', 'Martín Fernández', 'sofia.martin@email.com', '3004444444', 'Zona Este #321', true, NULL, NOW()),
+ 'Sofia', 'Martín Fernández', 'sofia.martin@email.com', '3004444444', 'Zona Este #321', true, @vet2_id, NOW()),
 
 -- Recepcionista
 ('22222222', 'CC', 'recepcion1', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Ana', 'González Torres', 'recepcion@veterinaria.com', '3004567890', 'Recepción', true, NULL, NOW());
+ 'Ana', 'González Torres', 'recepcion@veterinaria.com', '3004567890', 'Recepción', true, @vet1_id, NOW());
+
+-- Actualizar creado_por_documento en veterinarias (asignar al admin)
+UPDATE veterinarias SET creado_por_documento = '12345678' WHERE id IN (@vet1_id, @vet2_id, @vet3_id);
 
 -- Asignar roles a usuarios
 INSERT INTO usuarios_roles (usuario_documento, rol_id) VALUES
@@ -176,7 +179,7 @@ INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_documento,
 -- INSERCIÓN DE HISTORIAS CLÍNICAS
 -- ============================================================================
 
-INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, fecha_creacion) VALUES
+INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, activo, fecha_creacion) VALUES
 -- Historias clínicas de Max
 (@max_id, '87654321', DATE_SUB(NOW(), INTERVAL 30 DAY), 
  'Vacunación y control anual', 
@@ -185,7 +188,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Vacuna séxtuple canina, Ivermectina',
  'Paciente en excelente condición física. Sin hallazgos patológicos.', 
  'Continuar con alimentación balanceada. Ejercicio regular.',
- 28.5, 38.5, 80, 25, DATE_SUB(NOW(), INTERVAL 30 DAY)),
+ 28.5, 38.5, 80, 25, true, DATE_SUB(NOW(), INTERVAL 30 DAY)),
 
 -- Historias clínicas de Luna
 (@luna_id, '11111111', DATE_SUB(NOW(), INTERVAL 15 DAY), 
@@ -195,7 +198,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Amoxicilina 50mg cada 12h por 7 días, Meloxicam 0.5mg cada 24h por 5 días',
  'Herida quirúrgica en perfectas condiciones. Sin signos de infección.', 
  'Reposo durante 10 días. Evitar saltos. Control en 5 días.',
- 4.2, 38.3, 120, 30, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+ 4.2, 38.3, 120, 30, true, DATE_SUB(NOW(), INTERVAL 15 DAY)),
 
 -- Historias clínicas de Rocky
 (@rocky_id, '87654321', DATE_SUB(NOW(), INTERVAL 60 DAY), 
@@ -205,7 +208,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Condroitina + Glucosamina, Carprofeno según necesidad',
  'Paciente geriátrico con buena calidad de vida. Leve cojera al levantarse.', 
  'Ejercicio moderado. Evitar escaleras. Control en 6 meses.',
- 32.0, 38.4, 75, 22, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+ 32.0, 38.4, 75, 22, true, DATE_SUB(NOW(), INTERVAL 60 DAY)),
 
 -- Historias clínicas de Bella
 (@bella_id, '11111111', DATE_SUB(NOW(), INTERVAL 20 DAY), 
@@ -215,7 +218,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Vacuna antirrábica anual',
  'Sin complicaciones. Signos vitales normales.', 
  'Próxima vacunación en 1 año.',
- 25.0, 38.6, 85, 26, DATE_SUB(NOW(), INTERVAL 20 DAY)),
+ 25.0, 38.6, 85, 26, true, DATE_SUB(NOW(), INTERVAL 20 DAY)),
 
 -- Historias clínicas de Zeus
 (@zeus_id, '87654321', DATE_SUB(NOW(), INTERVAL 90 DAY), 
@@ -225,7 +228,7 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Meloxicam 7.5mg cada 24h, Condroprotector',
  'Radiografías muestran displasia grado I. Buena respuesta al tratamiento.', 
  'Control de peso. Natación recomendada. Control en 3 meses.',
- 32.5, 38.5, 78, 24, DATE_SUB(NOW(), INTERVAL 90 DAY));
+ 32.5, 38.5, 78, 24, true, DATE_SUB(NOW(), INTERVAL 90 DAY));
 
 -- ============================================================================
 -- INSERCIÓN DE REPORTES DE EJEMPLO
