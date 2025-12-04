@@ -68,8 +68,40 @@ public class VeterinariaController {
                 // Admin solo ve las veterinarias que él ha creado
                 Optional<Usuario> adminOpt = usuarioService.findByUsername(userDetails.getUsername());
                 if (adminOpt.isPresent()) {
-                    veterinarias = veterinariaService.findByCreadoPorDocumento(adminOpt.get().getDocumento());
+                    Usuario admin = adminOpt.get();
+                    veterinarias = new ArrayList<>(veterinariaService.findByCreadoPorDocumento(admin.getDocumento()));
                     System.out.println("=== DEBUG: Admin " + userDetails.getUsername() + " consultando veterinarias creadas por él: " + veterinarias.size() + " veterinarias");
+                    
+                    // Recorrer recursivamente la cadena de creadores para obtener todas las veterinarias
+                    String documentoCreador = admin.getCreadoPorDocumento();
+                    int nivel = 1;
+                    while (documentoCreador != null) {
+                        List<Veterinaria> veterinariasDelCreador = veterinariaService.findByCreadoPorDocumento(documentoCreador);
+                        System.out.println("=== DEBUG: Nivel " + nivel + " - Admin creador (" + documentoCreador + ") tiene " + veterinariasDelCreador.size() + " veterinarias");
+                        
+                        // Combinar sin duplicados
+                        for (Veterinaria vet : veterinariasDelCreador) {
+                            if (!veterinarias.contains(vet)) {
+                                veterinarias.add(vet);
+                            }
+                        }
+                        
+                        // Buscar el siguiente nivel en la cadena
+                        Optional<Usuario> creadorOpt = usuarioService.findByDocumento(documentoCreador);
+                        if (creadorOpt.isPresent()) {
+                            documentoCreador = creadorOpt.get().getCreadoPorDocumento();
+                            nivel++;
+                        } else {
+                            documentoCreador = null;
+                        }
+                        
+                        // Protección contra bucles infinitos
+                        if (nivel > 10) {
+                            System.out.println("=== ALERTA: Se alcanzó el límite de niveles de recursión (10)");
+                            break;
+                        }
+                    }
+                    System.out.println("=== DEBUG: Total de veterinarias después de recorrer " + (nivel - 1) + " niveles: " + veterinarias.size());
                 } else {
                     veterinarias = new ArrayList<>();
                     System.out.println("=== ALERTA: Admin " + userDetails.getUsername() + " no encontrado en la base de datos");
@@ -197,15 +229,27 @@ public class VeterinariaController {
             System.out.println("=== Creando veterinaria: " + veterinaria.getNombre());
             
             // Asignar el documento del usuario creador
+            Usuario creador = null;
             if (userDetails != null) {
                 Optional<Usuario> creadorOpt = usuarioService.findByUsername(userDetails.getUsername());
                 if (creadorOpt.isPresent()) {
-                    veterinaria.setCreadoPorDocumento(creadorOpt.get().getDocumento());
-                    System.out.println("=== Veterinaria creada por: " + userDetails.getUsername() + " (Doc: " + creadorOpt.get().getDocumento() + ")");
+                    creador = creadorOpt.get();
+                    veterinaria.setCreadoPorDocumento(creador.getDocumento());
+                    System.out.println("=== Veterinaria creada por: " + userDetails.getUsername() + " (Doc: " + creador.getDocumento() + ")");
                 }
             }
             
             Veterinaria nuevaVeterinaria = veterinariaService.save(veterinaria);
+            
+            // Asignar automáticamente la veterinaria al admin SOLO si es su primera veterinaria
+            if (creador != null && creador.getVeterinaria() == null) {
+                creador.setVeterinaria(nuevaVeterinaria);
+                usuarioService.save(creador);
+                System.out.println("=== Primera veterinaria asignada al admin " + creador.getUsername() + ": " + nuevaVeterinaria.getNombre());
+            } else if (creador != null && creador.getVeterinaria() != null) {
+                System.out.println("=== Admin " + creador.getUsername() + " ya tiene veterinaria asignada: " + creador.getVeterinaria().getNombre() + ". No se reasigna.");
+            }
+            
             return ResponseEntity.ok(
                 ApiResponse.success("Veterinaria creada exitosamente", nuevaVeterinaria)
             );

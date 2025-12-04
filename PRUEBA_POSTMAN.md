@@ -1,9 +1,9 @@
 # 🧪 GUÍA COMPLETA DE PRUEBAS POSTMAN - Sistema Veterinaria PET
 
-> **📅 Fecha:** 3 de diciembre de 2025  
+> **📅 Fecha:** 4 de diciembre de 2025  
 > **🎯 Propósito:** Guía paso a paso para probar todas las funcionalidades del sistema  
 > **🔧 Herramienta:** Postman con colecciones preconfiguradas  
-> **🔄 Última Actualización:** Sistema con documento como PK y creado_por_documento
+> **🔄 Última Actualización:** Sistema con gestión jerárquica de admins, veterinarias y usuarios
 
 ---
 
@@ -18,12 +18,13 @@
    - 5.2 [Veterinario (14 pruebas)](#2-veterinario)
    - 5.3 [Recepcionista (10 pruebas)](#3-recepcionista)
    - 5.4 [Cliente (6 pruebas)](#4-cliente)
-6. [Pruebas Específicas con Documento como PK](#-pruebas-específicas-con-documento-como-pk)
-   - 6.1 [Creación de Veterinaria por Admin](#escenario-1-creación-de-veterinaria-por-admin)
-   - 6.2 [Veterinario Accede a Clientes Atendidos](#escenario-2-veterinario-accede-a-clientes-atendidos)
-   - 6.3 [Cliente Gestiona Sus Mascotas](#escenario-3-cliente-gestiona-sus-mascotas)
-   - 6.4 [Relaciones Basadas en Documento](#escenario-4-relaciones-basadas-en-documento)
-   - 6.5 [Filtros por Documento](#escenario-5-filtros-por-documento)
+6. [Pruebas Específicas con Gestión Jerárquica](#-pruebas-específicas-con-gestión-jerárquica)
+   - 6.1 [Creación de Admin por Admin](#escenario-1-creación-de-admin-por-admin)
+   - 6.2 [Creación de Veterinaria y Asignación Automática](#escenario-2-creación-de-veterinaria-y-asignación-automática)
+   - 6.3 [Admin Visualiza Veterinarias de la Cadena](#escenario-3-admin-visualiza-veterinarias-de-la-cadena)
+   - 6.4 [Admin Visualiza Usuarios de Múltiples Veterinarias](#escenario-4-admin-visualiza-usuarios-de-múltiples-veterinarias)
+   - 6.5 [Recepcionista Crea Usuario con Veterinaria Específica](#escenario-5-recepcionista-crea-usuario-con-veterinaria-específica)
+   - 6.6 [Activar/Desactivar Historia Clínica](#escenario-6-activar-desactivar-historia-clínica)
 7. [Casos de Prueba Específicos](#-casos-de-prueba-específicos)
 8. [Validación de Errores (15 pruebas)](#-validación-de-errores)
 9. [Pruebas de Funcionalidad PDF (7 pruebas)](#-pruebas-de-funcionalidad-pdf)
@@ -2752,6 +2753,317 @@ pm.test("Error message is descriptive", () => {
 
 ---
 
+## 🆕 **PRUEBAS ESPECÍFICAS CON GESTIÓN JERÁRQUICA**
+
+### **ESCENARIO 1: Creación de Admin por Admin**
+
+**Objetivo:** Verificar que un admin puede crear otro admin y este hereda permisos
+
+**Pasos:**
+
+1. **Login como Admin Principal:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+2. **Crear Nuevo Admin (admin2):**
+```http
+POST {{base_url}}/usuarios
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "documento": "11223344",
+  "tipoDocumento": "CC",
+  "username": "admin2",
+  "password": "admin123",
+  "nombres": "Admin",
+  "apellidos": "Secundario",
+  "email": "admin2@veterinaria.com",
+  "telefono": "3001112233",
+  "roles": ["ADMIN"]
+}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Response incluye `creado_por_documento: "12345678"`
+- ✅ Usuario creado con rol ADMIN
+
+3. **Verificar que admin2 puede acceder:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "password": "admin123"
+}
+```
+
+---
+
+### **ESCENARIO 2: Creación de Veterinaria y Asignación Automática**
+
+**Objetivo:** Verificar que al crear una veterinaria se asigna automáticamente al admin (solo la primera)
+
+**Pasos:**
+
+1. **Login como admin2:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "password": "admin123"
+}
+```
+
+2. **Crear Primera Veterinaria:**
+```http
+POST {{base_url}}/veterinarias
+Authorization: Bearer {{admin2_token}}
+Content-Type: application/json
+
+{
+  "nombre": "Veterinaria Admin2 Primera",
+  "direccion": "Calle Admin2 #123",
+  "telefono": "+57 1 111-2222",
+  "email": "admin2vet@test.com",
+  "ciudad": "Bogotá",
+  "descripcion": "Primera veterinaria de admin2",
+  "servicios": "Consulta general, Vacunación",
+  "horarioAtencion": "Lunes a Viernes: 8:00 AM - 6:00 PM",
+  "activo": true
+}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Response incluye `creado_por_documento: "11223344"`
+- ✅ Verificar que admin2 tiene `veterinaria_id` asignado
+
+3. **Crear Segunda Veterinaria:**
+```http
+POST {{base_url}}/veterinarias
+Authorization: Bearer {{admin2_token}}
+Content-Type: application/json
+
+{
+  "nombre": "Veterinaria Admin2 Segunda",
+  "direccion": "Calle Admin2 #456",
+  "telefono": "+57 1 111-3333",
+  "email": "admin2vet2@test.com",
+  "ciudad": "Medellín",
+  "descripcion": "Segunda veterinaria de admin2",
+  "servicios": "Consulta general",
+  "horarioAtencion": "Lunes a Sábado: 9:00 AM - 7:00 PM",
+  "activo": true
+}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Response incluye `creado_por_documento: "11223344"`
+- ✅ Verificar que admin2 SIGUE con la primera `veterinaria_id` (NO cambia)
+
+---
+
+### **ESCENARIO 3: Admin Visualiza Veterinarias de la Cadena**
+
+**Objetivo:** Verificar que admin2 puede ver sus veterinarias Y las del admin que lo creó
+
+**Pasos:**
+
+1. **Login como admin2:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "password": "admin123"
+}
+```
+
+2. **Consultar Veterinarias:**
+```http
+GET {{base_url}}/veterinarias
+Authorization: Bearer {{admin2_token}}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Response incluye veterinarias creadas por admin2
+- ✅ Response incluye veterinarias creadas por admin (12345678)
+- ✅ Todas las veterinarias tienen `creado_por_documento` visible
+
+**Logs del servidor mostrarán:**
+```
+=== DEBUG: Admin admin2 consultando veterinarias creadas por él: 2 veterinarias
+=== DEBUG: Nivel 1 - Admin creador (12345678) tiene 3 veterinarias
+=== DEBUG: Total de veterinarias después de recorrer 1 niveles: 5
+```
+
+---
+
+### **ESCENARIO 4: Admin Visualiza Usuarios de Múltiples Veterinarias**
+
+**Objetivo:** Verificar que admin puede ver usuarios de todas sus veterinarias
+
+**Pasos:**
+
+1. **Login como admin2:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "password": "admin123"
+}
+```
+
+2. **Consultar Usuarios:**
+```http
+GET {{base_url}}/usuarios
+Authorization: Bearer {{admin2_token}}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Response incluye usuarios de veterinarias de admin2
+- ✅ Response incluye usuarios de veterinarias del admin principal
+- ✅ Sin duplicados en la lista
+
+**Logs del servidor mostrarán:**
+```
+=== DEBUG: Admin admin2 consultando usuarios
+=== DEBUG: Admin tiene 2 veterinarias propias
+=== DEBUG: Nivel 1 - Admin creador (12345678) tiene 3 veterinarias
+=== DEBUG: Total de veterinarias accesibles: 5
+=== DEBUG: Veterinaria ID X tiene Y usuarios
+=== DEBUG: Total de usuarios después de combinar todas las veterinarias: Z
+```
+
+---
+
+### **ESCENARIO 5: Recepcionista Crea Usuario con Veterinaria Específica**
+
+**Objetivo:** Verificar que recepcionista asigna automáticamente su veterinaria (no puede elegir)
+
+**Pasos:**
+
+1. **Login como Recepcionista:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "recepcion1",
+  "password": "admin123"
+}
+```
+
+2. **Crear Cliente (sin especificar veterinaria):**
+```http
+POST {{base_url}}/usuarios
+Authorization: Bearer {{recep_token}}
+Content-Type: application/json
+
+{
+  "documento": "77777777",
+  "tipoDocumento": "CC",
+  "username": "cliente_nuevo",
+  "password": "admin123",
+  "nombres": "Cliente",
+  "apellidos": "Nuevo",
+  "email": "nuevo@cliente.com",
+  "telefono": "3007777777",
+  "roles": ["CLIENTE"]
+}
+```
+
+**Validaciones:**
+- ✅ Status: 200 OK
+- ✅ Usuario tiene `veterinaria_id` de la recepcionista
+- ✅ Usuario tiene `creado_por_documento: "22222222"` (documento de recepción1)
+
+---
+
+### **ESCENARIO 6: Activar/Desactivar Historia Clínica**
+
+**Objetivo:** Verificar los nuevos endpoints PATCH para historias clínicas
+
+**Pasos:**
+
+1. **Login como Veterinario:**
+```http
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "dr.garcia",
+  "password": "admin123"
+}
+```
+
+2. **Desactivar Historia Clínica:**
+```http
+PATCH {{base_url}}/historias-clinicas/1/desactivar
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:**
+```json
+{
+  "success": true,
+  "message": "Historia clínica desactivada exitosamente",
+  "data": {
+    "id": 1,
+    "activo": false,
+    // ... otros campos
+  }
+}
+```
+
+3. **Activar Historia Clínica:**
+```http
+PATCH {{base_url}}/historias-clinicas/1/activar
+Authorization: Bearer {{vet_token}}
+```
+
+**Validación:**
+```json
+{
+  "success": true,
+  "message": "Historia clínica activada exitosamente",
+  "data": {
+    "id": 1,
+    "activo": true,
+    // ... otros campos
+  }
+}
+```
+
+4. **Verificar Permisos (debe fallar para cliente):**
+```http
+PATCH {{base_url}}/historias-clinicas/1/desactivar
+Authorization: Bearer {{cliente_token}}
+```
+
+**Validación:**
+- ✅ Status: 403 Forbidden
+
+---
+
 ## 📚 **RECURSOS ADICIONALES**
 
 - **Código Fuente Backend:** `c:\xampp\htdocs\Backend-2.0\backend\`
@@ -2761,8 +3073,8 @@ pm.test("Error message is descriptive", () => {
 
 ---
 
-**Documento actualizado:** 3 de diciembre de 2025  
-**Sistema:** Backend Veterinaria 2.0 con documento como PK  
+**Documento actualizado:** 4 de diciembre de 2025  
+**Sistema:** Backend Veterinaria 2.0 con gestión jerárquica de admins y veterinarias  
 **Autor:** Equipo de Desarrollo
    **Resultado esperado:** Debe incluir al cliente con documento 33333333
 

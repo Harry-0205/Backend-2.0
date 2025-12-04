@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -67,24 +68,79 @@ public class UsuarioController {
             // Si es veterinario, solo obtener los clientes que ha atendido
             usuarios = usuarioService.findClientesAtendidosPorVeterinario(usuarioAutenticado.getDocumento());
             System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
-        } else if (isAdmin || isRecepcionista) {
-            // Admin y Recepcionista ven solo usuarios de su veterinaria
-            System.out.println("=== DEBUG DETALLADO: Usuario " + userDetails.getUsername());
+        } else if (isAdmin) {
+            // Admin ve usuarios de todas las veterinarias que creó (cadena completa)
+            System.out.println("=== DEBUG: Admin " + userDetails.getUsername() + " consultando usuarios");
+            
+            // Obtener todas las veterinarias del admin (siguiendo la cadena de creadores)
+            List<Long> veterinariaIds = new ArrayList<>();
+            
+            // Agregar veterinarias creadas directamente por este admin
+            List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuarioAutenticado.getDocumento());
+            veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+            System.out.println("=== DEBUG: Admin tiene " + veterinariasDelAdmin.size() + " veterinarias propias");
+            
+            // Recorrer la cadena de creadores para obtener veterinarias de admins superiores
+            String documentoCreador = usuarioAutenticado.getCreadoPorDocumento();
+            int nivel = 1;
+            while (documentoCreador != null) {
+                List<Veterinaria> veterinariasDelCreador = veterinariaService.findByCreadoPorDocumento(documentoCreador);
+                System.out.println("=== DEBUG: Nivel " + nivel + " - Admin creador (" + documentoCreador + ") tiene " + veterinariasDelCreador.size() + " veterinarias");
+                
+                for (Veterinaria vet : veterinariasDelCreador) {
+                    if (!veterinariaIds.contains(vet.getId())) {
+                        veterinariaIds.add(vet.getId());
+                    }
+                }
+                
+                // Buscar el siguiente nivel
+                Optional<Usuario> creadorOpt = usuarioService.findByDocumento(documentoCreador);
+                if (creadorOpt.isPresent()) {
+                    documentoCreador = creadorOpt.get().getCreadoPorDocumento();
+                    nivel++;
+                } else {
+                    documentoCreador = null;
+                }
+                
+                if (nivel > 10) {
+                    System.out.println("=== ALERTA: Límite de niveles alcanzado (10)");
+                    break;
+                }
+            }
+            
+            System.out.println("=== DEBUG: Total de veterinarias accesibles: " + veterinariaIds.size());
+            
+            // Obtener usuarios de todas las veterinarias
+            usuarios = new ArrayList<>();
+            for (Long vetId : veterinariaIds) {
+                List<Usuario> usuariosDeVet = usuarioService.findByVeterinariaId(vetId);
+                System.out.println("=== DEBUG: Veterinaria ID " + vetId + " tiene " + usuariosDeVet.size() + " usuarios");
+                
+                for (Usuario u : usuariosDeVet) {
+                    if (!usuarios.contains(u)) {
+                        usuarios.add(u);
+                    }
+                }
+            }
+            
+            System.out.println("=== DEBUG: Total de usuarios después de combinar todas las veterinarias: " + usuarios.size());
+            
+        } else if (isRecepcionista) {
+            // Recepcionista ve solo usuarios de su veterinaria
+            System.out.println("=== DEBUG DETALLADO: Recepcionista " + userDetails.getUsername());
             System.out.println("=== DEBUG DETALLADO: Documento: " + usuarioAutenticado.getDocumento());
             System.out.println("=== DEBUG DETALLADO: Veterinaria: " + usuarioAutenticado.getVeterinaria());
-            System.out.println("=== DEBUG DETALLADO: Veterinaria es null? " + (usuarioAutenticado.getVeterinaria() == null));
             
             if (usuarioAutenticado.getVeterinaria() != null) {
                 Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
                 System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaId);
                 usuarios = usuarioService.findByVeterinariaId(veterinariaId);
-                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
+                System.out.println("=== DEBUG: Recepcionista " + userDetails.getUsername() + 
                     " consultando usuarios de veterinaria ID " + veterinariaId + ": " + usuarios.size() + " usuarios");
             } else {
-                // Si no tiene veterinaria asignada, no puede ver ningún usuario
                 usuarios = List.of();
-                System.out.println("=== DEBUG ALERTA: " + (isAdmin ? "Admin" : "Recepcionista") + " " + userDetails.getUsername() + 
-                    " sin veterinaria asignada, no puede ver usuarios. ESTO DEBE SER CORREGIDO EN LA BD!");
+                System.out.println("=== DEBUG ALERTA: Recepcionista " + userDetails.getUsername() + 
+                    " sin veterinaria asignada, no puede ver usuarios!");
             }
         } else {
             usuarios = List.of();
@@ -405,17 +461,28 @@ public class UsuarioController {
             if (usuarioAutenticadoOpt.isPresent()) {
                 Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
                 
-                // Asignar automáticamente la veterinaria del admin/recepcionista al nuevo usuario
-                if (usuarioAutenticado.getVeterinaria() != null) {
-                    usuarioRequest.setVeterinariaId(usuarioAutenticado.getVeterinaria().getId());
-                    System.out.println("=== DEBUG: Asignando veterinaria " + usuarioAutenticado.getVeterinaria().getNombre() + 
-                                     " (ID: " + usuarioAutenticado.getVeterinaria().getId() + ") al nuevo usuario " + usuarioRequest.getUsername());
+                // Si NO viene veterinaria_id en el request, asignar la del usuario autenticado
+                if (usuarioRequest.getVeterinariaId() == null) {
+                    if (usuarioAutenticado.getVeterinaria() != null) {
+                        usuarioRequest.setVeterinariaId(usuarioAutenticado.getVeterinaria().getId());
+                        System.out.println("=== DEBUG: No se especificó veterinaria. Asignando veterinaria del usuario autenticado: " + 
+                                         usuarioAutenticado.getVeterinaria().getNombre() + " (ID: " + usuarioAutenticado.getVeterinaria().getId() + ")");
+                    } else {
+                        System.out.println("=== DEBUG ALERTA: Usuario autenticado NO tiene veterinaria asignada y tampoco se especificó en el request!");
+                    }
                 } else {
-                    System.out.println("=== DEBUG ALERTA: Usuario autenticado NO tiene veterinaria asignada!");
+                    System.out.println("=== DEBUG: Veterinaria especificada en el request (ID: " + usuarioRequest.getVeterinariaId() + ")");
                 }
             }
             
             Usuario usuario = convertToEntity(usuarioRequest);
+            
+            // Guardar quién creó este usuario
+            if (usuarioAutenticadoOpt.isPresent()) {
+                usuario.setCreadoPorDocumento(usuarioAutenticadoOpt.get().getDocumento());
+                System.out.println("=== DEBUG: Usuario creado por: " + usuarioAutenticadoOpt.get().getDocumento());
+            }
+            
             Usuario savedUsuario = usuarioService.save(usuario);
             System.out.println("=== DEBUG: Usuario guardado exitosamente con ID: " + savedUsuario.getDocumento());
             

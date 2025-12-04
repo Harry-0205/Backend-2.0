@@ -28,6 +28,10 @@ public class UsuarioService {
         return usuarioRepository.findById(documento);
     }
     
+    public Optional<Usuario> findByDocumento(String documento) {
+        return usuarioRepository.findById(documento);
+    }
+    
     public Optional<Usuario> findByUsername(String username) {
         return usuarioRepository.findByUsername(username);
     }

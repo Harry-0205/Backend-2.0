@@ -771,7 +771,7 @@ const UserManagement: React.FC = () => {
               </Card.Header>
               <Card.Body>
                 <Row>
-                  <Col md={formData.rol === 'VETERINARIO' ? 6 : 12}>
+                  <Col md={(formData.rol === 'VETERINARIO' || formData.rol === 'RECEPCIONISTA' || formData.rol === 'CLIENTE') && authService.isAdmin() ? 6 : 12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Rol del Usuario <span className="text-danger">*</span></Form.Label>
                       <Form.Select
@@ -795,10 +795,14 @@ const UserManagement: React.FC = () => {
                       )}
                     </Form.Group>
                   </Col>
-                  {formData.rol === 'VETERINARIO' && (
+                  {/* Selector de veterinaria: SOLO para admin cuando crea veterinario, recepcionista o cliente */}
+                  {authService.isAdmin() && (formData.rol === 'VETERINARIO' || formData.rol === 'RECEPCIONISTA' || formData.rol === 'CLIENTE') && (
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>Veterinaria Asignada <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Veterinaria Asignada 
+                          {formData.rol === 'VETERINARIO' && <span className="text-danger"> *</span>}
+                        </Form.Label>
                         {modalMode === 'view' ? (
                           <Form.Control
                             type="text"
@@ -806,19 +810,27 @@ const UserManagement: React.FC = () => {
                             disabled
                           />
                         ) : (
-                          <Form.Select
-                            name="veterinariaId"
-                            value={formData.veterinariaId}
-                            onChange={handleInputChange}
-                            required
-                          >
-                            <option value="">Seleccione una veterinaria</option>
-                            {veterinarias.map((vet: any) => (
-                              <option key={vet.id} value={vet.id}>
-                                {vet.nombre}
-                              </option>
-                            ))}
-                          </Form.Select>
+                          <>
+                            <Form.Select
+                              name="veterinariaId"
+                              value={formData.veterinariaId}
+                              onChange={handleInputChange}
+                              required={formData.rol === 'VETERINARIO'}
+                            >
+                              <option value="">Seleccione una veterinaria</option>
+                              {veterinarias.map((vet: any) => (
+                                <option key={vet.id} value={vet.id}>
+                                  {vet.nombre}
+                                </option>
+                              ))}
+                            </Form.Select>
+                            {!formData.veterinariaId && (
+                              <Form.Text className="text-muted">
+                                <i className="fas fa-info-circle me-1"></i>
+                                Si no selecciona una, se asignará automáticamente su veterinaria
+                              </Form.Text>
+                            )}
+                          </>
                         )}
                       </Form.Group>
                     </Col>
