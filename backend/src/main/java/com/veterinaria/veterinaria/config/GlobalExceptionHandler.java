@@ -1,6 +1,8 @@
 package com.veterinaria.veterinaria.config;
 
 import com.veterinaria.veterinaria.dto.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,8 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleEntityNotFoundException(EntityNotFoundException ex) {
         return ResponseEntity
@@ -31,6 +35,8 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        logger.error("❌ AccessDeniedException capturada: {}", ex.getMessage());
+        logger.error("❌ Stack trace: ", ex);
         return ResponseEntity
             .status(HttpStatus.FORBIDDEN)
             .body(ApiResponse.error("Acceso denegado", "No tienes permisos para acceder a este recurso"));
@@ -38,9 +44,28 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        logger.error("Bad credentials exception: {}", ex.getMessage());
         return ResponseEntity
             .status(HttpStatus.UNAUTHORIZED)
-            .body(ApiResponse.error("Credenciales inválidas", "Usuario o contraseña incorrectos"));
+            .body(ApiResponse.error("Credenciales inválidas", "Usuario o contraseña incorrectos. Por favor, verifique sus datos e intente nuevamente."));
+    }
+    
+    @ExceptionHandler(org.springframework.security.authentication.InsufficientAuthenticationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleInsufficientAuthenticationException(
+            org.springframework.security.authentication.InsufficientAuthenticationException ex) {
+        logger.error("Insufficient authentication: {}", ex.getMessage());
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Autenticación insuficiente", "Se requiere autenticación completa. Por favor, inicie sesión."));
+    }
+    
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException ex) {
+        logger.error("Authentication exception: {}", ex.getMessage());
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Error de autenticación", ex.getMessage()));
     }
     
     @ExceptionHandler(DataIntegrityViolationException.class)

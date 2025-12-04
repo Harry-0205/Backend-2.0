@@ -36,7 +36,7 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findByVeterinariaId(@Param("veterinariaId") Long veterinariaId);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
-    @Query("SELECT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")
+    @Query("SELECT DISTINCT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")
     List<Cita> findByClienteDocumentoWithRelations(@Param("clienteDocumento") String clienteDocumento);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})

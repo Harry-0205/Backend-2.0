@@ -165,70 +165,137 @@ public class UsuarioController {
     }
     
     @GetMapping("/{documento}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO') or @usuarioService.findById(#documento).orElse(null)?.username == authentication.name")
-    public ResponseEntity<Usuario> getUsuarioById(@PathVariable String documento, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> getUsuarioById(@PathVariable String documento, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         Optional<Usuario> usuario = usuarioService.findById(documento);
         
         if (!usuario.isPresent()) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(
+                ApiResponse.error("Usuario no encontrado", "No existe un usuario con el documento: " + documento)
+            );
         }
+        
+        // Obtener usuario autenticado
+        Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+        if (!usuarioAutenticadoOpt.isPresent()) {
+            return ResponseEntity.status(403).body(
+                ApiResponse.error("Acceso denegado", "No se pudo verificar la identidad del usuario")
+            );
+        }
+        
+        Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
         
         // Verificar si el usuario autenticado es veterinario
         boolean isVeterinario = userDetails.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        boolean isCliente = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+        boolean isAdmin = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         
-        if (isVeterinario) {
-            // Verificar si está consultando su propio perfil
-            Optional<Usuario> veterinarioOpt = usuarioService.findByUsername(userDetails.getUsername());
-            if (veterinarioOpt.isPresent()) {
-                String veterinarioDocumento = veterinarioOpt.get().getDocumento();
-                
-                // Permitir si es su propio perfil
-                if (documento.equals(veterinarioDocumento)) {
-                    return ResponseEntity.ok(usuario.get());
-                }
-                
-                // Verificar si el usuario consultado es un cliente que ha atendido
-                Usuario usuarioConsultado = usuario.get();
-                boolean esCliente = usuarioConsultado.getRoles().stream()
-                    .anyMatch(rol -> rol.getNombre().equals("ROLE_CLIENTE"));
-                
-                if (esCliente) {
-                    List<Usuario> clientesAtendidos = usuarioService.findClientesAtendidosPorVeterinario(veterinarioDocumento);
-                    boolean haAtendidoCliente = clientesAtendidos.stream()
-                        .anyMatch(c -> c.getDocumento().equals(documento));
-                    
-                    if (haAtendidoCliente) {
-                        return ResponseEntity.ok(usuario.get());
-                    }
-                }
-                
-                // Si no cumple ninguna condición, denegar acceso
-                return ResponseEntity.status(403).build();
+        System.out.println("🔍 DEBUG getUsuarioById - Usuario autenticado: " + userDetails.getUsername());
+        System.out.println("🔍 DEBUG getUsuarioById - Documento solicitado: " + documento);
+        System.out.println("🔍 DEBUG getUsuarioById - Documento autenticado: " + usuarioAutenticado.getDocumento());
+        System.out.println("🔍 DEBUG getUsuarioById - isCliente: " + isCliente + ", isAdmin: " + isAdmin + ", isRecep: " + isRecepcionista + ", isVet: " + isVeterinario);
+        
+        // Si es CLIENTE, solo puede ver su propio perfil
+        if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+            if (!documento.equals(usuarioAutenticado.getDocumento())) {
+                System.out.println("❌ Cliente " + usuarioAutenticado.getDocumento() + " intentó consultar perfil de otro usuario: " + documento);
+                return ResponseEntity.status(403).body(
+                    ApiResponse.error("Acceso denegado", "Solo puede consultar su propio perfil")
+                );
             }
+            System.out.println("✅ Cliente " + usuarioAutenticado.getDocumento() + " consultando su propio perfil");
+            return ResponseEntity.ok(
+                ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+            );
         }
         
-        // Admin, Recepcionista o el propio usuario pueden ver el perfil
-        return ResponseEntity.ok(usuario.get());
+        if (isVeterinario) {
+            // Permitir si es su propio perfil
+            if (documento.equals(usuarioAutenticado.getDocumento())) {
+                return ResponseEntity.ok(
+                    ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+                );
+            }
+            
+            // Verificar si el usuario consultado es un cliente que ha atendido
+            Usuario usuarioConsultado = usuario.get();
+            boolean esCliente = usuarioConsultado.getRoles().stream()
+                .anyMatch(rol -> rol.getNombre().equals("ROLE_CLIENTE"));
+            
+            if (esCliente) {
+                List<Usuario> clientesAtendidos = usuarioService.findClientesAtendidosPorVeterinario(usuarioAutenticado.getDocumento());
+                boolean haAtendidoCliente = clientesAtendidos.stream()
+                    .anyMatch(c -> c.getDocumento().equals(documento));
+                
+                if (haAtendidoCliente) {
+                    return ResponseEntity.ok(
+                        ApiResponse.success("Perfil de cliente obtenido exitosamente", new UsuarioResponse(usuario.get()))
+                    );
+                }
+            }
+            
+            // Si no cumple ninguna condición, denegar acceso
+            return ResponseEntity.status(403).body(
+                ApiResponse.error("Acceso denegado", "No tiene permisos para ver este perfil")
+            );
+        }
+        
+        // Admin y Recepcionista pueden ver cualquier perfil
+        return ResponseEntity.ok(
+            ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+        );
     }
     
     @GetMapping("/username/{username}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO') or #username == authentication.name")
-    public ResponseEntity<Usuario> getUsuarioByUsername(@PathVariable String username, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioResponse>> getUsuarioByUsername(@PathVariable String username, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         Optional<Usuario> usuario = usuarioService.findByUsername(username);
         
         if (!usuario.isPresent()) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(
+                ApiResponse.error("Usuario no encontrado", "No existe un usuario con el username: " + username)
+            );
         }
         
         // Verificar si el usuario autenticado es veterinario
         boolean isVeterinario = userDetails.getAuthorities().stream()
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        boolean isCliente = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+        boolean isAdmin = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = userDetails.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+        
+        System.out.println("🔍 DEBUG getUsuarioByUsername - Usuario autenticado: " + userDetails.getUsername());
+        System.out.println("🔍 DEBUG getUsuarioByUsername - Username solicitado: " + username);
+        System.out.println("🔍 DEBUG getUsuarioByUsername - isCliente: " + isCliente + ", isAdmin: " + isAdmin + ", isRecep: " + isRecepcionista + ", isVet: " + isVeterinario);
+        
+        // Si es CLIENTE, solo puede ver su propio perfil
+        if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+            if (!username.equals(userDetails.getUsername())) {
+                System.out.println("❌ Cliente " + userDetails.getUsername() + " intentó consultar perfil de otro usuario: " + username);
+                return ResponseEntity.status(403).body(
+                    ApiResponse.error("Acceso denegado", "Solo puede consultar su propio perfil")
+                );
+            }
+            System.out.println("✅ Cliente " + userDetails.getUsername() + " consultando su propio perfil");
+            return ResponseEntity.ok(
+                ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+            );
+        }
         
         if (isVeterinario) {
             // Permitir si es su propio perfil
             if (username.equals(userDetails.getUsername())) {
-                return ResponseEntity.ok(usuario.get());
+                return ResponseEntity.ok(
+                    ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+                );
             }
             
             // Verificar si el usuario consultado es un cliente que ha atendido
@@ -246,17 +313,23 @@ public class UsuarioController {
                         .anyMatch(c -> c.getDocumento().equals(usuarioConsultado.getDocumento()));
                     
                     if (haAtendidoCliente) {
-                        return ResponseEntity.ok(usuario.get());
+                        return ResponseEntity.ok(
+                            ApiResponse.success("Perfil de cliente obtenido exitosamente", new UsuarioResponse(usuario.get()))
+                        );
                     }
                 }
                 
                 // Si no cumple ninguna condición, denegar acceso
-                return ResponseEntity.status(403).build();
+                return ResponseEntity.status(403).body(
+                    ApiResponse.error("Acceso denegado", "No tiene permisos para ver este perfil")
+                );
             }
         }
         
-        // Admin, Recepcionista o el propio usuario pueden ver el perfil
-        return ResponseEntity.ok(usuario.get());
+        // Admin y Recepcionista pueden ver cualquier perfil
+        return ResponseEntity.ok(
+            ApiResponse.success("Perfil obtenido exitosamente", new UsuarioResponse(usuario.get()))
+        );
     }
     
     @GetMapping("/activos")
@@ -416,27 +489,49 @@ public class UsuarioController {
             if (request.getPasswordActual() != null && !request.getPasswordActual().trim().isEmpty() &&
                 request.getPasswordNueva() != null && !request.getPasswordNueva().trim().isEmpty()) {
                 
+                System.out.println("🔐 DEBUG: Intentando cambiar contraseña para usuario: " + usuario.getUsername());
+                System.out.println("🔐 DEBUG: passwordActual recibida: " + (request.getPasswordActual() != null ? "SÍ" : "NO"));
+                System.out.println("🔐 DEBUG: passwordNueva recibida: " + (request.getPasswordNueva() != null ? "SÍ" : "NO"));
+                
                 // Verificar la contraseña actual
-                if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
+                boolean passwordMatch = passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword());
+                System.out.println("🔐 DEBUG: Contraseña actual coincide: " + passwordMatch);
+                
+                if (!passwordMatch) {
+                    System.out.println("❌ DEBUG: Contraseña actual incorrecta");
                     return ResponseEntity.status(400).body(ApiResponse.error("La contraseña actual es incorrecta"));
                 }
                 
                 // Validar la nueva contraseña
                 if (request.getPasswordNueva().length() < 6) {
+                    System.out.println("❌ DEBUG: Nueva contraseña muy corta: " + request.getPasswordNueva().length() + " caracteres");
                     return ResponseEntity.status(400).body(ApiResponse.error("La nueva contraseña debe tener al menos 6 caracteres"));
                 }
                 
-                usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
+                String nuevaPasswordEncoded = passwordEncoder.encode(request.getPasswordNueva());
+                usuario.setPassword(nuevaPasswordEncoded);
                 cambiosRealizados = true;
                 System.out.println("✅ Contraseña actualizada para usuario: " + usuario.getUsername());
+            } else {
+                System.out.println("⚠️ DEBUG: No se recibieron ambas contraseñas para cambio");
+                if (request.getPasswordActual() != null) System.out.println("   - passwordActual: presente");
+                if (request.getPasswordNueva() != null) System.out.println("   - passwordNueva: presente");
             }
             
             if (!cambiosRealizados) {
                 return ResponseEntity.status(400).body(ApiResponse.error("No se proporcionaron datos para actualizar"));
             }
             
+            System.out.println("💾 DEBUG: Guardando cambios para usuario: " + usuario.getUsername());
+            System.out.println("💾 DEBUG: Email: " + usuario.getEmail());
+            System.out.println("💾 DEBUG: Teléfono: " + usuario.getTelefono());
+            System.out.println("💾 DEBUG: Dirección: " + usuario.getDireccion());
+            System.out.println("💾 DEBUG: Password hash length: " + (usuario.getPassword() != null ? usuario.getPassword().length() : 0));
+            
             // Guardar los cambios
             Usuario usuarioActualizado = usuarioService.save(usuario);
+            System.out.println("✅ DEBUG: Usuario guardado exitosamente");
+            
             UsuarioResponse response = new UsuarioResponse(usuarioActualizado);
             
             return ResponseEntity.ok(ApiResponse.success("Perfil actualizado exitosamente", response));
@@ -455,15 +550,30 @@ public class UsuarioController {
             if (existingUsuario.isPresent()) {
                 Usuario existing = existingUsuario.get();
                 
-                // Si el usuario actual es RECEPCIONISTA y el usuario a editar es ADMIN, denegar
+                // Verificar roles del usuario autenticado
                 boolean isRecepcionista = userDetails.getAuthorities().stream()
                     .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+                boolean isCliente = userDetails.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+                boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+                boolean isVeterinario = userDetails.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
                 boolean targetIsAdmin = existing.getRoles().stream()
                     .anyMatch(rol -> rol.getNombre().equals("ROLE_ADMIN"));
                 
+                // Si el usuario actual es RECEPCIONISTA y el usuario a editar es ADMIN, denegar
                 if (isRecepcionista && targetIsAdmin) {
                     return ResponseEntity.status(403).body(
                         ApiResponse.error("Acceso denegado", "No tiene permisos para editar administradores")
+                    );
+                }
+                
+                // Si es CLIENTE editando su propio perfil, bloquear completamente - deben usar /perfil
+                if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+                    System.out.println("❌ CLIENTE intentó usar PUT /usuarios/{documento} - BLOQUEADO");
+                    return ResponseEntity.status(403).body(
+                        ApiResponse.error("Acceso denegado", "Los clientes deben usar el endpoint PUT /api/usuarios/perfil para actualizar su información personal")
                     );
                 }
                 
@@ -487,7 +597,7 @@ public class UsuarioController {
                     // Si es recepcionista, validar que no esté intentando asignar rol de administrador
                     if (isRecepcionista) {
                         boolean intentaAsignarAdmin = usuarioRequest.getRoles().stream()
-                                .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN"));
+                                .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN") || rol.equals("1"));
                         
                         if (intentaAsignarAdmin) {
                             System.out.println("=== DEBUG: Recepcionista intentó asignar rol ADMIN - BLOQUEADO");
@@ -498,14 +608,31 @@ public class UsuarioController {
                     }
                     
                     Set<Rol> roles = new HashSet<>();
-                    for (String roleName : usuarioRequest.getRoles()) {
-                        // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
-                        String roleNameWithPrefix = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
-                        Optional<Rol> role = rolRepository.findByNombre(roleNameWithPrefix);
-                        if (role.isPresent()) {
-                            roles.add(role.get());
-                        } else {
-                            System.err.println("Role not found during update: " + roleNameWithPrefix);
+                    for (String roleValue : usuarioRequest.getRoles()) {
+                        Rol rol = null;
+                        
+                        // Intentar como ID numérico primero
+                        try {
+                            Long roleId = Long.parseLong(roleValue);
+                            Optional<Rol> roleOpt = rolRepository.findById(roleId);
+                            if (roleOpt.isPresent()) {
+                                rol = roleOpt.get();
+                            } else {
+                                System.err.println("Role not found with ID during update: " + roleId);
+                            }
+                        } catch (NumberFormatException e) {
+                            // No es un número, buscar por nombre
+                            String roleNameWithPrefix = roleValue.startsWith("ROLE_") ? roleValue : "ROLE_" + roleValue;
+                            Optional<Rol> roleOpt = rolRepository.findByNombre(roleNameWithPrefix);
+                            if (roleOpt.isPresent()) {
+                                rol = roleOpt.get();
+                            } else {
+                                System.err.println("Role not found during update: " + roleNameWithPrefix);
+                            }
+                        }
+                        
+                        if (rol != null) {
+                            roles.add(rol);
                         }
                     }
                     existing.setRoles(roles);
@@ -556,7 +683,7 @@ public class UsuarioController {
             );
         }
     }
-      // Método auxiliar para convertir UsuarioRequest a Usuario
+    // Método auxiliar para convertir UsuarioRequest a Usuario
     private Usuario convertToEntity(UsuarioRequest request) {
         Usuario usuario = new Usuario();
         usuario.setDocumento(request.getDocumento());
@@ -575,20 +702,40 @@ public class UsuarioController {
             usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         }
         
-        // Convertir roles string a entidades Rol
+        // Convertir roles (soporta tanto IDs numéricos como nombres)
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
             Set<Rol> roles = new HashSet<>();
-            for (String roleName : request.getRoles()) {
-                // Asegurar que el rol tenga el prefijo ROLE_ si no lo tiene
-                String roleNameWithPrefix = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
-                Optional<Rol> role = rolRepository.findByNombre(roleNameWithPrefix);
-                if (role.isPresent()) {
-                    roles.add(role.get());
-                } else {
-                    System.err.println("Role not found: " + roleNameWithPrefix);
+            for (String roleValue : request.getRoles()) {
+                Rol rol = null;
+                
+                // Intentar como ID numérico primero
+                try {
+                    Long roleId = Long.parseLong(roleValue);
+                    Optional<Rol> roleOpt = rolRepository.findById(roleId);
+                    if (roleOpt.isPresent()) {
+                        rol = roleOpt.get();
+                        System.out.println("=== DEBUG: Rol encontrado por ID " + roleId + ": " + rol.getNombre());
+                    } else {
+                        System.err.println("❌ Rol no encontrado con ID: " + roleId);
+                    }
+                } catch (NumberFormatException e) {
+                    // No es un número, buscar por nombre
+                    String roleNameWithPrefix = roleValue.startsWith("ROLE_") ? roleValue : "ROLE_" + roleValue;
+                    Optional<Rol> roleOpt = rolRepository.findByNombre(roleNameWithPrefix);
+                    if (roleOpt.isPresent()) {
+                        rol = roleOpt.get();
+                        System.out.println("=== DEBUG: Rol encontrado por nombre " + roleNameWithPrefix + ": " + rol.getNombre());
+                    } else {
+                        System.err.println("❌ Rol no encontrado con nombre: " + roleNameWithPrefix);
+                    }
+                }
+                
+                if (rol != null) {
+                    roles.add(rol);
                 }
             }
             usuario.setRoles(roles);
+            System.out.println("=== DEBUG: Total roles asignados: " + roles.size());
         }
         
         // Asignar veterinaria si se proporciona veterinariaId

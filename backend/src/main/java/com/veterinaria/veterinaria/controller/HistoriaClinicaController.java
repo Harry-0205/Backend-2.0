@@ -6,6 +6,7 @@ import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.entity.Cita;
 import com.veterinaria.veterinaria.dto.HistoriaClinicaResponse;
 import com.veterinaria.veterinaria.dto.HistoriaClinicaRequest;
+import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.service.HistoriaClinicaService;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import com.veterinaria.veterinaria.service.MascotaService;
@@ -167,11 +168,31 @@ public class HistoriaClinicaController {
     }
       @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
-    public ResponseEntity<HistoriaClinicaResponse> createHistoria(@RequestBody HistoriaClinicaRequest request) {
+    public ResponseEntity<HistoriaClinicaResponse> createHistoria(
+            @RequestBody HistoriaClinicaRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
             System.out.println("=== Creando historia clínica ===");
             System.out.println("MascotaId: " + request.getMascotaId());
-            System.out.println("VeterinarioDocumento: " + request.getVeterinarioDocumento());
+            System.out.println("VeterinarioDocumento solicitado: " + request.getVeterinarioDocumento());
+            System.out.println("Usuario autenticado: " + userDetails.getUsername());
+            
+            // Obtener el usuario autenticado
+            Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+            if (!usuarioAutenticadoOpt.isPresent()) {
+                System.err.println("❌ Usuario autenticado no encontrado");
+                return ResponseEntity.badRequest().build();
+            }
+            
+            Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+            
+            // Verificar si es veterinario
+            boolean isVeterinario = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
             
             HistoriaClinica historia = new HistoriaClinica();
             
@@ -189,18 +210,43 @@ public class HistoriaClinicaController {
                 return ResponseEntity.badRequest().build(); // Mascota requerida
             }
             
-            // Validar y obtener veterinario (requerido)
-            if (request.getVeterinarioDocumento() != null) {
-                Optional<Usuario> veterinario = usuarioService.findById(request.getVeterinarioDocumento());
-                if (veterinario.isPresent()) {
-                    historia.setVeterinario(veterinario.get());
-                } else {
-                    System.err.println("Veterinario no encontrado con documento: " + request.getVeterinarioDocumento());
-                    return ResponseEntity.badRequest().build(); // Veterinario no encontrado
+            // Asignar veterinario según el rol
+            if (isVeterinario) {
+                // Si es VETERINARIO, SIEMPRE se asigna a sí mismo (ignora el veterinarioDocumento del request)
+                historia.setVeterinario(usuarioAutenticado);
+                System.out.println("✅ VETERINARIO: Asignado automáticamente a sí mismo - " + usuarioAutenticado.getNombres() + " (" + usuarioAutenticado.getDocumento() + ")");
+                
+                // Validar que no esté intentando asignar a otro veterinario
+                if (request.getVeterinarioDocumento() != null && 
+                    !request.getVeterinarioDocumento().equals(usuarioAutenticado.getDocumento())) {
+                    System.out.println("⚠️ ADVERTENCIA: Veterinario " + usuarioAutenticado.getDocumento() + 
+                        " intentó asignar historia a otro veterinario (" + request.getVeterinarioDocumento() + "). Se ignoró y se asignó a sí mismo.");
                 }
-            } else {
-                System.err.println("Veterinario requerido pero no proporcionado");
-                return ResponseEntity.badRequest().build(); // Veterinario requerido
+            } else if (isAdmin || isRecepcionista) {
+                // Admin o Recepcionista pueden asignar a cualquier veterinario
+                if (request.getVeterinarioDocumento() != null) {
+                    Optional<Usuario> veterinario = usuarioService.findById(request.getVeterinarioDocumento());
+                    if (veterinario.isPresent()) {
+                        // Verificar que el usuario asignado sea realmente veterinario
+                        boolean esVeterinario = veterinario.get().getRoles().stream()
+                            .anyMatch(rol -> rol.getNombre().equals("ROLE_VETERINARIO"));
+                        
+                        if (esVeterinario) {
+                            historia.setVeterinario(veterinario.get());
+                            System.out.println("✅ " + (isAdmin ? "ADMIN" : "RECEPCIONISTA") + 
+                                ": Asignado veterinario - " + veterinario.get().getNombres() + " (" + request.getVeterinarioDocumento() + ")");
+                        } else {
+                            System.err.println("❌ El usuario con documento " + request.getVeterinarioDocumento() + " no tiene rol de veterinario");
+                            return ResponseEntity.badRequest().build();
+                        }
+                    } else {
+                        System.err.println("Veterinario no encontrado con documento: " + request.getVeterinarioDocumento());
+                        return ResponseEntity.badRequest().build();
+                    }
+                } else {
+                    System.err.println("Veterinario requerido pero no proporcionado");
+                    return ResponseEntity.badRequest().build();
+                }
             }
             
             // Validar y obtener cita (opcional)
@@ -237,7 +283,10 @@ public class HistoriaClinicaController {
     
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA')")
-    public ResponseEntity<?> updateHistoria(@PathVariable Long id, @RequestBody HistoriaClinica historiaDetails) {
+    public ResponseEntity<?> updateHistoria(
+            @PathVariable Long id, 
+            @RequestBody HistoriaClinica historiaDetails,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
             System.out.println("=== Actualizando historia clínica ID: " + id + " ===");
             Optional<HistoriaClinica> optionalHistoria = historiaClinicaService.findById(id);
@@ -248,7 +297,46 @@ public class HistoriaClinicaController {
             
             HistoriaClinica historia = optionalHistoria.get();
             
-            // Actualizar todos los campos
+            // Verificar roles del usuario autenticado
+            boolean isVeterinario = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            boolean isRecepcionista = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            
+            // Si es VETERINARIO, verificar que solo pueda editar sus propias historias
+            if (isVeterinario) {
+                Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
+                if (usuarioAutenticadoOpt.isPresent()) {
+                    Usuario usuarioAutenticado = usuarioAutenticadoOpt.get();
+                    
+                    // Verificar que la historia pertenezca al veterinario autenticado
+                    if (!historia.getVeterinario().getDocumento().equals(usuarioAutenticado.getDocumento())) {
+                        System.err.println("❌ Veterinario " + usuarioAutenticado.getDocumento() + 
+                            " intentó editar historia de otro veterinario (ID: " + id + ")");
+                        return ResponseEntity.status(403).body("No tiene permisos para editar historias de otros veterinarios");
+                    }
+                    
+                    // Los veterinarios NO pueden cambiar el veterinario asignado
+                    if (historiaDetails.getVeterinario() != null && 
+                        !historiaDetails.getVeterinario().getDocumento().equals(usuarioAutenticado.getDocumento())) {
+                        System.out.println("⚠️ ADVERTENCIA: Veterinario intentó cambiar el veterinario asignado. Se ignoró.");
+                        // No actualizar el veterinario, mantener el actual
+                    }
+                } else {
+                    return ResponseEntity.status(401).body("Usuario autenticado no encontrado");
+                }
+            } else if (isAdmin || isRecepcionista) {
+                // Admin y Recepcionista SÍ pueden cambiar el veterinario asignado
+                if (historiaDetails.getVeterinario() != null) {
+                    historia.setVeterinario(historiaDetails.getVeterinario());
+                    System.out.println("✅ " + (isAdmin ? "ADMIN" : "RECEPCIONISTA") + 
+                        ": Cambió veterinario a " + historiaDetails.getVeterinario().getDocumento());
+                }
+            }
+            
+            // Actualizar todos los campos (excepto veterinario si es VETERINARIO, ya se manejó arriba)
             if (historiaDetails.getFechaConsulta() != null) {
                 historia.setFechaConsulta(historiaDetails.getFechaConsulta());
             }
@@ -287,10 +375,10 @@ public class HistoriaClinicaController {
             }
             
             HistoriaClinica historiaActualizada = historiaClinicaService.save(historia);
-            System.out.println("Historia clínica actualizada exitosamente");
+            System.out.println("✅ Historia clínica actualizada exitosamente");
             return ResponseEntity.ok(new HistoriaClinicaResponse(historiaActualizada));
         } catch (Exception e) {
-            System.err.println("Error updating historia clinica: " + e.getMessage());
+            System.err.println("❌ Error updating historia clinica: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error al actualizar la historia clínica: " + e.getMessage());
         }
@@ -324,6 +412,46 @@ public class HistoriaClinicaController {
             }
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @PatchMapping("/{id}/activar")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO')")
+    public ResponseEntity<ApiResponse<HistoriaClinicaResponse>> activateHistoriaClinica(@PathVariable Long id) {
+        try {
+            HistoriaClinica historiaClinica = historiaClinicaService.activate(id);
+            HistoriaClinicaResponse response = new HistoriaClinicaResponse(historiaClinica);
+            return ResponseEntity.ok(new ApiResponse<>(
+                true,
+                "Historia clínica activada exitosamente",
+                response
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                false,
+                e.getMessage(),
+                null
+            ));
+        }
+    }
+    
+    @PatchMapping("/{id}/desactivar")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO')")
+    public ResponseEntity<ApiResponse<HistoriaClinicaResponse>> deactivateHistoriaClinica(@PathVariable Long id) {
+        try {
+            HistoriaClinica historiaClinica = historiaClinicaService.deactivate(id);
+            HistoriaClinicaResponse response = new HistoriaClinicaResponse(historiaClinica);
+            return ResponseEntity.ok(new ApiResponse<>(
+                true,
+                "Historia clínica desactivada exitosamente",
+                response
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                false,
+                e.getMessage(),
+                null
+            ));
         }
     }
 }

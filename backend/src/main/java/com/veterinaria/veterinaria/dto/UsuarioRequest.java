@@ -3,6 +3,7 @@ package com.veterinaria.veterinaria.dto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class UsuarioRequest {
     private String documento;
@@ -15,7 +16,11 @@ public class UsuarioRequest {
     private String tipoDocumento;
     private LocalDate fechaNacimiento;
     private Boolean activo;
-    private List<String> roles; // Array de nombres de roles como strings
+    
+    // Soporta tanto IDs numéricos como nombres de roles
+    @JsonProperty("roles")
+    private Object rolesRaw; // Puede ser List<Integer> o List<String>
+    
     private String password;
     private Long veterinariaId; // ID de la veterinaria para veterinarios
     
@@ -53,8 +58,35 @@ public class UsuarioRequest {
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
     
-    public List<String> getRoles() { return roles; }
-    public void setRoles(List<String> roles) { this.roles = roles; }
+    // Método para obtener roles como lista de strings (nombres o IDs convertidos)
+    public List<String> getRoles() {
+        if (rolesRaw == null) return null;
+        
+        if (rolesRaw instanceof List) {
+            List<?> list = (List<?>) rolesRaw;
+            if (list.isEmpty()) return null;
+            
+            // Convertir todos los elementos a String
+            return list.stream()
+                .map(item -> {
+                    if (item instanceof Number) {
+                        // Si es un número, convertirlo a String (será procesado como ID)
+                        return item.toString();
+                    } else if (item instanceof String) {
+                        return (String) item;
+                    }
+                    return null;
+                })
+                .filter(item -> item != null)
+                .collect(java.util.stream.Collectors.toList());
+        }
+        
+        return null;
+    }
+    
+    public void setRoles(Object roles) { 
+        this.rolesRaw = roles; 
+    }
     
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }

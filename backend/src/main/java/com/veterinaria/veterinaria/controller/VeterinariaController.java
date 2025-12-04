@@ -250,22 +250,30 @@ public class VeterinariaController {
     
     @PatchMapping("/{id}/activar")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Veterinaria> activarVeterinaria(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Veterinaria>> activarVeterinaria(@PathVariable Long id) {
         Veterinaria actualizado = veterinariaService.activate(id);
         if (actualizado != null) {
-            return ResponseEntity.ok(actualizado);
+            return ResponseEntity.ok(
+                ApiResponse.success("Veterinaria activada exitosamente", actualizado)
+            );
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(404).body(
+            ApiResponse.error("Veterinaria no encontrada", "No existe una veterinaria con el ID: " + id)
+        );
     }
     
     @PatchMapping("/{id}/desactivar")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Veterinaria> desactivarVeterinaria(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Veterinaria>> desactivarVeterinaria(@PathVariable Long id) {
         Veterinaria actualizado = veterinariaService.deactivate(id);
         if (actualizado != null) {
-            return ResponseEntity.ok(actualizado);
+            return ResponseEntity.ok(
+                ApiResponse.success("Veterinaria desactivada exitosamente", actualizado)
+            );
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(404).body(
+            ApiResponse.error("Veterinaria no encontrada", "No existe una veterinaria con el ID: " + id)
+        );
     }
     
     @DeleteMapping("/{id}")

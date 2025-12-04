@@ -59,7 +59,14 @@ public class WebSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(unauthorizedHandler)
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setContentType("application/json");
+                    response.setStatus(403);
+                    response.getWriter().write("{\"success\":false,\"message\":\"Acceso denegado\",\"error\":\"No tiene permisos para acceder a este recurso\"}");
+                })
+            )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
@@ -69,7 +76,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/usuarios/perfil").authenticated()
                 .requestMatchers("/api/usuarios/veterinarios/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "CLIENTE", "VETERINARIO")
                 .requestMatchers("/api/usuarios/veterinarios").hasAnyRole("ADMIN", "RECEPCIONISTA", "CLIENTE", "VETERINARIO")
-                .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN", "VETERINARIO", "RECEPCIONISTA")
+                .requestMatchers("/api/usuarios/**").hasAnyRole("ADMIN", "VETERINARIO", "RECEPCIONISTA", "CLIENTE")
                 .requestMatchers("/api/veterinarias/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "VETERINARIO", "CLIENTE")
                 .requestMatchers("/api/mascotas/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "VETERINARIO", "CLIENTE")
                 .requestMatchers("/api/citas/**").hasAnyRole("ADMIN", "RECEPCIONISTA", "VETERINARIO", "CLIENTE")

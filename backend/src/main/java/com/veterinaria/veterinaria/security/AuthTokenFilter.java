@@ -31,22 +31,32 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (jwt != null) {
+                String validationError = jwtUtils.validateJwtTokenWithMessage(jwt);
+                if (validationError == null) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    logger.error("Token validation failed: {}", validationError);
+                    request.setAttribute("jwtError", validationError);
+                }
+            } else if (request.getHeader("Authorization") != null) {
+                logger.error("Authorization header present but token format is invalid");
+                request.setAttribute("jwtError", "Formato de token inválido. Debe ser: Bearer <token>");
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e);
+            logger.error("Cannot set user authentication: {}", e.getMessage());
+            request.setAttribute("jwtError", "Error al procesar la autenticación: " + e.getMessage());
         }
         
         filterChain.doFilter(request, response);

@@ -193,6 +193,10 @@ const MascotaManagement: React.FC = () => {
   };
 
   const resetForm = () => {
+    // Si es cliente, auto-asignar su documento como propietario
+    const currentUser = authService.getCurrentUser();
+    const propietarioIdDefault = authService.isCliente() && currentUser ? currentUser.documento : '';
+    
     setFormData({
       nombre: '',
       especie: '',
@@ -202,7 +206,7 @@ const MascotaManagement: React.FC = () => {
       peso: '',
       color: '',
       observaciones: '',
-      propietarioId: ''
+      propietarioId: propietarioIdDefault
     });
   };
 

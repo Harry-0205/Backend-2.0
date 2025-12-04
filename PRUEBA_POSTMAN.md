@@ -365,6 +365,18 @@ Content-Type: application/json
     "activo": true,
     "veterinariaId": 1,
     "roles": [3]
+}
+```
+
+**NOTA:** El campo `roles` acepta tanto IDs numéricos como nombres:
+- **Por ID:** `"roles": [3]` (ID del rol CLIENTE)
+- **Por nombre:** `"roles": ["CLIENTE"]` o `"roles": ["ROLE_CLIENTE"]`
+
+**IDs de Roles:**
+- 1 = ROLE_ADMIN
+- 2 = ROLE_VETERINARIO
+- 3 = ROLE_CLIENTE
+- 4 = ROLE_RECEPCIONISTA
 
 ```
 
@@ -1934,7 +1946,45 @@ Authorization: Bearer {{admin_token}}
 
 ### **📝 Formato del Body (JSON)**
 
-#### **✅ Formato CORRECTO (funciona):**
+#### **✅ Formatos CORRECTOS - El sistema acepta AMBOS:**
+
+**Opción 1: Por IDs numéricos (más simple):**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": [3]
+}
+```
+
+**Opción 2: Por nombres de roles:**
+```json
+{
+    "documento": "99999999",
+    "username": "nuevo_cliente",
+    "password": "123456",
+    "nombres": "Nuevo",
+    "apellidos": "Cliente Test",
+    "email": "nuevo@test.com",
+    "telefono": "3001234567",
+    "direccion": "Dirección de prueba",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1990-01-01",
+    "activo": true,
+    "roles": ["CLIENTE"]
+}
+```
+
+**Opción 3: Por nombres con prefijo ROLE_:**
 ```json
 {
     "documento": "99999999",
@@ -1950,6 +2000,13 @@ Authorization: Bearer {{admin_token}}
     "activo": true,
     "roles": ["ROLE_CLIENTE"]
 }
+```
+
+**📌 IDs de Roles en la Base de Datos:**
+- `1` = ROLE_ADMIN
+- `2` = ROLE_VETERINARIO
+- `3` = ROLE_CLIENTE
+- `4` = ROLE_RECEPCIONISTA
 ```
 
 #### **❌ Formato INCORRECTO (causaba error 500):**
@@ -1986,7 +2043,25 @@ Authorization: Bearer {{admin_token}}
     "tipoDocumento": "CC",
     "fechaNacimiento": "1985-05-15",
     "activo": true,
-    "roles": ["ROLE_CLIENTE"]
+    "roles": [3]
+}
+```
+
+**Alternativa con nombre de rol:**
+```json
+{
+    "documento": "11111111",
+    "username": "cliente_nuevo",
+    "password": "123456",
+    "nombres": "Juan Carlos",
+    "apellidos": "López García",
+    "email": "juan@ejemplo.com",
+    "telefono": "3001234567",
+    "direccion": "Calle 123 #45-67",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1985-05-15",
+    "activo": true,
+    "roles": ["CLIENTE"]
 }
 ```
 
@@ -1998,6 +2073,15 @@ Authorization: Bearer {{admin_token}}
     "password": "123456",
     "nombres": "Ana María",
     "apellidos": "Martínez Rodríguez",
+    "email": "ana.martinez@ejemplo.com",
+    "telefono": "3109876543",
+    "direccion": "Avenida Principal 789",
+    "tipoDocumento": "CC",
+    "fechaNacimiento": "1980-03-20",
+    "activo": true,
+    "veterinariaId": 1,
+    "roles": [2]
+}
     "email": "ana.martinez@veterinaria.com",
     "telefono": "3109876543",
     "direccion": "Avenida Veterinaria 789",
