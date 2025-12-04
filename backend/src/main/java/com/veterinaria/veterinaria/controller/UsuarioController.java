@@ -44,7 +44,9 @@ public class UsuarioController {
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
-    public ResponseEntity<ApiResponse<List<UsuarioResponse>>> getAllUsuarios(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+    public ResponseEntity<ApiResponse<List<UsuarioResponse>>> getAllUsuarios(
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails,
+            @RequestParam(required = false) Long veterinariaId) {
         List<Usuario> usuarios;
         
         // Obtener el usuario autenticado
@@ -110,20 +112,30 @@ public class UsuarioController {
             
             System.out.println("=== DEBUG: Total de veterinarias accesibles: " + veterinariaIds.size());
             
-            // Obtener usuarios de todas las veterinarias
-            usuarios = new ArrayList<>();
-            for (Long vetId : veterinariaIds) {
-                List<Usuario> usuariosDeVet = usuarioService.findByVeterinariaId(vetId);
-                System.out.println("=== DEBUG: Veterinaria ID " + vetId + " tiene " + usuariosDeVet.size() + " usuarios");
-                
-                for (Usuario u : usuariosDeVet) {
-                    if (!usuarios.contains(u)) {
-                        usuarios.add(u);
+            // Si se proporciona filtro por veterinaria, validar que el admin tenga acceso
+            if (veterinariaId != null) {
+                if (!veterinariaIds.contains(veterinariaId)) {
+                    System.out.println("=== DEBUG ALERTA: Admin intenta acceder a veterinaria ID " + veterinariaId + " sin permisos");
+                    return ResponseEntity.ok(ApiResponse.success("No tienes permisos para acceder a esta veterinaria", List.of()));
+                }
+                System.out.println("=== DEBUG: Filtrando por veterinaria ID: " + veterinariaId);
+                usuarios = usuarioService.findByVeterinariaId(veterinariaId);
+                System.out.println("=== DEBUG: Veterinaria ID " + veterinariaId + " tiene " + usuarios.size() + " usuarios");
+            } else {
+                // Obtener usuarios de todas las veterinarias
+                usuarios = new ArrayList<>();
+                for (Long vetId : veterinariaIds) {
+                    List<Usuario> usuariosDeVet = usuarioService.findByVeterinariaId(vetId);
+                    System.out.println("=== DEBUG: Veterinaria ID " + vetId + " tiene " + usuariosDeVet.size() + " usuarios");
+                    
+                    for (Usuario u : usuariosDeVet) {
+                        if (!usuarios.contains(u)) {
+                            usuarios.add(u);
+                        }
                     }
                 }
+                System.out.println("=== DEBUG: Total de usuarios después de combinar todas las veterinarias: " + usuarios.size());
             }
-            
-            System.out.println("=== DEBUG: Total de usuarios después de combinar todas las veterinarias: " + usuarios.size());
             
         } else if (isRecepcionista) {
             // Recepcionista ve solo usuarios de su veterinaria
@@ -132,11 +144,11 @@ public class UsuarioController {
             System.out.println("=== DEBUG DETALLADO: Veterinaria: " + usuarioAutenticado.getVeterinaria());
             
             if (usuarioAutenticado.getVeterinaria() != null) {
-                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
-                System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaId);
-                usuarios = usuarioService.findByVeterinariaId(veterinariaId);
+                Long veterinariaIdRecepcionista = usuarioAutenticado.getVeterinaria().getId();
+                System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaIdRecepcionista);
+                usuarios = usuarioService.findByVeterinariaId(veterinariaIdRecepcionista);
                 System.out.println("=== DEBUG: Recepcionista " + userDetails.getUsername() + 
-                    " consultando usuarios de veterinaria ID " + veterinariaId + ": " + usuarios.size() + " usuarios");
+                    " consultando usuarios de veterinaria ID " + veterinariaIdRecepcionista + ": " + usuarios.size() + " usuarios");
             } else {
                 usuarios = List.of();
                 System.out.println("=== DEBUG ALERTA: Recepcionista " + userDetails.getUsername() + 

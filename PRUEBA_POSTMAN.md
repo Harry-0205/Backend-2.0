@@ -2998,6 +2998,473 @@ Content-Type: application/json
 
 ---
 
+## 📊 **PRUEBAS DE REPORTES CON FILTROS POR VETERINARIA**
+
+### **Nuevos Endpoints de Reportes (Actualizado Diciembre 2025)**
+
+Los endpoints de reportes ahora soportan filtrado opcional por `veterinariaId`. Cuando no se proporciona el parámetro, se muestran datos de todas las veterinarias.
+
+---
+
+### **ESCENARIO 7: Reportes de Usuarios Filtrados por Veterinaria**
+
+#### **1. Obtener Reporte de Todos los Usuarios (Sin Filtro)**
+```http
+GET {{base_url}}/reportes/usuarios
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Retorna usuarios de TODAS las veterinarias
+- ✅ Incluye totalMascotas y totalCitas por usuario
+
+**Respuesta Esperada:**
+```json
+[
+  {
+    "documento": "12345678",
+    "username": "admin",
+    "nombres": "Administrador",
+    "apellidos": "Sistema",
+    "email": "admin@veterinaria.com",
+    "telefono": "1234567890",
+    "rol": "ROLE_ADMIN",
+    "activo": true,
+    "totalMascotas": 0,
+    "totalCitas": 0
+  },
+  // ... más usuarios de todas las veterinarias
+]
+```
+
+#### **2. Obtener Reporte de Usuarios de una Veterinaria Específica**
+```http
+GET {{base_url}}/reportes/usuarios?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo retorna usuarios de la veterinaria ID=1
+- ✅ Filtra correctamente por veterinaria asignada
+
+#### **3. Obtener Estadísticas de Usuarios (Todas las Veterinarias)**
+```http
+GET {{base_url}}/reportes/usuarios/estadisticas
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Contadores globales de todas las veterinarias
+
+**Respuesta Esperada:**
+```json
+{
+  "totalUsuarios": 5,
+  "totalActivos": 5,
+  "totalInactivos": 0,
+  "totalPorRol": {
+    "ROLE_ADMIN": 1,
+    "ROLE_VETERINARIO": 1,
+    "ROLE_RECEPCIONISTA": 1,
+    "ROLE_CLIENTE": 2
+  }
+}
+```
+
+#### **4. Obtener Estadísticas de Usuarios por Veterinaria**
+```http
+GET {{base_url}}/reportes/usuarios/estadisticas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo estadísticas de veterinaria ID=1
+
+---
+
+### **ESCENARIO 8: Reportes de Mascotas Filtrados por Veterinaria**
+
+#### **1. Obtener Reporte de Todas las Mascotas**
+```http
+GET {{base_url}}/reportes/mascotas
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Mascotas de todas las veterinarias
+- ✅ Incluye propietario, totalCitas, ultimaCita
+
+**Respuesta Esperada:**
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Max",
+    "especie": "Perro",
+    "raza": "Labrador",
+    "sexo": "M",
+    "edad": 3,
+    "peso": 25.5,
+    "propietarioDocumento": "33333333",
+    "propietarioNombre": "Pedro",
+    "propietarioApellido": "Pérez González",
+    "totalCitas": 5,
+    "totalHistorias": 2,
+    "ultimaCita": "2025-12-03T10:00:00"
+  }
+]
+```
+
+#### **2. Obtener Reporte de Mascotas por Veterinaria**
+```http
+GET {{base_url}}/reportes/mascotas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo mascotas cuyos propietarios pertenecen a veterinaria ID=1
+
+#### **3. Obtener Reporte de Mascotas por Especie y Veterinaria**
+```http
+GET {{base_url}}/reportes/mascotas/especie/Perro?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo perros de la veterinaria ID=1
+
+#### **4. Obtener Estadísticas de Mascotas**
+```http
+GET {{base_url}}/reportes/mascotas/estadisticas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Contadores filtrados por veterinaria
+
+---
+
+### **ESCENARIO 9: Reportes de Citas Filtrados por Veterinaria**
+
+#### **1. Obtener Reporte de Todas las Citas**
+```http
+GET {{base_url}}/reportes/citas
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Citas de todas las veterinarias
+- ✅ Incluye cliente, mascota, veterinario
+
+**Respuesta Esperada:**
+```json
+[
+  {
+    "id": 1,
+    "fechaHora": "2025-12-04T10:00:00",
+    "motivo": "Vacunación",
+    "estado": "PROGRAMADA",
+    "clienteDocumento": "33333333",
+    "clienteNombre": "Pedro Pérez",
+    "mascotaId": 1,
+    "mascotaNombre": "Max",
+    "mascotaEspecie": "Perro",
+    "veterinarioDocumento": "87654321",
+    "veterinarioNombre": "Dr. García",
+    "veterinariaNombre": "Veterinaria Pet Care"
+  }
+]
+```
+
+#### **2. Obtener Reporte de Citas por Veterinaria**
+```http
+GET {{base_url}}/reportes/citas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo citas de la veterinaria ID=1
+
+#### **3. Obtener Reporte de Citas por Fecha y Veterinaria**
+```http
+GET {{base_url}}/reportes/citas/fecha?fechaInicio=2025-12-01&fechaFin=2025-12-31&veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Citas del rango de fechas en veterinaria ID=1
+
+#### **4. Obtener Estadísticas de Citas**
+```http
+GET {{base_url}}/reportes/citas/estadisticas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Estadísticas filtradas por veterinaria
+
+**Respuesta Esperada:**
+```json
+{
+  "totalCitas": 12,
+  "totalPorEstado": {
+    "PROGRAMADA": 8,
+    "CONFIRMADA": 2,
+    "COMPLETADA": 2
+  },
+  "citasHoy": 1,
+  "citasSemana": 5,
+  "citasMes": 12
+}
+```
+
+---
+
+### **ESCENARIO 10: Exportación de Reportes CSV/PDF con Filtros**
+
+#### **1. Exportar CSV de Usuarios (Todas las Veterinarias)**
+```http
+GET {{base_url}}/reportes/usuarios/export/csv
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Content-Type: text/csv
+- ✅ Archivo descargable con todos los usuarios
+
+#### **2. Exportar CSV de Usuarios por Veterinaria**
+```http
+GET {{base_url}}/reportes/usuarios/export/csv?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ CSV solo con usuarios de veterinaria ID=1
+
+#### **3. Exportar PDF de Mascotas (Todas las Veterinarias)**
+```http
+GET {{base_url}}/reportes/mascotas/export/pdf
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Content-Type: application/pdf
+- ✅ PDF con todas las mascotas
+
+#### **4. Exportar PDF de Mascotas por Veterinaria**
+```http
+GET {{base_url}}/reportes/mascotas/export/pdf?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ PDF solo con mascotas de veterinaria ID=1
+
+#### **5. Exportar CSV de Citas**
+```http
+GET {{base_url}}/reportes/citas/export/csv?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ CSV con citas filtradas
+
+#### **6. Exportar PDF de Citas**
+```http
+GET {{base_url}}/reportes/citas/export/pdf?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ PDF con citas filtradas
+
+---
+
+### **ESCENARIO 11: Generación de Reportes Persistentes**
+
+#### **1. Generar Reporte de Citas (Todas las Veterinarias)**
+```http
+POST {{base_url}}/reportes/generar-citas?fechaInicio=2025-12-01T00:00:00&fechaFin=2025-12-31T23:59:59
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Reporte guardado en base de datos
+- ✅ Incluye estadísticas globales
+
+**Respuesta Esperada:**
+```json
+{
+  "id": 1,
+  "titulo": "Reporte de Citas - 2025-12-01 a 2025-12-31",
+  "tipo": "CITAS_DIARIAS",
+  "descripcion": "Reporte generado automáticamente con estadísticas de citas",
+  "contenido": "=== REPORTE DE CITAS ===\nPeríodo: 2025-12-01 - 2025-12-31\n\nTotal de citas: 12\nCitas confirmadas: 2\nCitas canceladas: 0\nCitas pendientes: 8\n",
+  "fechaGeneracion": "2025-12-04T15:30:00",
+  "generadoPor": {
+    "documento": "12345678",
+    "username": "admin"
+  }
+}
+```
+
+#### **2. Generar Reporte de Citas por Veterinaria**
+```http
+POST {{base_url}}/reportes/generar-citas?fechaInicio=2025-12-01T00:00:00&fechaFin=2025-12-31T23:59:59&veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Reporte filtrado por veterinaria ID=1
+- ✅ Título incluye ID de veterinaria
+
+#### **3. Generar Reporte de Mascotas**
+```http
+POST {{base_url}}/reportes/generar-mascotas
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Reporte global de mascotas
+
+#### **4. Generar Reporte de Mascotas por Veterinaria**
+```http
+POST {{base_url}}/reportes/generar-mascotas?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo mascotas de veterinaria ID=1
+
+#### **5. Generar Reporte de Usuarios**
+```http
+POST {{base_url}}/reportes/generar-usuarios
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Reporte global de usuarios
+
+#### **6. Generar Reporte de Usuarios por Veterinaria**
+```http
+POST {{base_url}}/reportes/generar-usuarios?veterinariaId=1
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 200 OK
+- ✅ Solo usuarios de veterinaria ID=1
+
+---
+
+### **ESCENARIO 12: Validación de Permisos en Reportes**
+
+#### **1. Admin Accede a Reportes de Veterinaria No Autorizada (Debe Fallar)**
+```http
+GET {{base_url}}/reportes/usuarios?veterinariaId=999
+Authorization: Bearer {{admin_token}}
+```
+
+**Validación:**
+- ✅ Status: 403 Forbidden (si admin no tiene acceso a veterinaria 999)
+- ✅ O devuelve lista vacía si no existe
+
+#### **2. Recepcionista Intenta Generar Reporte (Debe Fallar)**
+```http
+POST {{base_url}}/reportes/generar-usuarios
+Authorization: Bearer {{recepcionista_token}}
+```
+
+**Validación:**
+- ✅ Status: 403 Forbidden
+- ✅ Solo admins pueden generar reportes persistentes
+
+#### **3. Cliente Intenta Acceder a Reportes (Debe Fallar)**
+```http
+GET {{base_url}}/reportes/usuarios
+Authorization: Bearer {{cliente_token}}
+```
+
+**Validación:**
+- ✅ Status: 403 Forbidden
+- ✅ Clientes no tienen acceso a reportes
+
+---
+
+## 📋 **CHECKLIST DE PRUEBAS DE REPORTES**
+
+### **Reportes de Usuarios**
+- [ ] Obtener todos los usuarios sin filtro
+- [ ] Obtener usuarios de veterinaria específica
+- [ ] Obtener estadísticas globales
+- [ ] Obtener estadísticas por veterinaria
+- [ ] Exportar CSV sin filtro
+- [ ] Exportar CSV con filtro de veterinaria
+- [ ] Exportar PDF sin filtro
+- [ ] Exportar PDF con filtro de veterinaria
+- [ ] Generar reporte persistente global
+- [ ] Generar reporte persistente por veterinaria
+
+### **Reportes de Mascotas**
+- [ ] Obtener todas las mascotas sin filtro
+- [ ] Obtener mascotas de veterinaria específica
+- [ ] Obtener mascotas por especie y veterinaria
+- [ ] Obtener estadísticas globales
+- [ ] Obtener estadísticas por veterinaria
+- [ ] Exportar CSV sin filtro
+- [ ] Exportar CSV con filtro de veterinaria
+- [ ] Exportar PDF sin filtro
+- [ ] Exportar PDF con filtro de veterinaria
+- [ ] Generar reporte persistente global
+- [ ] Generar reporte persistente por veterinaria
+
+### **Reportes de Citas**
+- [ ] Obtener todas las citas sin filtro
+- [ ] Obtener citas de veterinaria específica
+- [ ] Obtener citas por fecha sin filtro
+- [ ] Obtener citas por fecha y veterinaria
+- [ ] Obtener citas por estado y veterinaria
+- [ ] Obtener estadísticas globales
+- [ ] Obtener estadísticas por veterinaria
+- [ ] Exportar CSV sin filtro
+- [ ] Exportar CSV con filtro de veterinaria
+- [ ] Exportar PDF sin filtro
+- [ ] Exportar PDF con filtro de veterinaria
+- [ ] Generar reporte persistente global
+- [ ] Generar reporte persistente por veterinaria
+
+### **Validación de Permisos**
+- [ ] Admin puede acceder a reportes de sus veterinarias
+- [ ] Admin NO puede acceder a veterinarias no autorizadas
+- [ ] Recepcionista NO puede generar reportes persistentes
+- [ ] Cliente NO puede acceder a ningún reporte
+- [ ] Veterinario puede acceder solo a reportes de su veterinaria
+
+---
+
 ### **ESCENARIO 6: Activar/Desactivar Historia Clínica**
 
 **Objetivo:** Verificar los nuevos endpoints PATCH para historias clínicas
@@ -3108,7 +3575,7 @@ Authorization: Bearer {{cliente_token}}
 
 ---
 
-**�📅 Documento creado:** 27 de octubre de 2025  
-**📅 Última actualización:** 03 de diciembre de 2025  
+**📅 Documento creado:** 27 de octubre de 2025  
+**📅 Última actualización:** 04 de diciembre de 2025  
 **🔧 Para usar con:** Postman + Backend Veterinaria PET  
-**🎯 Estado:** ✅ GUÍA COMPLETA Y FUNCIONAL - Incluye 4 roles (Admin, Veterinario, Recepcionista, Cliente)
+**🎯 Estado:** ✅ GUÍA COMPLETA Y FUNCIONAL - Incluye 4 roles (Admin, Veterinario, Recepcionista, Cliente) + Reportes con filtros por veterinaria

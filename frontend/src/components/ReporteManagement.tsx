@@ -35,6 +35,8 @@ import {
   exportarReporteCSV,
   exportarReportePDF
 } from '../services/reporteService';
+import { getAllVeterinarias } from '../services/veterinariaService';
+import authService from '../services/authService';
 
 const ReporteManagement: React.FC = () => {
   // Estados generales
@@ -42,6 +44,8 @@ const ReporteManagement: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [activeTab, setActiveTab] = useState('usuarios');
+  const [veterinarias, setVeterinarias] = useState<any[]>([]);
+  const [selectedVeterinaria, setSelectedVeterinaria] = useState<string>('');
 
   // Estados para reportes de usuarios
   const [reporteUsuarios, setReporteUsuarios] = useState<ReporteUsuario[]>([]);
@@ -68,6 +72,7 @@ const ReporteManagement: React.FC = () => {
 
   // Cargar datos según la pestaña activa
   useEffect(() => {
+    loadVeterinarias();
     if (activeTab === 'usuarios') {
       loadReporteUsuarios();
     } else if (activeTab === 'mascotas') {
@@ -77,6 +82,31 @@ const ReporteManagement: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Recargar datos cuando cambia la veterinaria seleccionada
+  useEffect(() => {
+    if (activeTab === 'usuarios') {
+      loadReporteUsuarios();
+    } else if (activeTab === 'mascotas') {
+      loadReporteMascotas();
+    } else if (activeTab === 'citas') {
+      loadReporteCitas();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVeterinaria]);
+  
+  // Cargar veterinarias
+  const loadVeterinarias = async () => {
+    if (authService.isAdmin()) {
+      try {
+        const data = await getAllVeterinarias();
+        setVeterinarias(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading veterinarias:', error);
+        setVeterinarias([]);
+      }
+    }
+  };
 
   // Filtrar usuarios
   useEffect(() => {
@@ -101,9 +131,10 @@ const ReporteManagement: React.FC = () => {
   const loadReporteUsuarios = async () => {
     try {
       setLoading(true);
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
-        getReporteUsuarios(),
-        getEstadisticasUsuarios()
+        getReporteUsuarios(veterinariaId),
+        getEstadisticasUsuarios(veterinariaId)
       ]);
       setReporteUsuarios(reporte);
       setEstadisticasUsuarios(stats);
@@ -119,9 +150,10 @@ const ReporteManagement: React.FC = () => {
   const loadReporteMascotas = async () => {
     try {
       setLoading(true);
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
-        getReporteMascotas(),
-        getEstadisticasMascotas()
+        getReporteMascotas(veterinariaId),
+        getEstadisticasMascotas(veterinariaId)
       ]);
       setReporteMascotas(reporte);
       setEstadisticasMascotas(stats);
@@ -137,9 +169,10 @@ const ReporteManagement: React.FC = () => {
   const loadReporteCitas = async () => {
     try {
       setLoading(true);
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
-        getReporteCitas(),
-        getEstadisticasCitas()
+        getReporteCitas(veterinariaId),
+        getEstadisticasCitas(veterinariaId)
       ]);
       setReporteCitas(reporte);
       setEstadisticasCitas(stats);
@@ -295,7 +328,8 @@ const ReporteManagement: React.FC = () => {
   const handleExportCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas') => {
     try {
       setLoading(true);
-      await exportarReporteCSV(tipo);
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      await exportarReporteCSV(tipo, veterinariaId);
       setSuccess('Reporte CSV exportado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -309,7 +343,8 @@ const ReporteManagement: React.FC = () => {
   const handleExportPDF = async (tipo: 'usuarios' | 'mascotas' | 'citas') => {
     try {
       setLoading(true);
-      await exportarReportePDF(tipo);
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      await exportarReportePDF(tipo, veterinariaId);
       setSuccess('Reporte PDF exportado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -563,7 +598,7 @@ const ReporteManagement: React.FC = () => {
                     <EstadisticasUsuariosCard />
 
                     <Row className="mb-3">
-                      <Col md={4}>
+                      <Col md={3}>
                         <InputGroup>
                           <InputGroup.Text>
                             <i className="fas fa-search"></i>
@@ -576,7 +611,7 @@ const ReporteManagement: React.FC = () => {
                           />
                         </InputGroup>
                       </Col>
-                      <Col md={3}>
+                      <Col md={2}>
                         <Form.Select
                           value={filterRol}
                           onChange={(e) => {
@@ -591,25 +626,39 @@ const ReporteManagement: React.FC = () => {
                           <option value="CLIENTE">Cliente</option>
                         </Form.Select>
                       </Col>
-                      <Col md={3}>
+                      {authService.isAdmin() && (
+                        <Col md={3}>
+                          <Form.Select
+                            value={selectedVeterinaria}
+                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
+                          >
+                            <option value="">Todas las veterinarias</option>
+                            {veterinarias.map((vet) => (
+                              <option key={vet.id} value={vet.id}>
+                                {vet.nombre}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                      )}
+                      <Col md={authService.isAdmin() ? 1 : 2}>
                         <Button 
                           variant="outline-primary" 
                           onClick={loadReporteUsuarios}
                           disabled={loading}
                           className="w-100"
                         >
-                          <i className="fas fa-sync me-2"></i>
-                          Actualizar
+                          <i className="fas fa-sync"></i>
                         </Button>
                       </Col>
-                      <Col md={3}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <ButtonGroup className="w-100">
                           <Button 
                             variant="success" 
                             onClick={() => handleExportCSV('usuarios')}
                             disabled={loading}
                           >
-                            <i className="fas fa-file-csv me-2"></i>
+                            <i className="fas fa-file-csv me-1"></i>
                             CSV
                           </Button>
                           <Button 
@@ -617,7 +666,7 @@ const ReporteManagement: React.FC = () => {
                             onClick={() => handleExportPDF('usuarios')}
                             disabled={loading}
                           >
-                            <i className="fas fa-file-pdf me-2"></i>
+                            <i className="fas fa-file-pdf me-1"></i>
                             PDF
                           </Button>
                         </ButtonGroup>
@@ -685,7 +734,7 @@ const ReporteManagement: React.FC = () => {
                     <EstadisticasMascotasCard />
 
                     <Row className="mb-3">
-                      <Col md={4}>
+                      <Col md={3}>
                         <InputGroup>
                           <InputGroup.Text>
                             <i className="fas fa-search"></i>
@@ -698,7 +747,7 @@ const ReporteManagement: React.FC = () => {
                           />
                         </InputGroup>
                       </Col>
-                      <Col md={3}>
+                      <Col md={2}>
                         <Form.Select
                           value={filterEspecie}
                           onChange={(e) => {
@@ -715,25 +764,39 @@ const ReporteManagement: React.FC = () => {
                           <option value="Otro">Otro</option>
                         </Form.Select>
                       </Col>
-                      <Col md={3}>
+                      {authService.isAdmin() && (
+                        <Col md={3}>
+                          <Form.Select
+                            value={selectedVeterinaria}
+                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
+                          >
+                            <option value="">Todas las veterinarias</option>
+                            {veterinarias.map((vet) => (
+                              <option key={vet.id} value={vet.id}>
+                                {vet.nombre}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                      )}
+                      <Col md={authService.isAdmin() ? 1 : 2}>
                         <Button 
                           variant="outline-primary" 
                           onClick={loadReporteMascotas}
                           disabled={loading}
                           className="w-100"
                         >
-                          <i className="fas fa-sync me-2"></i>
-                          Actualizar
+                          <i className="fas fa-sync"></i>
                         </Button>
                       </Col>
-                      <Col md={3}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <ButtonGroup className="w-100">
                           <Button 
                             variant="success" 
                             onClick={() => handleExportCSV('mascotas')}
                             disabled={loading}
                           >
-                            <i className="fas fa-file-csv me-2"></i>
+                            <i className="fas fa-file-csv me-1"></i>
                             CSV
                           </Button>
                           <Button 
@@ -741,7 +804,7 @@ const ReporteManagement: React.FC = () => {
                             onClick={() => handleExportPDF('mascotas')}
                             disabled={loading}
                           >
-                            <i className="fas fa-file-pdf me-2"></i>
+                            <i className="fas fa-file-pdf me-1"></i>
                             PDF
                           </Button>
                         </ButtonGroup>
@@ -803,7 +866,7 @@ const ReporteManagement: React.FC = () => {
                     <EstadisticasCitasCard />
 
                     <Row className="mb-3">
-                      <Col md={3}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <InputGroup>
                           <InputGroup.Text>
                             <i className="fas fa-search"></i>
@@ -833,6 +896,21 @@ const ReporteManagement: React.FC = () => {
                           <option value="NO_ASISTIO">No Asistió</option>
                         </Form.Select>
                       </Col>
+                      {authService.isAdmin() && (
+                        <Col md={2}>
+                          <Form.Select
+                            value={selectedVeterinaria}
+                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
+                          >
+                            <option value="">Todas las veterinarias</option>
+                            {veterinarias.map((vet) => (
+                              <option key={vet.id} value={vet.id}>
+                                {vet.nombre}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                      )}
                       <Col md={2}>
                         <Form.Control
                           type="date"
@@ -855,6 +933,7 @@ const ReporteManagement: React.FC = () => {
                           onClick={handleFilterPorFecha}
                           disabled={loading || !fechaInicio || !fechaFin}
                           title="Filtrar por rango de fechas"
+                          className="w-100"
                         >
                           <i className="fas fa-filter"></i>
                         </Button>
@@ -865,27 +944,28 @@ const ReporteManagement: React.FC = () => {
                           onClick={loadReporteCitas}
                           disabled={loading}
                           title="Actualizar"
+                          className="w-100"
                         >
                           <i className="fas fa-sync"></i>
                         </Button>
                       </Col>
-                      <Col md={2}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <ButtonGroup className="w-100">
                           <Button 
                             variant="success" 
                             onClick={() => handleExportCSV('citas')}
                             disabled={loading}
-                            title="Exportar a CSV"
                           >
-                            <i className="fas fa-file-csv"></i>
+                            <i className="fas fa-file-csv me-1"></i>
+                            CSV
                           </Button>
                           <Button 
                             variant="danger" 
                             onClick={() => handleExportPDF('citas')}
                             disabled={loading}
-                            title="Exportar a PDF"
                           >
-                            <i className="fas fa-file-pdf"></i>
+                            <i className="fas fa-file-pdf me-1"></i>
+                            PDF
                           </Button>
                         </ButtonGroup>
                       </Col>

@@ -38,6 +38,7 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showActives, setShowActives] = useState<boolean | null>(null);
   const [filterByRole, setFilterByRole] = useState<string>('');
+  const [filterByVeterinaria, setFilterByVeterinaria] = useState<string>('');
 
   // Función para normalizar roles (quitar prefijo ROLE_)
   const normalizeRole = (role: string): string => {
@@ -62,19 +63,23 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     loadUsuarios();
     loadVeterinarias();
-  }, []);
+  }, [filterByVeterinaria]); // Recargar cuando cambie el filtro de veterinaria
 
   useEffect(() => {
     filterUsuarios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usuarios, searchTerm, showActives, filterByRole]);
+  }, [usuarios, searchTerm, showActives, filterByRole, filterByVeterinaria]);
 
   const loadUsuarios = async () => {
     try {
       setLoading(true);
       setError('');
       console.log('🔄 Iniciando carga de usuarios...');
-      const data = await getAllUsuarios();
+      
+      // Si hay filtro de veterinaria, pasar como parámetro
+      const veterinariaIdParam = filterByVeterinaria ? parseInt(filterByVeterinaria) : undefined;
+      const data = await getAllUsuarios(veterinariaIdParam);
+      
       console.log('📥 Usuarios recibidos:', data);
       console.log('📊 Total de usuarios:', data?.length || 0);
       
@@ -425,7 +430,7 @@ const UserManagement: React.FC = () => {
               
               {/* Filtros */}
               <Row className="mb-3">
-                <Col md={4}>
+                <Col md={3}>
                   <InputGroup>
                     <InputGroup.Text>
                       <i className="fas fa-search"></i>
@@ -438,7 +443,7 @@ const UserManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                   <Form.Select
                     value={showActives === null ? '' : showActives.toString()}
                     onChange={(e) => setShowActives(e.target.value === '' ? null : e.target.value === 'true')}
@@ -448,7 +453,7 @@ const UserManagement: React.FC = () => {
                     <option value="false">Solo inactivos</option>
                   </Form.Select>
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                   <Form.Select
                     value={filterByRole}
                     onChange={(e) => setFilterByRole(e.target.value)}
@@ -460,6 +465,21 @@ const UserManagement: React.FC = () => {
                     <option value="CLIENTE">Cliente</option>
                   </Form.Select>
                 </Col>
+                {authService.isAdmin() && (
+                  <Col md={3}>
+                    <Form.Select
+                      value={filterByVeterinaria}
+                      onChange={(e) => setFilterByVeterinaria(e.target.value)}
+                    >
+                      <option value="">Todas las veterinarias</option>
+                      {veterinarias.map((vet) => (
+                        <option key={vet.id} value={vet.id}>
+                          {vet.nombre}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Col>
+                )}
               </Row>
 
               {/* Tabla */}

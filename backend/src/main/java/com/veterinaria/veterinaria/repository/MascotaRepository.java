@@ -25,6 +25,13 @@ public interface MascotaRepository extends JpaRepository<Mascota, Long> {
     long countByActivoTrue();
     long countByPropietario(Usuario propietario);
     
+    // Métodos de conteo filtrados por veterinaria
+    @Query("SELECT COUNT(m) FROM Mascota m WHERE m.propietario.veterinaria.id = :veterinariaId")
+    long countByPropietarioVeterinariaId(@Param("veterinariaId") Long veterinariaId);
+    
+    @Query("SELECT COUNT(m) FROM Mascota m WHERE m.activo = true AND m.propietario.veterinaria.id = :veterinariaId")
+    long countByActivoTrueAndPropietarioVeterinariaId(@Param("veterinariaId") Long veterinariaId);
+    
     // Métodos para reportes
     List<Mascota> findByEspecie(String especie);
 }
