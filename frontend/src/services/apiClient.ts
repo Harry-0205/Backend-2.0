@@ -55,14 +55,29 @@ apiClient.interceptors.response.use(
       message: error.message
     });
     
+    // Verificar si el usuario está desactivado
+    const errorMessage = error.response?.data?.message || error.response?.data || '';
+    const isDeactivatedUser = typeof errorMessage === 'string' && 
+                             (errorMessage.toLowerCase().includes('desactivado') || 
+                              errorMessage.toLowerCase().includes('no se permite el acceso'));
+    
+    if (isDeactivatedUser) {
+      console.warn('🚫 Usuario desactivado detectado, cerrando sesión...');
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      alert('Tu cuenta ha sido desactivada. No se permite el acceso a la plataforma.');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    
     // Solo cerrar sesión si es un error 401 Y el mensaje indica claramente un problema de token
     if (error.response?.status === 401) {
-      const errorMessage = error.response?.data?.message?.toLowerCase() || '';
-      const isTokenError = errorMessage.includes('token') || 
-                          errorMessage.includes('expired') || 
-                          errorMessage.includes('invalid') ||
-                          errorMessage.includes('malformed') ||
-                          errorMessage.includes('unauthorized');
+      const errorMsg = typeof errorMessage === 'string' ? errorMessage.toLowerCase() : '';
+      const isTokenError = errorMsg.includes('token') || 
+                          errorMsg.includes('expired') || 
+                          errorMsg.includes('invalid') ||
+                          errorMsg.includes('malformed') ||
+                          errorMsg.includes('unauthorized');
       
       // También verificar si es la ruta de login que falló
       const isLoginFailure = error.config?.url?.includes('/auth/signin');

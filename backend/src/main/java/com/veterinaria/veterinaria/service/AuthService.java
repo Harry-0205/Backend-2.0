@@ -42,6 +42,21 @@ public class AuthService {
     JwtUtils jwtUtils;
     
     public JwtResponse authenticateUser(LoginRequest loginRequest) {
+        // PASO 1: Verificar si el usuario existe
+        Usuario usuario = usuarioRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException(
+                    "Credenciales inválidas"));
+        
+        // PASO 2: CRÍTICO - Validar que el usuario esté activo ANTES de cualquier autenticación
+        if (usuario.getActivo() == null || !usuario.getActivo()) {
+            System.err.println("❌ ACCESO DENEGADO: Usuario desactivado - " + usuario.getUsername());
+            throw new org.springframework.security.authentication.DisabledException(
+                "Usuario desactivado. No se permite el acceso a la plataforma.");
+        }
+        
+        System.out.println("✅ Usuario activo verificado: " + usuario.getUsername() + " - activo=" + usuario.getActivo());
+        
+        // PASO 3: Autenticar credenciales
         Authentication authentication = authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(), 
@@ -54,10 +69,6 @@ public class AuthService {
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
-        
-        // Obtener el usuario completo de la base de datos
-        Usuario usuario = usuarioRepository.findByUsername(loginRequest.getUsername())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         
         JwtResponse response = new JwtResponse(jwt,
                 userDetails.getDocumento(),

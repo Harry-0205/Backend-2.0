@@ -50,6 +50,15 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error("Credenciales inválidas", "Usuario o contraseña incorrectos. Por favor, verifique sus datos e intente nuevamente."));
     }
     
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDisabledException(
+            org.springframework.security.authentication.DisabledException ex) {
+        logger.error("Usuario desactivado intentó acceder: {}", ex.getMessage());
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Acceso denegado", "Usuario desactivado. No se permite el acceso a la plataforma."));
+    }
+    
     @ExceptionHandler(org.springframework.security.authentication.InsufficientAuthenticationException.class)
     public ResponseEntity<ApiResponse<Object>> handleInsufficientAuthenticationException(
             org.springframework.security.authentication.InsufficientAuthenticationException ex) {

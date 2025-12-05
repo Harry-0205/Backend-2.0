@@ -190,6 +190,10 @@ public class Usuario {
         return activo;
     }
     
+    public boolean isActivo() {
+        return activo != null && activo;
+    }
+    
     public void setActivo(Boolean activo) {
         this.activo = activo;
     }

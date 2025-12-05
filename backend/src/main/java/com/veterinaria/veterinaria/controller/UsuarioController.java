@@ -878,8 +878,22 @@ public class UsuarioController {
     }
     
     @PatchMapping("/{documento}/activar")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> activateUsuario(@PathVariable String documento) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA')")
+    public ResponseEntity<?> activateUsuario(@PathVariable String documento, @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        // Verificar si el usuario a activar es ADMIN
+        Optional<Usuario> usuarioOpt = usuarioService.findById(documento);
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
+            boolean isRecepcionista = userDetails.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean targetIsAdmin = usuario.getRoles().stream()
+                .anyMatch(rol -> rol.getNombre().equals("ROLE_ADMIN"));
+            
+            if (isRecepcionista && targetIsAdmin) {
+                return ResponseEntity.status(403).build(); // Forbidden
+            }
+        }
+        
         usuarioService.activate(documento);
         return ResponseEntity.ok().build();
     }
