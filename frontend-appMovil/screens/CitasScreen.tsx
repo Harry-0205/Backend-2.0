@@ -38,6 +38,7 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCita, setEditingCita] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -160,11 +161,17 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   const loadCitas = async () => {
     setLoading(true);
     try {
+      console.log('📋 Cargando citas...');
       const response = await apiClient.get('/citas');
-      setCitas(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Error al cargar citas:', error);
-      Alert.alert('Error', 'No se pudieron cargar las citas');
+      const citasList = Array.isArray(response.data) ? response.data : [];
+      console.log('✅ Citas cargadas:', citasList.length);
+      setCitas(citasList);
+    } catch (error: any) {
+      console.error('❌ Error al cargar citas:', error);
+      console.error('❌ Response:', error.response?.data);
+      console.error('❌ Status:', error.response?.status);
+      // No mostrar Alert aquí para no interrumpir el flujo
+      setCitas([]);
     } finally {
       setLoading(false);
     }
@@ -243,6 +250,25 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       return;
     }
     
+    // Si el usuario actual es veterinario, solo mostrarlo a él mismo
+    const isVeterinario = currentUser?.roles?.some((role: string) => 
+      role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+    );
+    
+    if (isVeterinario && currentUser) {
+      console.log('👨‍⚕️ Usuario es veterinario - Auto-asignando como único veterinario');
+      setVeterinarios([{
+        documento: currentUser.documento,
+        nombres: currentUser.nombres || 'Veterinario',
+        apellidos: currentUser.apellidos || 'Actual',
+        username: currentUser.username,
+        email: currentUser.email,
+        roles: currentUser.roles,
+        veterinaria: currentUser.veterinaria
+      }]);
+      return;
+    }
+    
     try {
       console.log('👨‍⚕️ Cargando veterinarios de veterinaria:', veterinariaId);
       const response = await apiClient.get(`/usuarios/veterinarios/por-veterinaria/${veterinariaId}`);
@@ -252,7 +278,22 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       setVeterinarios(veterinariosList);
     } catch (error: any) {
       console.error('❌ Error al cargar veterinarios por veterinaria:', error.response?.status, error.response?.data);
-      setVeterinarios([]);
+      
+      // Si es error 403 y el usuario es veterinario, usar sus propios datos como fallback
+      if (error.response?.status === 403 && currentUser) {
+        console.log('⚠️ Error 403 - Usando datos del usuario actual como fallback');
+        setVeterinarios([{
+          documento: currentUser.documento,
+          nombres: currentUser.nombres || 'Veterinario',
+          apellidos: currentUser.apellidos || 'Actual',
+          username: currentUser.username,
+          email: currentUser.email,
+          roles: currentUser.roles,
+          veterinaria: currentUser.veterinaria
+        }]);
+      } else {
+        setVeterinarios([]);
+      }
     }
   };
 
@@ -314,49 +355,133 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   // Ya no se necesita handleFechaChange - El calendario maneja la selección directamente
 
   const handleSelectHorario = (horario: any) => {
-    if (horario.disponible) {
-      // El backend espera formato "yyyy-MM-ddTHH:mm"
-      const fechaHora = horario.fechaHora.substring(0, 16);
-      setFormData(prev => ({ ...prev, fechaHora }));
+    try {
+      console.log('🕐 Horario seleccionado:', horario);
+      
+      if (!horario) {
+        console.warn('⚠️ Horario es null o undefined');
+        return;
+      }
+      
+      if (horario.disponible) {
+        if (!horario.fechaHora) {
+          console.error('❌ horario.fechaHora es null o undefined');
+          Alert.alert('Error', 'El horario seleccionado no tiene una fecha válida');
+          return;
+        }
+        
+        // El backend espera formato "yyyy-MM-ddTHH:mm"
+        const fechaHora = horario.fechaHora.substring(0, 16);
+        console.log('✅ FechaHora formateada:', fechaHora);
+        setFormData(prev => ({ ...prev, fechaHora }));
+      } else {
+        console.log('⚠️ Horario no disponible');
+        Alert.alert('No disponible', 'Este horario ya no está disponible');
+      }
+    } catch (error) {
+      console.error('❌ Error en handleSelectHorario:', error);
+      Alert.alert('Error', 'Error al seleccionar el horario');
     }
   };
 
   const handleSave = async () => {
+    // Prevenir doble envío
+    if (saving) {
+      console.log('⏳ Ya hay un guardado en proceso, ignorando...');
+      return;
+    }
+    
+    console.log('💾 Intentando guardar cita...');
+    console.log('📋 FormData actual:', formData);
+    
+    // Validaciones
     if (!formData.fechaHora || !formData.clienteId || !formData.mascotaId) {
+      console.log('❌ Validación falló: Faltan campos obligatorios');
       Alert.alert('Error', 'Fecha, cliente y mascota son obligatorios');
       return;
     }
 
+    if (!formData.veterinariaId) {
+      console.log('❌ Validación falló: Falta veterinaria');
+      Alert.alert('Error', 'Debe seleccionar una veterinaria');
+      return;
+    }
+
+    setSaving(true);
     try {
-      console.log('💾 Guardando cita con datos:', formData);
+      // Formatear fechaHora correctamente
+      let fechaHoraFormateada = formData.fechaHora;
+      
+      // Asegurar que tenga formato yyyy-MM-ddTHH:mm:ss
+      if (fechaHoraFormateada.length === 16) {
+        // Si es yyyy-MM-ddTHH:mm, agregar :00
+        fechaHoraFormateada = fechaHoraFormateada + ':00';
+      } else if (!fechaHoraFormateada.includes(':')) {
+        console.error('❌ Formato de fecha inválido:', fechaHoraFormateada);
+        Alert.alert('Error', 'Formato de fecha inválido. Por favor seleccione fecha y hora.');
+        return;
+      }
+      
+      console.log('📅 Fecha formateada:', fechaHoraFormateada);
+      
+      // Validar que mascotaId sea un número válido
+      const mascotaIdNum = parseInt(formData.mascotaId);
+      if (isNaN(mascotaIdNum)) {
+        console.error('❌ mascotaId no es un número válido:', formData.mascotaId);
+        Alert.alert('Error', 'ID de mascota inválido');
+        return;
+      }
+      
+      // Validar que veterinariaId sea un número válido
+      const veterinariaIdNum = parseInt(formData.veterinariaId);
+      if (isNaN(veterinariaIdNum)) {
+        console.error('❌ veterinariaId no es un número válido:', formData.veterinariaId);
+        Alert.alert('Error', 'ID de veterinaria inválido');
+        return;
+      }
       
       // Usar el mismo formato que el frontend web (CitaRequest DTO)
       const citaData: any = {
-        fechaHora: formData.fechaHora.includes(':00') ? formData.fechaHora : formData.fechaHora + ':00',
+        fechaHora: fechaHoraFormateada,
         motivo: formData.motivo || null,
         observaciones: formData.observaciones || null,
         estado: editingCita ? editingCita.estado : 'PROGRAMADA',
         clienteDocumento: formData.clienteId,
-        mascotaId: parseInt(formData.mascotaId),
+        mascotaId: mascotaIdNum,
         veterinarioDocumento: formData.veterinarioId || null,
-        veterinariaId: formData.veterinariaId ? parseInt(formData.veterinariaId) : null
+        veterinariaId: veterinariaIdNum
       };
 
-      console.log('📤 Enviando al backend:', citaData);
+      console.log('📤 Enviando al backend:', JSON.stringify(citaData, null, 2));
 
       if (editingCita) {
+        console.log('📝 Actualizando cita:', editingCita.id);
         await apiClient.put(`/citas/${editingCita.id}`, citaData);
         Alert.alert('Éxito', 'Cita actualizada correctamente');
       } else {
+        console.log('✨ Creando nueva cita');
         await apiClient.post('/citas', citaData);
         Alert.alert('Éxito', 'Cita creada correctamente');
       }
+      
+      console.log('✅ Cita guardada exitosamente');
       setShowForm(false);
       resetForm();
       loadCitas();
     } catch (error: any) {
-      console.error('❌ Error al guardar cita:', error.response?.data);
-      Alert.alert('Error', error.response?.data?.message || 'Error al guardar cita');
+      console.error('❌ Error al guardar cita:', error);
+      console.error('❌ Response data:', error.response?.data);
+      console.error('❌ Response status:', error.response?.status);
+      console.error('❌ Error completo:', JSON.stringify(error, null, 2));
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Error al guardar cita';
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -429,15 +554,38 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   };
 
   const resetForm = () => {
+    // Pre-asignar veterinaria y veterinario si el usuario es veterinario
+    const isVeterinario = currentUser?.roles?.some((role: string) => 
+      role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+    );
+    
+    const veterinariaIdDefault = isVeterinario && currentUser?.veterinaria?.id 
+      ? currentUser.veterinaria.id.toString() 
+      : '';
+    
+    const veterinarioIdDefault = isVeterinario && currentUser?.documento 
+      ? currentUser.documento 
+      : '';
+    
+    console.log('🔄 Reset form - Es veterinario:', isVeterinario);
+    console.log('🏥 Veterinaria pre-asignada:', veterinariaIdDefault);
+    console.log('👨‍⚕️ Veterinario pre-asignado:', veterinarioIdDefault);
+    
     setFormData({
       fechaHora: '',
       motivo: '',
       observaciones: '',
       clienteId: '',
       mascotaId: '',
-      veterinarioId: '',
-      veterinariaId: '',
+      veterinarioId: veterinarioIdDefault,
+      veterinariaId: veterinariaIdDefault,
     });
+    
+    // Si es veterinario y tiene veterinaria asignada, cargar veterinarios de esa veterinaria
+    if (veterinariaIdDefault) {
+      loadVeterinariosByVeterinaria(veterinariaIdDefault);
+    }
+    
     setEditingCita(null);
     setHorariosDisponibles([]);
     setFechaSeleccionada('');
@@ -569,6 +717,9 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                     }
                   }}
                   style={styles.picker}
+                  enabled={!currentUser?.roles?.some((role: string) => 
+                    role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+                  )}
                 >
                   <Picker.Item label="Seleccione una veterinaria" value="" />
                   {veterinarias.map((vet) => (
@@ -576,6 +727,13 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                   ))}
                 </Picker>
               </View>
+              {currentUser?.roles?.some((role: string) => 
+                role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+              ) && (
+                <Text style={styles.helperText}>
+                  🔒 Veterinaria asignada automáticamente según tu perfil
+                </Text>
+              )}
 
               {formData.veterinariaId && (
                 <>
@@ -764,7 +922,9 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                   selectedValue={formData.veterinarioId}
                   onValueChange={(value) => setFormData({ ...formData, veterinarioId: value })}
                   style={styles.picker}
-                  enabled={!!formData.veterinariaId}
+                  enabled={!!formData.veterinariaId && !currentUser?.roles?.some((role: string) => 
+                    role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+                  )}
                 >
                   <Picker.Item 
                     label={
@@ -779,12 +939,25 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                   {veterinarios.map((vet) => (
                     <Picker.Item
                       key={vet.documento}
-                      label={`Dr. ${vet.nombres || ''} ${vet.apellidos || ''}`}
+                      label={
+                        currentUser?.roles?.some((role: string) => 
+                          role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+                        ) && vet.documento === currentUser?.documento
+                          ? '👨‍⚕️ Tú (Veterinario)'
+                          : `Dr(a). ${vet.nombres || ''} ${vet.apellidos || ''}`
+                      }
                       value={vet.documento}
                     />
                   ))}
                 </Picker>
               </View>
+              {currentUser?.roles?.some((role: string) => 
+                role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+              ) && (
+                <Text style={styles.helperText}>
+                  🔒 Asignado automáticamente a tu perfil
+                </Text>
+              )}
 
               <Text style={styles.label}>Motivo</Text>
               <TextInput
@@ -811,11 +984,22 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                     setShowForm(false);
                     resetForm();
                   }}
+                  disabled={saving}
                 >
                   <Text style={styles.buttonText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-                  <Text style={styles.buttonText}>Guardar</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.button, 
+                    styles.saveButton,
+                    saving && styles.buttonDisabled
+                  ]} 
+                  onPress={handleSave}
+                  disabled={saving}
+                >
+                  <Text style={styles.buttonText}>
+                    {saving ? 'Guardando...' : 'Guardar'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1151,6 +1335,11 @@ const styles = StyleSheet.create({
   saveButton: { 
     backgroundColor: '#10b981',
     shadowColor: '#10b981',
+  },
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+    shadowColor: '#9ca3af',
+    opacity: 0.6,
   },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });
