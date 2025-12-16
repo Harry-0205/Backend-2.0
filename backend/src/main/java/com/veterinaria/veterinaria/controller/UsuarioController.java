@@ -453,19 +453,22 @@ public class UsuarioController {
             // Obtener la veterinaria del usuario autenticado (admin o recepcionista)
             Optional<Usuario> usuarioAutenticadoOpt = usuarioService.findByUsername(userDetails.getUsername());
             
-            // Verificar si el usuario autenticado es recepcionista
+            // Verificar si el usuario autenticado es recepcionista o admin
             boolean esRecepcionista = userDetails.getAuthorities().stream()
                     .anyMatch(authority -> authority.getAuthority().equals("ROLE_RECEPCIONISTA"));
+            boolean esAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
             
-            // Si es recepcionista, validar que no esté intentando crear un administrador
-            if (esRecepcionista && usuarioRequest.getRoles() != null) {
+            // Validar que NO se pueda crear otro administrador (ni admin ni recepcionista pueden)
+            if (usuarioRequest.getRoles() != null) {
                 boolean intentaCrearAdmin = usuarioRequest.getRoles().stream()
                         .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN"));
                 
                 if (intentaCrearAdmin) {
-                    System.out.println("=== DEBUG: Recepcionista intentó crear un usuario con rol ADMIN - BLOQUEADO");
+                    String rol = esAdmin ? "Admin" : "Recepcionista";
+                    System.out.println("=== DEBUG: " + rol + " intentó crear un usuario con rol ADMIN - BLOQUEADO");
                     return ResponseEntity.badRequest().body(
-                        ApiResponse.error("No tiene permisos para crear usuarios con rol Administrador", null)
+                        ApiResponse.error("No se permite crear usuarios con rol Administrador", null)
                     );
                 }
             }
@@ -673,17 +676,16 @@ public class UsuarioController {
                 
                 // Actualizar roles solo si se proporcionan
                 if (usuarioRequest.getRoles() != null && !usuarioRequest.getRoles().isEmpty()) {
-                    // Si es recepcionista, validar que no esté intentando asignar rol de administrador
-                    if (isRecepcionista) {
-                        boolean intentaAsignarAdmin = usuarioRequest.getRoles().stream()
-                                .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN") || rol.equals("1"));
-                        
-                        if (intentaAsignarAdmin) {
-                            System.out.println("=== DEBUG: Recepcionista intentó asignar rol ADMIN - BLOQUEADO");
-                            return ResponseEntity.status(403).body(
-                                ApiResponse.error("No tiene permisos para asignar el rol de Administrador", null)
-                            );
-                        }
+                    // Validar que no se pueda asignar rol de administrador (ni admin ni recepcionista pueden)
+                    boolean intentaAsignarAdmin = usuarioRequest.getRoles().stream()
+                            .anyMatch(rol -> rol.equalsIgnoreCase("ADMIN") || rol.equalsIgnoreCase("ROLE_ADMIN") || rol.equals("1"));
+                    
+                    if (intentaAsignarAdmin) {
+                        String rolUsuario = isAdmin ? "Admin" : "Recepcionista";
+                        System.out.println("=== DEBUG: " + rolUsuario + " intentó asignar rol ADMIN - BLOQUEADO");
+                        return ResponseEntity.status(403).body(
+                            ApiResponse.error("No se permite asignar el rol de Administrador", null)
+                        );
                     }
                     
                     Set<Rol> roles = new HashSet<>();

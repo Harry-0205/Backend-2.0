@@ -7,13 +7,11 @@ import com.veterinaria.veterinaria.service.GestionReporteService;
 import com.veterinaria.veterinaria.service.PDFExportService;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -184,13 +182,38 @@ public class GestionReporteController {
     
     @GetMapping("/usuarios/export/csv")
     public ResponseEntity<byte[]> exportarReporteUsuariosCSV(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) String search) {
         List<ReporteUsuarioDTO> usuarios;
         
+        // Obtener usuarios según los filtros
         if (veterinariaId != null) {
             usuarios = gestionReporteService.getReporteUsuariosPorVeterinaria(veterinariaId);
         } else {
             usuarios = gestionReporteService.getReporteUsuarios();
+        }
+        
+        // Aplicar filtro por rol si está presente
+        if (rol != null && !rol.isEmpty()) {
+            String rolFiltro = rol.startsWith("ROLE_") ? rol : "ROLE_" + rol;
+            usuarios = usuarios.stream()
+                    .filter(u -> u.getRol().equals(rolFiltro))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            usuarios = usuarios.stream()
+                    .filter(u -> 
+                        u.getUsername().toLowerCase().contains(searchLower) ||
+                        (u.getNombres() != null && u.getNombres().toLowerCase().contains(searchLower)) ||
+                        (u.getApellidos() != null && u.getApellidos().toLowerCase().contains(searchLower)) ||
+                        (u.getEmail() != null && u.getEmail().toLowerCase().contains(searchLower)) ||
+                        u.getDocumento().toLowerCase().contains(searchLower)
+                    )
+                    .collect(java.util.stream.Collectors.toList());
         }
         
         byte[] csvBytes = csvExportService.exportarUsuariosCSV(usuarios);
@@ -205,13 +228,36 @@ public class GestionReporteController {
 
     @GetMapping("/mascotas/export/csv")
     public ResponseEntity<byte[]> exportarReporteMascotasCSV(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String especie,
+            @RequestParam(required = false) String search) {
         List<ReporteMascotaDTO> mascotas;
         
+        // Obtener mascotas según los filtros
         if (veterinariaId != null) {
             mascotas = gestionReporteService.getReporteMascotasPorVeterinaria(veterinariaId);
         } else {
             mascotas = gestionReporteService.getReporteMascotas();
+        }
+        
+        // Aplicar filtro por especie si está presente
+        if (especie != null && !especie.isEmpty()) {
+            mascotas = mascotas.stream()
+                    .filter(m -> m.getEspecie().equalsIgnoreCase(especie))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            mascotas = mascotas.stream()
+                    .filter(m -> 
+                        m.getNombre().toLowerCase().contains(searchLower) ||
+                        (m.getPropietarioNombre() != null && m.getPropietarioNombre().toLowerCase().contains(searchLower)) ||
+                        (m.getPropietarioApellido() != null && m.getPropietarioApellido().toLowerCase().contains(searchLower)) ||
+                        (m.getRaza() != null && m.getRaza().toLowerCase().contains(searchLower))
+                    )
+                    .collect(java.util.stream.Collectors.toList());
         }
         
         byte[] csvBytes = csvExportService.exportarMascotasCSV(mascotas);
@@ -226,13 +272,61 @@ public class GestionReporteController {
 
     @GetMapping("/citas/export/csv")
     public ResponseEntity<byte[]> exportarReporteCitasCSV(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String fechaInicio,
+            @RequestParam(required = false) String fechaFin) {
         List<ReporteCitaDTO> citas;
         
+        // Obtener citas según los filtros
         if (veterinariaId != null) {
             citas = gestionReporteService.getReporteCitasPorVeterinaria(veterinariaId);
         } else {
             citas = gestionReporteService.getReporteCitas();
+        }
+        
+        // Aplicar filtro por estado si está presente
+        if (estado != null && !estado.isEmpty()) {
+            citas = citas.stream()
+                    .filter(c -> c.getEstado().equals(estado))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            citas = citas.stream()
+                    .filter(c -> 
+                        (c.getClienteNombre() != null && c.getClienteNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getMascotaNombre() != null && c.getMascotaNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getVeterinarioNombre() != null && c.getVeterinarioNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getMotivo() != null && c.getMotivo().toLowerCase().contains(searchLower))
+                    )
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro por rango de fechas si están presentes
+        if (fechaInicio != null && !fechaInicio.isEmpty() && fechaFin != null && !fechaFin.isEmpty()) {
+            try {
+                LocalDate inicio = LocalDate.parse(fechaInicio);
+                LocalDate fin = LocalDate.parse(fechaFin);
+                citas = citas.stream()
+                        .filter(c -> {
+                            try {
+                                if (c.getFechaHora() != null) {
+                                    LocalDate fechaCitaDate = c.getFechaHora().toLocalDate();
+                                    return !fechaCitaDate.isBefore(inicio) && !fechaCitaDate.isAfter(fin);
+                                }
+                                return false;
+                            } catch (Exception e) {
+                                return false;
+                            }
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+            } catch (Exception e) {
+                // Si hay error al parsear fechas, ignorar el filtro de fechas
+            }
         }
         
         byte[] csvBytes = csvExportService.exportarCitasCSV(citas);
@@ -249,7 +343,9 @@ public class GestionReporteController {
     
     @GetMapping("/usuarios/export/pdf")
     public ResponseEntity<byte[]> exportarReporteUsuariosPDF(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) String search) {
         List<ReporteUsuarioDTO> usuarios;
         EstadisticasUsuariosDTO estadisticas;
         
@@ -261,19 +357,43 @@ public class GestionReporteController {
             estadisticas = gestionReporteService.getEstadisticasUsuarios();
         }
         
+        // Aplicar filtro por rol si está presente
+        if (rol != null && !rol.isEmpty()) {
+            String rolFiltro = rol.startsWith("ROLE_") ? rol : "ROLE_" + rol;
+            usuarios = usuarios.stream()
+                    .filter(u -> u.getRol().equals(rolFiltro))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            usuarios = usuarios.stream()
+                    .filter(u -> 
+                        u.getUsername().toLowerCase().contains(searchLower) ||
+                        (u.getNombres() != null && u.getNombres().toLowerCase().contains(searchLower)) ||
+                        (u.getApellidos() != null && u.getApellidos().toLowerCase().contains(searchLower)) ||
+                        (u.getEmail() != null && u.getEmail().toLowerCase().contains(searchLower)) ||
+                        u.getDocumento().toLowerCase().contains(searchLower)
+                    )
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
         byte[] pdfBytes = pdfExportService.generarReporteUsuariosPDF(usuarios, estadisticas);
         
         String filename = "reporte_usuarios_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
         
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.valueOf("application/pdf"))
                 .body(pdfBytes);
     }
 
     @GetMapping("/mascotas/export/pdf")
     public ResponseEntity<byte[]> exportarReporteMascotasPDF(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String especie,
+            @RequestParam(required = false) String search) {
         List<ReporteMascotaDTO> mascotas;
         EstadisticasMascotasDTO estadisticas;
         
@@ -285,19 +405,43 @@ public class GestionReporteController {
             estadisticas = gestionReporteService.getEstadisticasMascotas();
         }
         
+        // Aplicar filtro por especie si está presente
+        if (especie != null && !especie.isEmpty()) {
+            mascotas = mascotas.stream()
+                    .filter(m -> m.getEspecie().equalsIgnoreCase(especie))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            mascotas = mascotas.stream()
+                    .filter(m -> 
+                        m.getNombre().toLowerCase().contains(searchLower) ||
+                        (m.getPropietarioNombre() != null && m.getPropietarioNombre().toLowerCase().contains(searchLower)) ||
+                        (m.getPropietarioApellido() != null && m.getPropietarioApellido().toLowerCase().contains(searchLower)) ||
+                        (m.getRaza() != null && m.getRaza().toLowerCase().contains(searchLower))
+                    )
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
         byte[] pdfBytes = pdfExportService.generarReporteMascotasPDF(mascotas, estadisticas);
         
         String filename = "reporte_mascotas_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
         
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.valueOf("application/pdf"))
                 .body(pdfBytes);
     }
 
     @GetMapping("/citas/export/pdf")
     public ResponseEntity<byte[]> exportarReporteCitasPDF(
-            @RequestParam(required = false) Long veterinariaId) {
+            @RequestParam(required = false) Long veterinariaId,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String fechaInicio,
+            @RequestParam(required = false) String fechaFin) {
         List<ReporteCitaDTO> citas;
         EstadisticasCitasDTO estadisticas;
         
@@ -309,13 +453,56 @@ public class GestionReporteController {
             estadisticas = gestionReporteService.getEstadisticasCitas();
         }
         
+        // Aplicar filtro por estado si está presente
+        if (estado != null && !estado.isEmpty()) {
+            citas = citas.stream()
+                    .filter(c -> c.getEstado().equals(estado))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro de búsqueda si está presente
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            citas = citas.stream()
+                    .filter(c -> 
+                        (c.getClienteNombre() != null && c.getClienteNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getMascotaNombre() != null && c.getMascotaNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getVeterinarioNombre() != null && c.getVeterinarioNombre().toLowerCase().contains(searchLower)) ||
+                        (c.getMotivo() != null && c.getMotivo().toLowerCase().contains(searchLower))
+                    )
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        
+        // Aplicar filtro por rango de fechas si están presentes
+        if (fechaInicio != null && !fechaInicio.isEmpty() && fechaFin != null && !fechaFin.isEmpty()) {
+            try {
+                LocalDate inicio = LocalDate.parse(fechaInicio);
+                LocalDate fin = LocalDate.parse(fechaFin);
+                citas = citas.stream()
+                        .filter(c -> {
+                            try {
+                                if (c.getFechaHora() != null) {
+                                    LocalDate fechaCitaDate = c.getFechaHora().toLocalDate();
+                                    return !fechaCitaDate.isBefore(inicio) && !fechaCitaDate.isAfter(fin);
+                                }
+                                return false;
+                            } catch (Exception e) {
+                                return false;
+                            }
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+            } catch (Exception e) {
+                // Si hay error al parsear fechas, ignorar el filtro de fechas
+            }
+        }
+        
         byte[] pdfBytes = pdfExportService.generarReporteCitasPDF(citas, estadisticas);
         
         String filename = "reporte_citas_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
         
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.valueOf("application/pdf"))
                 .body(pdfBytes);
     }
 }

@@ -1,0 +1,241 @@
+/* Contenedor de pestañas de reportes */
+.reportes-tabs-container {
+  margin-bottom: 2rem;
+  padding: 0;
+  background: transparent;
+}
+
+/* Pestañas de navegación mejoradas - estilo carpetas */
+.reportes-tabs-container .nav-tabs {
+  border: none;
+  border-bottom: 3px solid #dee2e6;
+  background: transparent;
+  gap: 0.25rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+}
+
+/* Items de navegación */
+.reportes-tabs-container .nav-item {
+  flex: 1 1 0;
+  margin: 0;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+/* Enlaces de pestañas base - estilo carpeta */
+.reportes-tabs-container .nav-link {
+  color: #495057;
+  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: visible;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: -3px;
+  white-space: nowrap;
+  clip-path: polygon(
+    8% 0%, 
+    92% 0%, 
+    100% 15%, 
+    100% 100%, 
+    0% 100%, 
+    0% 15%
+  );
+}
+
+/* Pestaña de carpeta cerrada (solapa superior) */
+.reportes-tabs-container .nav-link::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 20%;
+  width: 40%;
+  height: 12px;
+  background: inherit;
+  border: 2px solid #dee2e6;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s ease;
+}
+
+/* Hover state - carpeta levantándose */
+.reportes-tabs-container .nav-link:hover {
+  color: #212529;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  border-color: #ced4da;
+  transform: translateY(-4px);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+
+.reportes-tabs-container .nav-link:hover::after {
+  top: -10px;
+}
+
+/* Pestaña activa - carpeta abierta */
+.reportes-tabs-container .nav-link.active {
+  color: #212529;
+  background: #ffffff;
+  border-color: #dee2e6;
+  border-bottom-color: #ffffff;
+  transform: translateY(-3px);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.15);
+  z-index: 3;
+  animation: folderOpen 0.4s ease;
+}
+
+/* Iconos en las pestañas */
+.reportes-tabs-container .nav-link i {
+  font-size: 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+/* Animación de icono al activar */
+.reportes-tabs-container .nav-link.active i {
+  animation: iconBounce 0.5s ease;
+}
+
+/* Efecto al hacer hover en el icono */
+.reportes-tabs-container .nav-link:hover i {
+  transform: scale(1.15) rotate(5deg);
+}
+
+/* Badge de indicador (opcional para futuras mejoras) */
+.reportes-tabs-container .nav-link .badge {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.reportes-tabs-container .nav-link.active .badge {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Animaciones */
+@keyframes folderOpen {
+  0% {
+    transform: translateY(0) rotateX(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-5px) rotateX(5deg);
+  }
+  100% {
+    transform: translateY(-3px) rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes iconBounce {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.2) rotate(-10deg);
+  }
+  75% {
+    transform: scale(1.2) rotate(10deg);
+  }
+}
+
+/* Colores de carpeta por tipo de reporte */
+.reportes-tabs-container .nav-link[data-report-type="usuarios"] {
+  border-top: 4px solid #6f42c1;
+}
+
+.reportes-tabs-container .nav-link[data-report-type="usuarios"].active {
+  background: #ffffff;
+  border-color: #dee2e6;
+  border-top-color: #6f42c1;
+  border-bottom-color: #ffffff;
+  box-shadow: 0 -6px 16px rgba(111, 66, 193, 0.2);
+}
+
+.reportes-tabs-container .nav-link[data-report-type="usuarios"].active i {
+  color: #6f42c1;
+}
+
+.reportes-tabs-container .nav-link[data-report-type="mascotas"] {
+  border-top: 4px solid #28a745;
+}
+
+.reportes-tabs-container .nav-link[data-report-type="mascotas"].active {
+  background: #ffffff;
+  border-color: #dee2e6;
+  border-top-color: #28a745;
+  border-bottom-color: #ffffff;
+  box-shadow: 0 -6px 16px rgba(40, 167, 69, 0.2);
+}
+
+.reportes-tabs-container .nav-link[data-report-type="mascotas"].active i {
+  color: #28a745;
+}
+
+.reportes-tabs-container .nav-link[data-report-type="citas"] {
+  border-top: 4px solid #fd7e14;
+}
+
+.reportes-tabs-container .nav-link[data-report-type="citas"].active {
+  background: #ffffff;
+  border-color: #dee2e6;
+  border-top-color: #fd7e14;
+  border-bottom-color: #ffffff;
+  box-shadow: 0 -6px 16px rgba(253, 126, 20, 0.2);
+}
+
+.reportes-tabs-container .nav-link[data-report-type="citas"].active i {
+  color: #fd7e14;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reportes-tabs-container .nav-tabs {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .reportes-tabs-container .nav-link {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+/* Contenido de las pestañas - continúa el efecto de carpeta */
+.reportes-tabs-container .tab-content {
+  background: #ffffff;
+  border: 2px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  animation: fadeInContent 0.4s ease;
+  position: relative;
+  margin-top: -2px;
+}
+
+@keyframes fadeInContent {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

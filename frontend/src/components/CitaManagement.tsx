@@ -20,6 +20,7 @@ import mascotaService from '../services/mascotaService';
 import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
+import SearchableSelect from './SearchableSelect';
 
 const CitaManagement: React.FC = () => {
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -707,27 +708,44 @@ const CitaManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={4}>
-                  <Form.Select
+                <Col md={3}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todos los estados' },
+                      { value: EstadoCita.PROGRAMADA, label: 'Programada' },
+                      { value: EstadoCita.CONFIRMADA, label: 'Confirmada' },
+                      { value: EstadoCita.EN_CURSO, label: 'En Curso' },
+                      { value: EstadoCita.COMPLETADA, label: 'Completada' },
+                      { value: EstadoCita.CANCELADA, label: 'Cancelada' },
+                      { value: EstadoCita.NO_ASISTIO, label: 'No Asistió' }
+                    ]}
                     value={filterByEstado}
-                    onChange={(e) => setFilterByEstado(e.target.value)}
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value={EstadoCita.PROGRAMADA}>Programada</option>
-                    <option value={EstadoCita.CONFIRMADA}>Confirmada</option>
-                    <option value={EstadoCita.EN_CURSO}>En Curso</option>
-                    <option value={EstadoCita.COMPLETADA}>Completada</option>
-                    <option value={EstadoCita.CANCELADA}>Cancelada</option>
-                    <option value={EstadoCita.NO_ASISTIO}>No Asistió</option>
-                  </Form.Select>
+                    onChange={setFilterByEstado}
+                    placeholder="Todos los estados"
+                  />
                 </Col>
-                <Col md={4}>
+                <Col md={3}>
                   <Form.Control
                     type="date"
                     value={filterByFecha}
                     onChange={(e) => setFilterByFecha(e.target.value)}
                     placeholder="Filtrar por fecha"
                   />
+                </Col>
+                <Col md={2}>
+                  <Button
+                    variant="outline-secondary"
+                    className="w-100"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setFilterByEstado('');
+                      setFilterByFecha('');
+                    }}
+                    title="Limpiar filtros"
+                  >
+                    <i className="fas fa-eraser me-2"></i>
+                    Limpiar
+                  </Button>
                 </Col>
               </Row>
 
@@ -820,7 +838,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-check"></i>
                                 </Button>
                               )}
-                              {cita.estado === EstadoCita.CONFIRMADA && (
+                              {cita.estado === EstadoCita.CONFIRMADA && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario()) && (
                                 <Button
                                   size="sm"
                                   variant="primary"
@@ -830,7 +848,7 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-play"></i>
                                 </Button>
                               )}
-                              {cita.estado === EstadoCita.EN_CURSO && (
+                              {cita.estado === EstadoCita.EN_CURSO && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario()) && (
                                 <Button
                                   size="sm"
                                   variant="success"
@@ -840,7 +858,12 @@ const CitaManagement: React.FC = () => {
                                   <i className="fas fa-check-double"></i>
                                 </Button>
                               )}
-                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (authService.isAdmin() || authService.isRecepcionista() || authService.isVeterinario() || authService.isCliente()) && (
+                              {(cita.estado === EstadoCita.PROGRAMADA || cita.estado === EstadoCita.CONFIRMADA) && (
+                                authService.isAdmin() || 
+                                authService.isRecepcionista() || 
+                                authService.isVeterinario() || 
+                                (authService.isCliente() && cita.clienteDocumento === authService.getCurrentUser()?.documento)
+                              ) && (
                                 <Button
                                   size="sm"
                                   variant="danger"
@@ -904,20 +927,19 @@ const CitaManagement: React.FC = () => {
                       disabled
                     />
                   ) : (
-                    <Form.Select
-                      name="veterinariaId"
+                    <SearchableSelect
+                      options={[
+                        { value: '', label: 'Seleccione una veterinaria' },
+                        ...veterinarias.map(veterinaria => ({
+                          value: veterinaria.id.toString(),
+                          label: veterinaria.nombre
+                        }))
+                      ]}
                       value={formData.veterinariaId}
-                      onChange={handleInputChange}
+                      onChange={(value) => handleInputChange({ target: { name: 'veterinariaId', value } } as any)}
                       disabled={modalMode === 'view'}
                       required
-                    >
-                      <option value="">Seleccione una veterinaria</option>
-                      {veterinarias.map(veterinaria => (
-                        <option key={veterinaria.id} value={veterinaria.id}>
-                          {veterinaria.nombre}
-                        </option>
-                      ))}
-                    </Form.Select>
+                    />
                   )}
                 </Form.Group>
               </Card.Body>
@@ -1052,20 +1074,19 @@ const CitaManagement: React.FC = () => {
                           disabled
                         />
                       ) : (
-                        <Form.Select
-                          name="clienteId"
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Seleccione un cliente' },
+                            ...clientes.map(cliente => ({
+                              value: cliente.documento,
+                              label: `${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`
+                            }))
+                          ]}
                           value={formData.clienteId}
-                          onChange={handleInputChange}
+                          onChange={(value) => handleInputChange({ target: { name: 'clienteId', value } } as any)}
                           required
                           disabled={modalMode === 'view' || authService.isCliente()}
-                        >
-                          <option value="">Seleccione un cliente</option>
-                          {clientes.map(cliente => (
-                            <option key={cliente.documento} value={cliente.documento}>
-                              {`${cliente.nombres || ''} ${cliente.apellidos || ''} - ${cliente.documento}`}
-                            </option>
-                          ))}
-                        </Form.Select>
+                        />
                       )}
                     </Form.Group>
                   </Col>
@@ -1080,24 +1101,24 @@ const CitaManagement: React.FC = () => {
                         />
                       ) : (
                         <>
-                          <Form.Select
-                            name="mascotaId"
+                          <SearchableSelect
+                            options={[
+                              {
+                                value: '',
+                                label: formData.clienteId 
+                                  ? 'Seleccione una mascota' 
+                                  : 'Primero seleccione un cliente'
+                              },
+                              ...getMascotasByCliente().map(mascota => ({
+                                value: mascota.id.toString(),
+                                label: `${mascota.nombre} (${mascota.especie})`
+                              }))
+                            ]}
                             value={formData.mascotaId}
-                            onChange={handleInputChange}
+                            onChange={(value) => handleInputChange({ target: { name: 'mascotaId', value } } as any)}
                             required
                             disabled={modalMode === 'view' || !formData.clienteId}
-                          >
-                            <option value="">
-                              {formData.clienteId 
-                                ? 'Seleccione una mascota' 
-                                : 'Primero seleccione un cliente'}
-                            </option>
-                            {getMascotasByCliente().map(mascota => (
-                              <option key={mascota.id} value={mascota.id}>
-                                {`${mascota.nombre} (${mascota.especie})`}
-                              </option>
-                            ))}
-                          </Form.Select>
+                          />
                           {modalMode !== 'view' && modalMode !== 'edit' && formData.clienteId && getMascotasByCliente().length === 0 && (
                             <Form.Text className="text-warning">
                               <i className="fas fa-exclamation-circle me-1"></i>
@@ -1136,22 +1157,22 @@ const CitaManagement: React.FC = () => {
                       />
                     ) : (
                       <>
-                        <Form.Select
-                          name="veterinarioId"
+                        <SearchableSelect
+                          options={[
+                            {
+                              value: '',
+                              label: authService.isRecepcionista() && modalMode === 'create' ? 'Seleccione un veterinario' : 'Sin asignar'
+                            },
+                            ...filteredVeterinarios.map(veterinario => ({
+                              value: veterinario.documento,
+                              label: `Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`
+                            }))
+                          ]}
                           value={formData.veterinarioId}
-                          onChange={handleInputChange}
+                          onChange={(value) => handleInputChange({ target: { name: 'veterinarioId', value } } as any)}
                           disabled={modalMode === 'view' || !formData.veterinariaId}
                           required={authService.isRecepcionista() && modalMode === 'create'}
-                        >
-                          <option value="">
-                            {authService.isRecepcionista() && modalMode === 'create' ? 'Seleccione un veterinario' : 'Sin asignar'}
-                          </option>
-                          {filteredVeterinarios.map(veterinario => (
-                            <option key={veterinario.documento} value={veterinario.documento}>
-                              {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
-                            </option>
-                          ))}
-                        </Form.Select>
+                        />
                         {!formData.veterinariaId && (
                           <Form.Text className="text-muted">
                             <i className="fas fa-info-circle me-1"></i>

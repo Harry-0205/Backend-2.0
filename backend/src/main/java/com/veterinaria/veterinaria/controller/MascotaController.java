@@ -4,8 +4,10 @@ import com.veterinaria.veterinaria.dto.MascotaResponse;
 import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.entity.Usuario;
+import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.service.MascotaService;
 import com.veterinaria.veterinaria.service.UsuarioService;
+import com.veterinaria.veterinaria.service.VeterinariaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,6 +31,9 @@ public class MascotaController {
     
     @Autowired
     private UsuarioService usuarioService;
+    
+    @Autowired
+    private VeterinariaService veterinariaService;
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO')")
@@ -57,17 +63,34 @@ public class MascotaController {
             // Si es veterinario, obtener solo las mascotas que ha atendido
             mascotas = mascotaService.findMascotasAtendidasByVeterinario(usuarioAutenticado.getDocumento());
             System.out.println("=== DEBUG: Veterinario " + username + " consultando mascotas atendidas: " + mascotas.size());
-        } else if (isAdmin || isRecepcionista) {
-            // Admin y Recepcionista ven solo mascotas cuyos propietarios pertenecen a su veterinaria
+        } else if (isAdmin) {
+            // Admin ve mascotas de todas las veterinarias que creó
+            List<Long> veterinariaIds = new ArrayList<>();
+            List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuarioAutenticado.getDocumento());
+            veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+            
+            mascotas = new ArrayList<>();
+            for (Long vetId : veterinariaIds) {
+                List<Mascota> mascotasDeVet = mascotaService.findByPropietarioVeterinariaId(vetId);
+                for (Mascota m : mascotasDeVet) {
+                    if (!mascotas.contains(m)) {
+                        mascotas.add(m);
+                    }
+                }
+            }
+            System.out.println("=== DEBUG: Admin " + username + 
+                " consultando mascotas de " + veterinariaIds.size() + " veterinarias: " + mascotas.size() + " mascotas");
+        } else if (isRecepcionista) {
+            // Recepcionista ve solo mascotas cuyos propietarios pertenecen a su veterinaria
             if (usuarioAutenticado.getVeterinaria() != null) {
                 Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
                 mascotas = mascotaService.findByPropietarioVeterinariaId(veterinariaId);
-                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                System.out.println("=== DEBUG: Recepcionista " + username + 
                     " consultando mascotas de veterinaria ID " + veterinariaId + ": " + mascotas.size() + " mascotas");
             } else {
                 // Si no tiene veterinaria asignada, no puede ver ninguna mascota
                 mascotas = List.of();
-                System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                System.out.println("=== DEBUG: Recepcionista " + username + 
                     " sin veterinaria asignada, no puede ver mascotas");
             }
         } else {

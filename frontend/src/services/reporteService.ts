@@ -102,9 +102,13 @@ export const getEstadisticasUsuarios = async (veterinariaId?: number): Promise<E
   }
 };
 
-export const getReporteUsuariosPorRol = async (rol: string): Promise<ReporteUsuario[]> => {
+export const getReporteUsuariosPorRol = async (rol: string, veterinariaId?: number): Promise<ReporteUsuario[]> => {
   try {
-    const res = await apiClient.get(`/reportes/usuarios/rol/${rol}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/usuarios/rol/${rol}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de usuarios por rol:', error);
@@ -135,9 +139,13 @@ export const getEstadisticasMascotas = async (veterinariaId?: number): Promise<E
   }
 };
 
-export const getReporteMascotasPorEspecie = async (especie: string): Promise<ReporteMascota[]> => {
+export const getReporteMascotasPorEspecie = async (especie: string, veterinariaId?: number): Promise<ReporteMascota[]> => {
   try {
-    const res = await apiClient.get(`/reportes/mascotas/especie/${especie}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/mascotas/especie/${especie}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de mascotas por especie:', error);
@@ -168,9 +176,13 @@ export const getEstadisticasCitas = async (veterinariaId?: number): Promise<Esta
   }
 };
 
-export const getReporteCitasPorEstado = async (estado: string): Promise<ReporteCita[]> => {
+export const getReporteCitasPorEstado = async (estado: string, veterinariaId?: number): Promise<ReporteCita[]> => {
   try {
-    const res = await apiClient.get(`/reportes/citas/estado/${estado}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/citas/estado/${estado}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de citas por estado:', error);
@@ -191,9 +203,19 @@ export const getReporteCitasPorFecha = async (fechaInicio: string, fechaFin: str
 };
 
 // Exportar reportes a CSV
-export const exportarReporteCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas', veterinariaId?: number): Promise<void> => {
+export const exportarReporteCSV = async (
+  tipo: 'usuarios' | 'mascotas' | 'citas', 
+  veterinariaId?: number,
+  filtros?: any
+): Promise<void> => {
   try {
-    const params = veterinariaId ? { veterinariaId } : {};
+    const params: any = {};
+    if (veterinariaId) params.veterinariaId = veterinariaId;
+    if (filtros) {
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key]) params[key] = filtros[key];
+      });
+    }
     const res = await apiClient.get(`/reportes/${tipo}/export/csv`, {
       params,
       responseType: 'blob'
@@ -214,9 +236,19 @@ export const exportarReporteCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas'
 };
 
 // Exportar reportes a PDF
-export const exportarReportePDF = async (tipo: 'usuarios' | 'mascotas' | 'citas', veterinariaId?: number): Promise<void> => {
+export const exportarReportePDF = async (
+  tipo: 'usuarios' | 'mascotas' | 'citas', 
+  veterinariaId?: number,
+  filtros?: any
+): Promise<void> => {
   try {
-    const params = veterinariaId ? { veterinariaId } : {};
+    const params: any = {};
+    if (veterinariaId) params.veterinariaId = veterinariaId;
+    if (filtros) {
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key]) params[key] = filtros[key];
+      });
+    }
     const res = await apiClient.get(`/reportes/${tipo}/export/pdf`, {
       params,
       responseType: 'blob'

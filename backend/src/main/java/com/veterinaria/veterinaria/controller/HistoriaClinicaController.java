@@ -4,6 +4,7 @@ import com.veterinaria.veterinaria.entity.HistoriaClinica;
 import com.veterinaria.veterinaria.entity.Usuario;
 import com.veterinaria.veterinaria.entity.Mascota;
 import com.veterinaria.veterinaria.entity.Cita;
+import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.dto.HistoriaClinicaResponse;
 import com.veterinaria.veterinaria.dto.HistoriaClinicaRequest;
 import com.veterinaria.veterinaria.dto.ApiResponse;
@@ -11,6 +12,7 @@ import com.veterinaria.veterinaria.service.HistoriaClinicaService;
 import com.veterinaria.veterinaria.service.UsuarioService;
 import com.veterinaria.veterinaria.service.MascotaService;
 import com.veterinaria.veterinaria.service.CitaService;
+import com.veterinaria.veterinaria.service.VeterinariaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,6 +42,9 @@ public class HistoriaClinicaController {
     
     @Autowired
     private CitaService citaService;
+    
+    @Autowired
+    private VeterinariaService veterinariaService;
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIO') or hasRole('RECEPCIONISTA') or hasRole('CLIENTE')")
@@ -93,8 +99,33 @@ public class HistoriaClinicaController {
                     })
                     .collect(java.util.stream.Collectors.toList());
                 System.out.println("=== DEBUG: Veterinario " + username + " historias activas después de filtrar: " + historias.size());
-            } else if (isAdmin || isRecepcionista) {
-                // Admin y Recepcionista ven TODAS las historias de su veterinaria (activas e inactivas)
+            } else if (isAdmin) {
+                // Admin ve historias de todas las veterinarias que creó
+                List<Long> veterinariaIds = new ArrayList<>();
+                List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuarioAutenticado.getDocumento());
+                veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+                
+                historias = new ArrayList<>();
+                for (Long vetId : veterinariaIds) {
+                    List<HistoriaClinica> historiasDeVet = historiaClinicaService.findByVeterinariaId(vetId);
+                    for (HistoriaClinica h : historiasDeVet) {
+                        if (!historias.contains(h)) {
+                            historias.add(h);
+                        }
+                    }
+                }
+                System.out.println("=== DEBUG: Admin " + username + 
+                    " consultando historias de " + veterinariaIds.size() + " veterinarias: " + historias.size() + " historias");
+                
+                // Debug: mostrar detalles de cada historia
+                for (HistoriaClinica h : historias) {
+                    System.out.println("  - Historia ID " + h.getId() + 
+                                     ", Mascota: " + (h.getMascota() != null ? h.getMascota().getNombre() : "null") +
+                                     ", Veterinario: " + (h.getVeterinario() != null ? h.getVeterinario().getNombres() : "null") +
+                                     ", Activo: " + h.getActivo());
+                }
+            } else if (isRecepcionista) {
+                // Recepcionista ve solo las historias de su veterinaria
                 System.out.println("=== DEBUG HISTORIAS: Usuario " + username + " tiene veterinaria? " + (usuarioAutenticado.getVeterinaria() != null));
                 
                 if (usuarioAutenticado.getVeterinaria() != null) {
@@ -104,7 +135,7 @@ public class HistoriaClinicaController {
                     
                     historias = historiaClinicaService.findByVeterinariaId(veterinariaId);
                     
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG: Recepcionista " + username + 
                         " consultando historias de veterinaria ID " + veterinariaId + ": " + historias.size() + " historias");
                     
                     // Debug: mostrar detalles de cada historia
@@ -117,7 +148,7 @@ public class HistoriaClinicaController {
                 } else {
                     // Si no tiene veterinaria asignada, no puede ver ninguna historia
                     historias = List.of();
-                    System.out.println("=== DEBUG ALERTA HISTORIAS: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG ALERTA HISTORIAS: Recepcionista " + username + 
                         " sin veterinaria asignada! Documento: " + usuarioAutenticado.getDocumento());
                 }
             } else {

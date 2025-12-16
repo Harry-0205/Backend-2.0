@@ -266,6 +266,9 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
         roles: currentUser.roles,
         veterinaria: currentUser.veterinaria
       }]);
+      
+      // Auto-seleccionar el veterinario en el formulario
+      setFormData(prev => ({ ...prev, veterinarioId: currentUser.documento }));
       return;
     }
     
@@ -276,6 +279,13 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       console.log('✅ Veterinarios filtrados cargados:', veterinariosList.length);
       console.log('📋 Veterinarios:', veterinariosList.map(v => `${v.nombres} ${v.apellidos}`).join(', '));
       setVeterinarios(veterinariosList);
+      
+      // Si es cliente y hay al menos un veterinario, no auto-seleccionar (dejar que el cliente elija)
+      // Si hay solo uno, podríamos auto-seleccionarlo
+      if (veterinariosList.length === 1) {
+        console.log('ℹ️ Solo hay un veterinario disponible, auto-seleccionando');
+        setFormData(prev => ({ ...prev, veterinarioId: veterinariosList[0].documento }));
+      }
     } catch (error: any) {
       console.error('❌ Error al cargar veterinarios por veterinaria:', error.response?.status, error.response?.data);
       
@@ -291,7 +301,9 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
           roles: currentUser.roles,
           veterinaria: currentUser.veterinaria
         }]);
+        setFormData(prev => ({ ...prev, veterinarioId: currentUser.documento }));
       } else {
+        Alert.alert('Advertencia', 'No se pudieron cargar los veterinarios. El veterinario será asignado automáticamente por el sistema.');
         setVeterinarios([]);
       }
     }

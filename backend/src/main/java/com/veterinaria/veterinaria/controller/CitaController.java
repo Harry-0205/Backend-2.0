@@ -23,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -78,17 +79,34 @@ public class CitaController {
                 // Si es veterinario, obtener solo sus citas
                 citas = citaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
                 System.out.println("=== DEBUG: Veterinario " + username + " consultando sus citas: " + citas.size());
-            } else if (isAdmin || isRecepcionista) {
-                // Admin y Recepcionista ven solo citas de su veterinaria
+            } else if (isAdmin) {
+                // Admin ve citas de todas las veterinarias que creó
+                List<Long> veterinariaIds = new ArrayList<>();
+                List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuarioAutenticado.getDocumento());
+                veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+                
+                citas = new ArrayList<>();
+                for (Long vetId : veterinariaIds) {
+                    List<Cita> citasDeVet = citaService.findByVeterinariaId(vetId);
+                    for (Cita c : citasDeVet) {
+                        if (!citas.contains(c)) {
+                            citas.add(c);
+                        }
+                    }
+                }
+                System.out.println("=== DEBUG: Admin " + username + 
+                    " consultando citas de " + veterinariaIds.size() + " veterinarias: " + citas.size() + " citas");
+            } else if (isRecepcionista) {
+                // Recepcionista ve solo citas de su veterinaria
                 if (usuarioAutenticado.getVeterinaria() != null) {
                     Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
                     citas = citaService.findByVeterinariaId(veterinariaId);
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG: Recepcionista " + username + 
                         " consultando citas de veterinaria ID " + veterinariaId + ": " + citas.size() + " citas");
                 } else {
                     // Si no tiene veterinaria asignada, no puede ver ninguna cita
                     citas = List.of();
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG: Recepcionista " + username + 
                         " sin veterinaria asignada, no puede ver citas");
                 }
             } else {

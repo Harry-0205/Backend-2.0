@@ -37,6 +37,8 @@ import {
 } from '../services/reporteService';
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
+import SearchableSelect from './SearchableSelect';
+import './ReporteManagement.css';
 
 const ReporteManagement: React.FC = () => {
   // Estados generales
@@ -73,6 +75,17 @@ const ReporteManagement: React.FC = () => {
   // Cargar datos según la pestaña activa
   useEffect(() => {
     loadVeterinarias();
+    
+    // Limpiar filtros al cambiar de pestaña
+    setSearchUsuarios('');
+    setFilterRol('');
+    setSearchMascotas('');
+    setFilterEspecie('');
+    setSearchCitas('');
+    setFilterEstado('');
+    setFechaInicio('');
+    setFechaFin('');
+    
     if (activeTab === 'usuarios') {
       loadReporteUsuarios();
     } else if (activeTab === 'mascotas') {
@@ -86,11 +99,26 @@ const ReporteManagement: React.FC = () => {
   // Recargar datos cuando cambia la veterinaria seleccionada
   useEffect(() => {
     if (activeTab === 'usuarios') {
-      loadReporteUsuarios();
+      // Si hay un filtro de rol activo, reaplicarlo después de cargar los datos
+      if (filterRol) {
+        handleFilterPorRol(filterRol);
+      } else {
+        loadReporteUsuarios();
+      }
     } else if (activeTab === 'mascotas') {
-      loadReporteMascotas();
+      // Si hay un filtro de especie activo, reaplicarlo después de cargar los datos
+      if (filterEspecie) {
+        handleFilterPorEspecie(filterEspecie);
+      } else {
+        loadReporteMascotas();
+      }
     } else if (activeTab === 'citas') {
-      loadReporteCitas();
+      // Si hay un filtro de estado activo, reaplicarlo después de cargar los datos
+      if (filterEstado) {
+        handleFilterPorEstado(filterEstado);
+      } else {
+        loadReporteCitas();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVeterinaria]);
@@ -110,21 +138,39 @@ const ReporteManagement: React.FC = () => {
 
   // Filtrar usuarios
   useEffect(() => {
-    filterUsuariosData();
+    // Solo aplicar filtrado local para búsqueda por texto
+    // El filtrado por rol se hace desde el backend
+    if (searchUsuarios) {
+      filterUsuariosData();
+    } else {
+      setFilteredUsuarios(reporteUsuarios);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reporteUsuarios, searchUsuarios, filterRol]);
+  }, [reporteUsuarios, searchUsuarios]);
 
   // Filtrar mascotas
   useEffect(() => {
-    filterMascotasData();
+    // Solo aplicar filtrado local para búsqueda por texto
+    // El filtrado por especie se hace desde el backend
+    if (searchMascotas) {
+      filterMascotasData();
+    } else {
+      setFilteredMascotas(reporteMascotas);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reporteMascotas, searchMascotas, filterEspecie]);
+  }, [reporteMascotas, searchMascotas]);
 
   // Filtrar citas
   useEffect(() => {
-    filterCitasData();
+    // Solo aplicar filtrado local para búsqueda por texto
+    // El filtrado por estado se hace desde el backend
+    if (searchCitas) {
+      filterCitasData();
+    } else {
+      setFilteredCitas(reporteCitas);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reporteCitas, searchCitas, filterEstado]);
+  }, [reporteCitas, searchCitas]);
 
   // ==================== FUNCIONES DE CARGA ====================
 
@@ -137,6 +183,7 @@ const ReporteManagement: React.FC = () => {
         getEstadisticasUsuarios(veterinariaId)
       ]);
       setReporteUsuarios(reporte);
+      setFilteredUsuarios(reporte);
       setEstadisticasUsuarios(stats);
       setError('');
     } catch (error: any) {
@@ -156,6 +203,7 @@ const ReporteManagement: React.FC = () => {
         getEstadisticasMascotas(veterinariaId)
       ]);
       setReporteMascotas(reporte);
+      setFilteredMascotas(reporte);
       setEstadisticasMascotas(stats);
       setError('');
     } catch (error: any) {
@@ -175,6 +223,7 @@ const ReporteManagement: React.FC = () => {
         getEstadisticasCitas(veterinariaId)
       ]);
       setReporteCitas(reporte);
+      setFilteredCitas(reporte);
       setEstadisticasCitas(stats);
       setError('');
     } catch (error: any) {
@@ -200,10 +249,6 @@ const ReporteManagement: React.FC = () => {
       );
     }
 
-    if (filterRol) {
-      filtered = filtered.filter(u => normalizeRole(u.rol) === filterRol);
-    }
-
     setFilteredUsuarios(filtered);
   };
 
@@ -217,10 +262,6 @@ const ReporteManagement: React.FC = () => {
         m.propietarioApellido?.toLowerCase().includes(searchMascotas.toLowerCase()) ||
         m.raza?.toLowerCase().includes(searchMascotas.toLowerCase())
       );
-    }
-
-    if (filterEspecie) {
-      filtered = filtered.filter(m => m.especie.toLowerCase() === filterEspecie.toLowerCase());
     }
 
     setFilteredMascotas(filtered);
@@ -238,10 +279,6 @@ const ReporteManagement: React.FC = () => {
       );
     }
 
-    if (filterEstado) {
-      filtered = filtered.filter(c => c.estado === filterEstado);
-    }
-
     setFilteredCitas(filtered);
   };
 
@@ -249,14 +286,25 @@ const ReporteManagement: React.FC = () => {
 
   const handleFilterPorRol = async (rol: string) => {
     if (!rol) {
-      loadReporteUsuarios();
+      await loadReporteUsuarios();
       return;
     }
     
     try {
       setLoading(true);
-      const reporte = await getReporteUsuariosPorRol(rol);
-      setReporteUsuarios(reporte);
+      // Obtener todos los usuarios y filtrar localmente por rol
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      const [reporte, stats] = await Promise.all([
+        getReporteUsuarios(veterinariaId),
+        getEstadisticasUsuarios(veterinariaId)
+      ]);
+      
+      // Filtrar por rol localmente
+      const filtered = reporte.filter(u => normalizeRole(u.rol) === rol);
+      
+      setReporteUsuarios(filtered);
+      setFilteredUsuarios(filtered);
+      setEstadisticasUsuarios(stats);
       setError('');
     } catch (error: any) {
       setError('Error al filtrar usuarios por rol');
@@ -268,14 +316,25 @@ const ReporteManagement: React.FC = () => {
 
   const handleFilterPorEspecie = async (especie: string) => {
     if (!especie) {
-      loadReporteMascotas();
+      await loadReporteMascotas();
       return;
     }
 
     try {
       setLoading(true);
-      const reporte = await getReporteMascotasPorEspecie(especie);
-      setReporteMascotas(reporte);
+      // Obtener todas las mascotas y filtrar localmente por especie
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      const [reporte, stats] = await Promise.all([
+        getReporteMascotas(veterinariaId),
+        getEstadisticasMascotas(veterinariaId)
+      ]);
+      
+      // Filtrar por especie localmente
+      const filtered = reporte.filter(m => m.especie.toLowerCase() === especie.toLowerCase());
+      
+      setReporteMascotas(filtered);
+      setFilteredMascotas(filtered);
+      setEstadisticasMascotas(stats);
       setError('');
     } catch (error: any) {
       setError('Error al filtrar mascotas por especie');
@@ -287,14 +346,25 @@ const ReporteManagement: React.FC = () => {
 
   const handleFilterPorEstado = async (estado: string) => {
     if (!estado) {
-      loadReporteCitas();
+      await loadReporteCitas();
       return;
     }
 
     try {
       setLoading(true);
-      const reporte = await getReporteCitasPorEstado(estado);
-      setReporteCitas(reporte);
+      // Obtener todas las citas y filtrar localmente por estado
+      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      const [reporte, stats] = await Promise.all([
+        getReporteCitas(veterinariaId),
+        getEstadisticasCitas(veterinariaId)
+      ]);
+      
+      // Filtrar por estado localmente
+      const filtered = reporte.filter(c => c.estado === estado);
+      
+      setReporteCitas(filtered);
+      setFilteredCitas(filtered);
+      setEstadisticasCitas(stats);
       setError('');
     } catch (error: any) {
       setError('Error al filtrar citas por estado');
@@ -328,8 +398,48 @@ const ReporteManagement: React.FC = () => {
   const handleExportCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas') => {
     try {
       setLoading(true);
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
-      await exportarReporteCSV(tipo, veterinariaId);
+      
+      // Exportar los datos filtrados directamente desde el frontend
+      let csvContent = '';
+      let filename = '';
+      
+      if (tipo === 'usuarios') {
+        // Encabezados
+        csvContent = 'Documento,Usuario,Nombres,Apellidos,Email,Teléfono,Rol,Estado,Mascotas,Citas,Fecha Registro\n';
+        // Datos
+        filteredUsuarios.forEach(u => {
+          csvContent += `${u.documento},"${u.username}","${u.nombres || ''}","${u.apellidos || ''}","${u.email || ''}","${u.telefono || ''}","${u.rol}","${u.activo ? 'Activo' : 'Inactivo'}",${u.totalMascotas || 0},${u.totalCitas || 0},"${formatFecha(u.fechaRegistro || '')}"\n`;
+        });
+        filename = `reporte_usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (tipo === 'mascotas') {
+        // Encabezados
+        csvContent = 'ID,Nombre,Especie,Raza,Sexo,Edad,Propietario,Citas,Historias,Última Cita\n';
+        // Datos
+        filteredMascotas.forEach(m => {
+          csvContent += `${m.id},"${m.nombre}","${m.especie}","${m.raza || ''}","${m.sexo || ''}","${m.edad || ''}","${m.propietarioNombre || ''} ${m.propietarioApellido || ''}",${m.totalCitas || 0},${m.totalHistorias || 0},"${formatFecha(m.ultimaCita || '')}"\n`;
+        });
+        filename = `reporte_mascotas_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (tipo === 'citas') {
+        // Encabezados
+        csvContent = 'ID,Fecha y Hora,Cliente,Mascota,Veterinario,Veterinaria,Motivo,Estado\n';
+        // Datos
+        filteredCitas.forEach(c => {
+          csvContent += `${c.id},"${formatFechaHora(c.fechaHora)}","${c.clienteNombre || ''}","${c.mascotaNombre || ''}","${c.veterinarioNombre || ''}","${c.veterinariaNombre || ''}","${c.motivo || ''}","${c.estado}"\n`;
+        });
+        filename = `reporte_citas_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+      
+      // Crear blob y descargar
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       setSuccess('Reporte CSV exportado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -344,7 +454,24 @@ const ReporteManagement: React.FC = () => {
     try {
       setLoading(true);
       const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
-      await exportarReportePDF(tipo, veterinariaId);
+      
+      // Construir parámetros de filtros según el tipo de reporte
+      const filtros: any = {};
+      
+      if (tipo === 'usuarios') {
+        if (filterRol) filtros.rol = filterRol;
+        if (searchUsuarios) filtros.search = searchUsuarios;
+      } else if (tipo === 'mascotas') {
+        if (filterEspecie) filtros.especie = filterEspecie;
+        if (searchMascotas) filtros.search = searchMascotas;
+      } else if (tipo === 'citas') {
+        if (filterEstado) filtros.estado = filterEstado;
+        if (searchCitas) filtros.search = searchCitas;
+        if (fechaInicio) filtros.fechaInicio = fechaInicio;
+        if (fechaFin) filtros.fechaFin = fechaFin;
+      }
+      
+      await exportarReportePDF(tipo, veterinariaId, filtros);
       setSuccess('Reporte PDF exportado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -570,35 +697,36 @@ const ReporteManagement: React.FC = () => {
               {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
               {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
 
-              <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'usuarios')}>
-                <Nav variant="tabs" className="mb-4">
-                  <Nav.Item>
-                    <Nav.Link eventKey="usuarios">
-                      <i className="fas fa-users me-2"></i>
-                      Reportes de Usuarios
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link eventKey="mascotas">
-                      <i className="fas fa-paw me-2"></i>
-                      Reportes de Mascotas
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link eventKey="citas">
-                      <i className="fas fa-calendar-alt me-2"></i>
-                      Reportes de Citas
-                    </Nav.Link>
-                  </Nav.Item>
-                </Nav>
+              <div className="reportes-tabs-container">
+                <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'usuarios')}>
+                  <Nav variant="tabs" className="mb-4">
+                    <Nav.Item>
+                      <Nav.Link eventKey="usuarios" data-report-type="usuarios">
+                        <i className="fas fa-users me-2"></i>
+                        Reportes de Usuarios
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="mascotas" data-report-type="mascotas">
+                        <i className="fas fa-paw me-2"></i>
+                        Reportes de Mascotas
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="citas" data-report-type="citas">
+                        <i className="fas fa-calendar-alt me-2"></i>
+                        Reportes de Citas
+                      </Nav.Link>
+                    </Nav.Item>
+                  </Nav>
 
-                <Tab.Content>
-                  {/* TAB DE USUARIOS */}
-                  <Tab.Pane eventKey="usuarios">
+                  <Tab.Content>
+                    {/* TAB DE USUARIOS */}
+                    <Tab.Pane eventKey="usuarios">
                     <EstadisticasUsuariosCard />
 
                     <Row className="mb-3">
-                      <Col md={3}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <InputGroup>
                           <InputGroup.Text>
                             <i className="fas fa-search"></i>
@@ -611,37 +739,55 @@ const ReporteManagement: React.FC = () => {
                           />
                         </InputGroup>
                       </Col>
-                      <Col md={2}>
-                        <Form.Select
+                      <Col md={authService.isAdmin() ? 2 : 2}>
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Todos los roles' },
+                            { value: 'ADMIN', label: 'Administrador' },
+                            { value: 'VETERINARIO', label: 'Veterinario' },
+                            { value: 'RECEPCIONISTA', label: 'Recepcionista' },
+                            { value: 'CLIENTE', label: 'Cliente' }
+                          ]}
                           value={filterRol}
-                          onChange={(e) => {
-                            setFilterRol(e.target.value);
-                            handleFilterPorRol(e.target.value);
+                          onChange={(value) => {
+                            setFilterRol(value);
+                            handleFilterPorRol(value);
                           }}
-                        >
-                          <option value="">Todos los roles</option>
-                          <option value="ADMIN">Administrador</option>
-                          <option value="VETERINARIO">Veterinario</option>
-                          <option value="RECEPCIONISTA">Recepcionista</option>
-                          <option value="CLIENTE">Cliente</option>
-                        </Form.Select>
+                          placeholder="Todos los roles"
+                        />
                       </Col>
                       {authService.isAdmin() && (
-                        <Col md={3}>
-                          <Form.Select
+                        <Col md={2}>
+                          <SearchableSelect
+                            options={[
+                              { value: '', label: 'Todas las veterinarias' },
+                              ...veterinarias.map((vet) => ({
+                                value: vet.id.toString(),
+                                label: vet.nombre
+                              }))
+                            ]}
                             value={selectedVeterinaria}
-                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
-                          >
-                            <option value="">Todas las veterinarias</option>
-                            {veterinarias.map((vet) => (
-                              <option key={vet.id} value={vet.id}>
-                                {vet.nombre}
-                              </option>
-                            ))}
-                          </Form.Select>
+                            onChange={setSelectedVeterinaria}
+                            placeholder="Todas las veterinarias"
+                          />
                         </Col>
                       )}
-                      <Col md={authService.isAdmin() ? 1 : 2}>
+                      <Col md={1}>
+                        <Button
+                          variant="outline-secondary"
+                          className="w-100"
+                          onClick={async () => {
+                            setSearchUsuarios('');
+                            setFilterRol('');
+                            setSelectedVeterinaria('');
+                            await loadReporteUsuarios();
+                          }}
+                          title="Limpiar filtros"
+                        >
+                          <i className="fas fa-eraser"></i>
+                        </Button>
+                      </Col>
+                      <Col md={1}>
                         <Button 
                           variant="outline-primary" 
                           onClick={loadReporteUsuarios}
@@ -734,7 +880,7 @@ const ReporteManagement: React.FC = () => {
                     <EstadisticasMascotasCard />
 
                     <Row className="mb-3">
-                      <Col md={3}>
+                      <Col md={authService.isAdmin() ? 2 : 3}>
                         <InputGroup>
                           <InputGroup.Text>
                             <i className="fas fa-search"></i>
@@ -747,39 +893,57 @@ const ReporteManagement: React.FC = () => {
                           />
                         </InputGroup>
                       </Col>
-                      <Col md={2}>
-                        <Form.Select
+                      <Col md={authService.isAdmin() ? 2 : 2}>
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Todas las especies' },
+                            { value: 'Perro', label: 'Perro' },
+                            { value: 'Gato', label: 'Gato' },
+                            { value: 'Ave', label: 'Ave' },
+                            { value: 'Roedor', label: 'Roedor' },
+                            { value: 'Reptil', label: 'Reptil' },
+                            { value: 'Otro', label: 'Otro' }
+                          ]}
                           value={filterEspecie}
-                          onChange={(e) => {
-                            setFilterEspecie(e.target.value);
-                            handleFilterPorEspecie(e.target.value);
+                          onChange={(value) => {
+                            setFilterEspecie(value);
+                            handleFilterPorEspecie(value);
                           }}
-                        >
-                          <option value="">Todas las especies</option>
-                          <option value="Perro">Perro</option>
-                          <option value="Gato">Gato</option>
-                          <option value="Ave">Ave</option>
-                          <option value="Roedor">Roedor</option>
-                          <option value="Reptil">Reptil</option>
-                          <option value="Otro">Otro</option>
-                        </Form.Select>
+                          placeholder="Todas las especies"
+                        />
                       </Col>
                       {authService.isAdmin() && (
-                        <Col md={3}>
-                          <Form.Select
+                        <Col md={2}>
+                          <SearchableSelect
+                            options={[
+                              { value: '', label: 'Todas las veterinarias' },
+                              ...veterinarias.map((vet) => ({
+                                value: vet.id.toString(),
+                                label: vet.nombre
+                              }))
+                            ]}
                             value={selectedVeterinaria}
-                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
-                          >
-                            <option value="">Todas las veterinarias</option>
-                            {veterinarias.map((vet) => (
-                              <option key={vet.id} value={vet.id}>
-                                {vet.nombre}
-                              </option>
-                            ))}
-                          </Form.Select>
+                            onChange={setSelectedVeterinaria}
+                            placeholder="Todas las veterinarias"
+                          />
                         </Col>
                       )}
-                      <Col md={authService.isAdmin() ? 1 : 2}>
+                      <Col md={1}>
+                        <Button
+                          variant="outline-secondary"
+                          className="w-100"
+                          onClick={async () => {
+                            setSearchMascotas('');
+                            setFilterEspecie('');
+                            setSelectedVeterinaria('');
+                            await loadReporteMascotas();
+                          }}
+                          title="Limpiar filtros"
+                        >
+                          <i className="fas fa-eraser"></i>
+                        </Button>
+                      </Col>
+                      <Col md={1}>
                         <Button 
                           variant="outline-primary" 
                           onClick={loadReporteMascotas}
@@ -880,35 +1044,38 @@ const ReporteManagement: React.FC = () => {
                         </InputGroup>
                       </Col>
                       <Col md={2}>
-                        <Form.Select
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Todos los estados' },
+                            { value: 'PROGRAMADA', label: 'Programada' },
+                            { value: 'CONFIRMADA', label: 'Confirmada' },
+                            { value: 'EN_CURSO', label: 'En Curso' },
+                            { value: 'COMPLETADA', label: 'Completada' },
+                            { value: 'CANCELADA', label: 'Cancelada' },
+                            { value: 'NO_ASISTIO', label: 'No Asistió' }
+                          ]}
                           value={filterEstado}
-                          onChange={(e) => {
-                            setFilterEstado(e.target.value);
-                            handleFilterPorEstado(e.target.value);
+                          onChange={(value) => {
+                            setFilterEstado(value);
+                            handleFilterPorEstado(value);
                           }}
-                        >
-                          <option value="">Todos los estados</option>
-                          <option value="PROGRAMADA">Programada</option>
-                          <option value="CONFIRMADA">Confirmada</option>
-                          <option value="EN_CURSO">En Curso</option>
-                          <option value="COMPLETADA">Completada</option>
-                          <option value="CANCELADA">Cancelada</option>
-                          <option value="NO_ASISTIO">No Asistió</option>
-                        </Form.Select>
+                          placeholder="Todos los estados"
+                        />
                       </Col>
                       {authService.isAdmin() && (
                         <Col md={2}>
-                          <Form.Select
+                          <SearchableSelect
+                            options={[
+                              { value: '', label: 'Todas las veterinarias' },
+                              ...veterinarias.map((vet) => ({
+                                value: vet.id.toString(),
+                                label: vet.nombre
+                              }))
+                            ]}
                             value={selectedVeterinaria}
-                            onChange={(e) => setSelectedVeterinaria(e.target.value)}
-                          >
-                            <option value="">Todas las veterinarias</option>
-                            {veterinarias.map((vet) => (
-                              <option key={vet.id} value={vet.id}>
-                                {vet.nombre}
-                              </option>
-                            ))}
-                          </Form.Select>
+                            onChange={setSelectedVeterinaria}
+                            placeholder="Todas las veterinarias"
+                          />
                         </Col>
                       )}
                       <Col md={2}>
@@ -926,6 +1093,23 @@ const ReporteManagement: React.FC = () => {
                           onChange={(e) => setFechaFin(e.target.value)}
                           placeholder="Fecha fin"
                         />
+                      </Col>
+                      <Col md={1}>
+                        <Button
+                          variant="outline-secondary"
+                          className="w-100"
+                          onClick={async () => {
+                            setSearchCitas('');
+                            setFilterEstado('');
+                            setSelectedVeterinaria('');
+                            setFechaInicio('');
+                            setFechaFin('');
+                            await loadReporteCitas();
+                          }}
+                          title="Limpiar filtros"
+                        >
+                          <i className="fas fa-eraser"></i>
+                        </Button>
                       </Col>
                       <Col md={1}>
                         <Button 
@@ -1030,6 +1214,7 @@ const ReporteManagement: React.FC = () => {
                   </Tab.Pane>
                 </Tab.Content>
               </Tab.Container>
+              </div>
             </Card.Body>
           </Card>
         </Col>
