@@ -60,9 +60,24 @@ public class MascotaController {
         List<Mascota> mascotas;
         
         if (isVeterinario) {
-            // Si es veterinario, obtener solo las mascotas que ha atendido
-            mascotas = mascotaService.findMascotasAtendidasByVeterinario(usuarioAutenticado.getDocumento());
-            System.out.println("=== DEBUG: Veterinario " + username + " consultando mascotas atendidas: " + mascotas.size());
+            // Si es veterinario, obtener todas las mascotas de los clientes de su veterinaria
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
+                mascotas = mascotaService.findByPropietarioVeterinariaId(veterinariaId);
+                
+                System.out.println("=== DEBUG: Veterinario " + username + 
+                    " consultando mascotas de veterinaria ID " + veterinariaId + ": " + mascotas.size() + " mascotas");
+                System.out.println("=== DEBUG: Detalle de mascotas:");
+                for (Mascota m : mascotas) {
+                    System.out.println("  - Mascota: " + m.getNombre() + 
+                        ", Propietario: " + (m.getPropietario() != null ? m.getPropietario().getDocumento() : "null") +
+                        " (" + (m.getPropietario() != null ? m.getPropietario().getNombres() : "null") + ")");
+                }
+            } else {
+                mascotas = List.of();
+                System.out.println("=== DEBUG: Veterinario " + username + 
+                    " sin veterinaria asignada, no puede ver mascotas");
+            }
         } else if (isAdmin) {
             // Admin ve mascotas de todas las veterinarias que creó
             List<Long> veterinariaIds = new ArrayList<>();

@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import apiClient from '../services/apiClient';
@@ -41,12 +43,22 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
   const loadUsuarios = async () => {
     setLoading(true);
     try {
+      console.log('📋 Cargando usuarios...');
       const response = await apiClient.get('/usuarios');
-      console.log('Respuesta de usuarios:', response.data);
+      console.log('✅ Respuesta completa:', JSON.stringify(response.data, null, 2));
+      
       const usuariosData = response.data?.data || response.data;
+      console.log('👥 Usuarios extraídos:', usuariosData);
+      console.log('📊 Total usuarios:', Array.isArray(usuariosData) ? usuariosData.length : 0);
+      
+      if (Array.isArray(usuariosData) && usuariosData.length > 0) {
+        console.log('👤 Primer usuario:', usuariosData[0]);
+      }
+      
       setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
     } catch (error: any) {
-      console.error('Error al cargar usuarios:', error);
+      console.error('❌ Error al cargar usuarios:', error);
+      console.error('❌ Response:', error.response?.data);
       Alert.alert('Error', error.response?.data?.message || 'No se pudieron cargar los usuarios');
     } finally {
       setLoading(false);
@@ -55,21 +67,68 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
 
   const loadVeterinarias = async () => {
     try {
+      console.log('🏥 Cargando veterinarias...');
       const response = await apiClient.get('/veterinarias');
-      setVeterinarias(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Error al cargar veterinarias:', error);
+      console.log('📦 Respuesta veterinarias:', response.data);
+      
+      // El backend devuelve ApiResponse<List<VeterinariaResponse>>
+      // Estructura: { success: boolean, message: string, data: Veterinaria[], timestamp: string }
+      let veterinariasList = [];
+      
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        // Si viene en formato ApiResponse
+        veterinariasList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        // Si viene directamente como array
+        veterinariasList = response.data;
+      }
+      
+      // Filtrar solo veterinarias activas
+      const veterinariasActivas = veterinariasList.filter((vet: any) => vet.activo !== false);
+      
+      console.log('✅ Veterinarias cargadas:', veterinariasList.length);
+      console.log('✅ Veterinarias activas:', veterinariasActivas.length);
+      
+      if (veterinariasActivas.length > 0) {
+        console.log('📋 Primera veterinaria:', veterinariasActivas[0]);
+      }
+      
+      setVeterinarias(veterinariasActivas);
+    } catch (error: any) {
+      console.error('❌ Error al cargar veterinarias:', error);
+      console.error('❌ Response:', error.response?.data);
+      console.error('❌ Status:', error.response?.status);
+      setVeterinarias([]);
     }
   };
 
   const handleSave = async () => {
+    // Validaciones mejoradas
     if (!formData.documento || !formData.username || !formData.rol) {
       Alert.alert('Error', 'Documento, usuario y rol son obligatorios');
       return;
     }
 
+    // Validar que no se pueda crear/editar administradores
+    if (formData.rol === 'ADMIN' || formData.rol === 'ROLE_ADMIN') {
+      Alert.alert('Error', 'No se permite crear o editar usuarios con rol Administrador');
+      return;
+    }
+
     if (!editingUsuario && !formData.password) {
       Alert.alert('Error', 'La contraseña es obligatoria al crear un usuario');
+      return;
+    }
+
+    // Validar que veterinarios tengan veterinaria asignada (SOLO veterinarios)
+    if (formData.rol === 'VETERINARIO' && !formData.veterinariaId) {
+      Alert.alert('Error', 'Debe seleccionar una veterinaria para el veterinario');
+      return;
+    }
+
+    // Validar formato de email si se proporciona
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      Alert.alert('Error', 'El formato del email no es válido');
       return;
     }
 
@@ -257,8 +316,14 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
 
       {/* Form Modal */}
       <Modal visible={showForm} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.formContainer}>
               <Text style={styles.formTitle}>
                 {editingUsuario ? 'Editar Usuario' : 'Nuevo Usuario'}
@@ -318,9 +383,11 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
                 style={styles.input}
                 placeholder="correo@ejemplo.com"
                 keyboardType="email-address"
+                autoCapitalize="none"
                 value={formData.email}
                 onChangeText={(text) => setFormData({ ...formData, email: text })}
               />
+              <Text style={styles.helperText}>💡 Se recomienda usar un email válido para notificaciones</Text>
 
               <Text style={styles.label}>Teléfono</Text>
               <TextInput
@@ -349,28 +416,46 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
                   style={styles.picker}
                 >
                   <Picker.Item label="Seleccione un rol" value="" />
-                  <Picker.Item label="Administrador" value="ADMIN" />
-                  <Picker.Item label="Veterinario" value="VETERINARIO" />
-                  <Picker.Item label="Recepcionista" value="RECEPCIONISTA" />
-                  <Picker.Item label="Cliente" value="CLIENTE" />
+                  <Picker.Item label="👨‍⚕️ Veterinario" value="VETERINARIO" />
+                  <Picker.Item label="👥 Recepcionista" value="RECEPCIONISTA" />
+                  <Picker.Item label="🐾 Cliente" value="CLIENTE" />
                 </Picker>
               </View>
+              <Text style={styles.helperText}>⚠️ No se puede crear usuarios con rol Administrador</Text>
 
-              {formData.rol === 'VETERINARIO' && (
+              {/* Mostrar veterinaria para VETERINARIO, RECEPCIONISTA y CLIENTE */}
+              {(formData.rol === 'VETERINARIO' || formData.rol === 'RECEPCIONISTA' || formData.rol === 'CLIENTE') && (
                 <>
-                  <Text style={styles.label}>Veterinaria *</Text>
+                  <Text style={styles.label}>
+                    Veterinaria Asignada {formData.rol === 'VETERINARIO' && '*'}
+                  </Text>
+                  {veterinarias.length === 0 && (
+                    <Text style={styles.warningText}>
+                      ⚠️ No hay veterinarias disponibles.{'\n'}
+                      Debe crear al menos una veterinaria activa primero.
+                    </Text>
+                  )}
                   <View style={styles.pickerContainer}>
                     <Picker
                       selectedValue={formData.veterinariaId}
                       onValueChange={(value) => setFormData({ ...formData, veterinariaId: value })}
                       style={styles.picker}
+                      enabled={veterinarias.length > 0}
                     >
-                      <Picker.Item label="Seleccione una veterinaria" value="" />
+                      <Picker.Item 
+                        label={veterinarias.length > 0 ? "Seleccione una veterinaria" : "No hay veterinarias disponibles"} 
+                        value="" 
+                      />
                       {veterinarias.map((vet) => (
                         <Picker.Item key={vet.id} label={vet.nombre} value={vet.id.toString()} />
                       ))}
                     </Picker>
                   </View>
+                  <Text style={styles.helperText}>
+                    {formData.rol === 'VETERINARIO' 
+                      ? '🏥 Los veterinarios deben estar asignados a una veterinaria' 
+                      : '🏥 Opcional: Puede asignar una veterinaria específica'}
+                  </Text>
                 </>
               )}
 
@@ -381,9 +466,16 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
                 style={styles.input}
                 placeholder={editingUsuario ? 'Dejar vacío para no cambiar' : 'Contraseña'}
                 secureTextEntry
+                autoCapitalize="none"
                 value={formData.password}
                 onChangeText={(text) => setFormData({ ...formData, password: text })}
               />
+              {!editingUsuario && (
+                <Text style={styles.helperText}>🔒 Mínimo 6 caracteres recomendados</Text>
+              )}
+              {editingUsuario && (
+                <Text style={styles.helperText}>💡 Solo completar si desea cambiar la contraseña</Text>
+              )}
 
               <View style={styles.formButtons}>
                 <TouchableOpacity
@@ -401,7 +493,7 @@ export default function UsuariosScreen({ onBack }: { onBack: () => void }) {
               </View>
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -585,6 +677,15 @@ const styles = StyleSheet.create({
     marginTop: -12,
     marginBottom: 18,
     fontWeight: '500',
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#f59e0b',
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
   },
   formButtons: { flexDirection: 'row', gap: 12, marginTop: 12 },
   button: { 

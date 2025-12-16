@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -42,10 +43,15 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [editingCita, setEditingCita] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Usar refs para campos de texto que causan crashes
+  const motivoRef = useRef('');
+  const observacionesRef = useRef('');
+  const [motivoKey, setMotivoKey] = useState(0);
+  const [observacionesKey, setObservacionesKey] = useState(0);
+  
   const [formData, setFormData] = useState({
     fechaHora: '',
-    motivo: '',
-    observaciones: '',
     clienteId: '',
     mascotaId: '',
     veterinarioId: '',
@@ -158,6 +164,15 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     }
   }, [veterinarios]);
 
+  useEffect(() => {
+    if (formData.clienteId) {
+      console.log('🔄 Cliente seleccionado cambió:', formData.clienteId);
+      console.log('🐾 Buscando mascotas para este cliente...');
+      const mascotasCliente = getMascotasByCliente();
+      console.log('✅ Mascotas encontradas:', mascotasCliente.length);
+    }
+  }, [formData.clienteId, mascotas]);
+
   const loadCitas = async () => {
     setLoading(true);
     try {
@@ -181,14 +196,33 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     try {
       console.log('👥 Cargando clientes...');
       const response = await apiClient.get('/usuarios');
+      console.log('📦 Respuesta completa:', JSON.stringify(response.data, null, 2));
+      
       const usuariosData = response.data?.data || response.data;
+      console.log('👤 Total usuarios recibidos:', Array.isArray(usuariosData) ? usuariosData.length : 0);
+      
+      if (Array.isArray(usuariosData)) {
+        console.log('📋 Usuarios antes de filtrar:');
+        usuariosData.forEach(u => {
+          console.log(`  - ${u.username} (${u.documento}): roles =`, u.roles);
+        });
+      }
+      
       const clientesList = Array.isArray(usuariosData)
         ? usuariosData.filter(
             (usuario) =>
               usuario.roles?.some((role: string) => role === 'CLIENTE' || role === 'ROLE_CLIENTE')
           )
         : [];
-      console.log('✅ Clientes cargados:', clientesList.length);
+      
+      console.log('✅ Clientes después de filtrar:', clientesList.length);
+      if (clientesList.length > 0) {
+        console.log('📋 Lista de clientes:');
+        clientesList.forEach(c => {
+          console.log(`  - ${c.nombres} ${c.apellidos} (${c.documento})`);
+        });
+      }
+      
       setClientes(clientesList);
     } catch (error: any) {
       console.error('❌ Error al cargar clientes:', error.response?.status, error.response?.data);
@@ -201,8 +235,16 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     try {
       console.log('🐾 Cargando todas las mascotas...');
       const response = await apiClient.get('/mascotas');
+      console.log('📦 Respuesta mascotas completa:', JSON.stringify(response.data, null, 2));
+      
       const mascotasList = Array.isArray(response.data) ? response.data : [];
-      console.log('✅ Mascotas cargadas:', mascotasList.length);
+      console.log('✅ Total mascotas cargadas:', mascotasList.length);
+      
+      if (mascotasList.length > 0) {
+        console.log('🔍 Primera mascota ejemplo:', JSON.stringify(mascotasList[0], null, 2));
+        console.log('👤 Estructura propietario:', mascotasList[0].propietario);
+      }
+      
       setMascotas(mascotasList);
     } catch (error: any) {
       console.error('❌ Error al cargar mascotas:', error.response?.status, error.response?.data);
@@ -313,21 +355,36 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     try {
       console.log('🏥 Cargando veterinarias...');
       const response = await apiClient.get('/veterinarias');
-      console.log('📦 Respuesta veterinarias:', JSON.stringify(response.data, null, 2));
+      console.log('📦 Respuesta veterinarias:', response.data);
       
-      // Manejar diferentes estructuras de respuesta
+      // El backend devuelve ApiResponse<List<VeterinariaResponse>>
+      // Estructura: { success: boolean, message: string, data: Veterinaria[], timestamp: string }
       let veterinariasList = [];
-      if (Array.isArray(response.data)) {
-        veterinariasList = response.data;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
+      
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        // Si viene en formato ApiResponse
         veterinariasList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        // Si viene directamente como array
+        veterinariasList = response.data;
       } else if (response.data?.content && Array.isArray(response.data.content)) {
+        // Por si viene paginado
         veterinariasList = response.data.content;
       }
       
-      console.log('✅ Veterinarias cargadas:', veterinariasList.length);
-      console.log('📋 Lista:', JSON.stringify(veterinariasList, null, 2));
-      setVeterinarias(veterinariasList);
+      // Filtrar solo veterinarias activas
+      const veterinariasActivas = veterinariasList.filter((vet: any) => vet.activo !== false);
+      
+      console.log('✅ Total veterinarias:', veterinariasList.length);
+      console.log('✅ Veterinarias activas:', veterinariasActivas.length);
+      
+      if (veterinariasActivas.length > 0) {
+        console.log('📋 Primera veterinaria:', veterinariasActivas[0]);
+      } else {
+        console.warn('⚠️ No hay veterinarias activas disponibles');
+      }
+      
+      setVeterinarias(veterinariasActivas);
     } catch (error: any) {
       console.error('❌ Error al cargar veterinarias:', error);
       console.error('❌ Response:', error.response?.data);
@@ -337,8 +394,22 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
   };
 
   const getMascotasByCliente = () => {
-    if (!formData.clienteId) return [];
-    return mascotas.filter((m) => m.propietario?.documento === formData.clienteId);
+    if (!formData.clienteId) {
+      console.log('⚠️ No hay clienteId seleccionado');
+      return [];
+    }
+    
+    console.log('🔍 Buscando mascotas para cliente:', formData.clienteId);
+    console.log('📋 Total mascotas disponibles:', mascotas.length);
+    
+    const mascotasFiltradas = mascotas.filter((m) => {
+      const propietarioDoc = m.propietario?.documento || m.propietarioDocumento;
+      console.log(`  - Mascota ${m.nombre}: propietario = ${propietarioDoc}`);
+      return propietarioDoc === formData.clienteId;
+    });
+    
+    console.log('✅ Mascotas filtradas:', mascotasFiltradas.length);
+    return mascotasFiltradas;
   };
 
   const loadHorariosDisponibles = async (fecha: string) => {
@@ -406,7 +477,7 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     console.log('💾 Intentando guardar cita...');
     console.log('📋 FormData actual:', formData);
     
-    // Validaciones
+    // Validaciones mejoradas
     if (!formData.fechaHora || !formData.clienteId || !formData.mascotaId) {
       console.log('❌ Validación falló: Faltan campos obligatorios');
       Alert.alert('Error', 'Fecha, cliente y mascota son obligatorios');
@@ -417,6 +488,16 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       console.log('❌ Validación falló: Falta veterinaria');
       Alert.alert('Error', 'Debe seleccionar una veterinaria');
       return;
+    }
+
+    // Validar que la fecha/hora no sea en el pasado
+    if (!editingCita) {
+      const fechaCita = new Date(formData.fechaHora);
+      const ahora = new Date();
+      if (fechaCita < ahora) {
+        Alert.alert('Error', 'No se pueden crear citas en fechas pasadas');
+        return;
+      }
     }
 
     setSaving(true);
@@ -455,8 +536,8 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       // Usar el mismo formato que el frontend web (CitaRequest DTO)
       const citaData: any = {
         fechaHora: fechaHoraFormateada,
-        motivo: formData.motivo || null,
-        observaciones: formData.observaciones || null,
+        motivo: motivoRef.current || null,
+        observaciones: observacionesRef.current || null,
         estado: editingCita ? editingCita.estado : 'PROGRAMADA',
         clienteDocumento: formData.clienteId,
         mascotaId: mascotaIdNum,
@@ -501,10 +582,13 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     setEditingCita(cita);
     const veterinariaId = cita.veterinariaId?.toString() || cita.veterinaria?.id?.toString() || '';
     
+    motivoRef.current = cita.motivo || '';
+    observacionesRef.current = cita.observaciones || '';
+    setMotivoKey(prev => prev + 1);
+    setObservacionesKey(prev => prev + 1);
+    
     setFormData({
       fechaHora: cita.fechaHora ? cita.fechaHora.substring(0, 16) : '',
-      motivo: cita.motivo || '',
-      observaciones: cita.observaciones || '',
       clienteId: cita.clienteDocumento || cita.cliente?.documento || '',
       mascotaId: cita.mascotaId?.toString() || cita.mascota?.id?.toString() || '',
       veterinarioId: cita.veterinarioDocumento || cita.veterinario?.documento || '',
@@ -583,10 +667,13 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
     console.log('🏥 Veterinaria pre-asignada:', veterinariaIdDefault);
     console.log('👨‍⚕️ Veterinario pre-asignado:', veterinarioIdDefault);
     
+    motivoRef.current = '';
+    observacionesRef.current = '';
+    setMotivoKey(prev => prev + 1);
+    setObservacionesKey(prev => prev + 1);
+    
     setFormData({
       fechaHora: '',
-      motivo: '',
-      observaciones: '',
       clienteId: '',
       mascotaId: '',
       veterinarioId: veterinarioIdDefault,
@@ -705,13 +792,32 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
       </ScrollView>
 
       {/* Form Modal */}
-      <Modal visible={showForm} animationType="slide" transparent>
+      <Modal 
+        visible={showForm} 
+        animationType="slide" 
+        transparent={false}
+        onRequestClose={() => {
+          setShowForm(false);
+          resetForm();
+        }}
+      >
         <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            keyboardDismissMode="on-drag"
+          >
             <View style={styles.formContainer}>
               <Text style={styles.formTitle}>{editingCita ? 'Editar Cita' : 'Nueva Cita'}</Text>
 
               <Text style={styles.label}>Veterinaria *</Text>
+              {veterinarias.length === 0 && (
+                <Text style={styles.warningText}>
+                  ⚠️ No hay veterinarias disponibles.{'\n'}
+                  Debe crear al menos una veterinaria activa primero.
+                </Text>
+              )}
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.veterinariaId}
@@ -729,11 +835,14 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                     }
                   }}
                   style={styles.picker}
-                  enabled={!currentUser?.roles?.some((role: string) => 
+                  enabled={veterinarias.length > 0 && !currentUser?.roles?.some((role: string) => 
                     role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
                   )}
                 >
-                  <Picker.Item label="Seleccione una veterinaria" value="" />
+                  <Picker.Item 
+                    label={veterinarias.length > 0 ? "Seleccione una veterinaria" : "No hay veterinarias disponibles"} 
+                    value="" 
+                  />
                   {veterinarias.map((vet) => (
                     <Picker.Item key={vet.id} label={vet.nombre} value={vet.id.toString()} />
                   ))}
@@ -746,61 +855,69 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                   🔒 Veterinaria asignada automáticamente según tu perfil
                 </Text>
               )}
+              {veterinarias.length > 0 && !currentUser?.roles?.some((role: string) => 
+                role === 'VETERINARIO' || role === 'ROLE_VETERINARIO'
+              ) && (
+                <Text style={styles.helperText}>
+                  🏥 Seleccione la veterinaria para ver horarios disponibles
+                </Text>
+              )}
 
               {formData.veterinariaId && (
                 <>
                   <Text style={styles.label}>Seleccione una Fecha *</Text>
-                  <Calendar
-                    current={new Date().toISOString().split('T')[0]}
-                    minDate={new Date().toISOString().split('T')[0]}
-                    markedDates={{
-                      [fechaSeleccionada]: {
-                        selected: true,
-                        selectedColor: '#3b82f6',
-                        selectedTextColor: '#fff'
-                      }
-                    }}
-                    onDayPress={(day: any) => {
-                      console.log('📅 Fecha seleccionada:', day.dateString);
-                      setFechaSeleccionada(day.dateString);
-                      setFormData(prev => ({ ...prev, fechaHora: '' }));
-                      setHorariosDisponibles([]);
-                      loadHorariosDisponibles(day.dateString);
-                    }}
-                    theme={{
-                      backgroundColor: '#ffffff',
-                      calendarBackground: '#ffffff',
-                      textSectionTitleColor: '#1e293b',
-                      selectedDayBackgroundColor: '#3b82f6',
-                      selectedDayTextColor: '#ffffff',
-                      todayTextColor: '#3b82f6',
-                      dayTextColor: '#1e293b',
-                      textDisabledColor: '#cbd5e1',
-                      dotColor: '#3b82f6',
-                      selectedDotColor: '#ffffff',
-                      arrowColor: '#3b82f6',
-                      monthTextColor: '#1e293b',
-                      indicatorColor: '#3b82f6',
-                      textDayFontFamily: 'System',
-                      textMonthFontFamily: 'System',
-                      textDayHeaderFontFamily: 'System',
-                      textDayFontWeight: '500',
-                      textMonthFontWeight: '700',
-                      textDayHeaderFontWeight: '600',
-                      textDayFontSize: 15,
-                      textMonthFontSize: 17,
-                      textDayHeaderFontSize: 13
-                    }}
-                    style={{
-                      borderRadius: 16,
-                      elevation: 3,
-                      shadowColor: '#64748b',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 8,
-                      marginBottom: 18,
-                    }}
-                  />
+                  <View style={styles.calendarWrapper}>
+                    <Calendar
+                      current={new Date().toISOString().split('T')[0]}
+                      minDate={new Date().toISOString().split('T')[0]}
+                      markedDates={{
+                        [fechaSeleccionada]: {
+                          selected: true,
+                          selectedColor: '#3b82f6',
+                          selectedTextColor: '#fff'
+                        }
+                      }}
+                      onDayPress={(day: any) => {
+                        console.log('📅 Fecha seleccionada:', day.dateString);
+                        setFechaSeleccionada(day.dateString);
+                        setFormData(prev => ({ ...prev, fechaHora: '' }));
+                        setHorariosDisponibles([]);
+                        loadHorariosDisponibles(day.dateString);
+                      }}
+                      theme={{
+                        backgroundColor: '#ffffff',
+                        calendarBackground: '#ffffff',
+                        textSectionTitleColor: '#1e293b',
+                        selectedDayBackgroundColor: '#3b82f6',
+                        selectedDayTextColor: '#ffffff',
+                        todayTextColor: '#3b82f6',
+                        dayTextColor: '#1e293b',
+                        textDisabledColor: '#cbd5e1',
+                        dotColor: '#3b82f6',
+                        selectedDotColor: '#ffffff',
+                        arrowColor: '#3b82f6',
+                        monthTextColor: '#1e293b',
+                        indicatorColor: '#3b82f6',
+                        textDayFontFamily: 'System',
+                        textMonthFontFamily: 'System',
+                        textDayHeaderFontFamily: 'System',
+                        textDayFontWeight: '500',
+                        textMonthFontWeight: '700',
+                        textDayHeaderFontWeight: '600',
+                        textDayFontSize: 15,
+                        textMonthFontSize: 17,
+                        textDayHeaderFontSize: 13
+                      }}
+                      style={{
+                        borderRadius: 16,
+                        elevation: 3,
+                        shadowColor: '#64748b',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                      }}
+                    />
+                  </View>
 
                   {loadingHorarios && (
                     <Text style={styles.helperText}>⏳ Cargando horarios disponibles...</Text>
@@ -871,6 +988,7 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                 value={formData.fechaHora}
                 editable={false}
               />
+              <Text style={styles.helperText}>⏰ Seleccione un horario disponible del calendario</Text>
 
               <Text style={styles.label}>Cliente *</Text>
               {currentUser?.roles?.some((role: string) => 
@@ -927,6 +1045,7 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
                   ))}
                 </Picker>
               </View>
+              <Text style={styles.helperText}>🐾 Seleccione la mascota para la cita</Text>
 
               <Text style={styles.label}>Veterinario</Text>
               <View style={styles.pickerContainer}>
@@ -973,21 +1092,25 @@ export default function CitasScreen({ onBack }: { onBack: () => void }) {
 
               <Text style={styles.label}>Motivo</Text>
               <TextInput
+                key={`motivo-${motivoKey}`}
                 style={styles.input}
                 placeholder="Motivo de la consulta"
-                value={formData.motivo}
-                onChangeText={(text) => setFormData({ ...formData, motivo: text })}
+                defaultValue={motivoRef.current}
+                onChangeText={(text) => { motivoRef.current = text; }}
               />
+              <Text style={styles.helperText}>📋 Indique el motivo de la consulta (opcional)</Text>
 
               <Text style={styles.label}>Observaciones</Text>
               <TextInput
+                key={`observaciones-${observacionesKey}`}
                 style={[styles.input, styles.textArea]}
                 placeholder="Observaciones adicionales"
-                multiline
-                numberOfLines={3}
-                value={formData.observaciones}
-                onChangeText={(text) => setFormData({ ...formData, observaciones: text })}
+                defaultValue={observacionesRef.current}
+                onChangeText={(text) => { observacionesRef.current = text; }}
+                multiline={true}
+                numberOfLines={4}
               />
+              <Text style={styles.helperText}>📝 Información adicional que considere relevante</Text>
 
               <View style={styles.formButtons}>
                 <TouchableOpacity
@@ -1151,11 +1274,12 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(15,23,42,0.6)',
+    justifyContent: 'flex-end',
   },
   scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 60,
   },
   formContainer: { 
     backgroundColor: '#fff', 
@@ -1329,6 +1453,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  warningText: {
+    fontSize: 13,
+    color: '#f59e0b',
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
+  },
   formButtons: { flexDirection: 'row', gap: 12, marginTop: 12 },
   button: { 
     flex: 1, 
@@ -1354,4 +1487,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  calendarWrapper: {
+    marginBottom: 18,
+    overflow: 'hidden',
+    borderRadius: 16,
+  },
 });
