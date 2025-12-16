@@ -1,9 +1,10 @@
 import apiClient from './apiClient';
 import { Usuario } from '../types';
 
-export const getAllUsuarios = async (): Promise<Usuario[]> => {
+export const getAllUsuarios = async (veterinariaId?: number): Promise<Usuario[]> => {
   try {
-    const res = await apiClient.get('/usuarios');
+    const url = veterinariaId ? `/usuarios?veterinariaId=${veterinariaId}` : '/usuarios';
+    const res = await apiClient.get(url);
     console.log('📥 Respuesta getAllUsuarios:', res.data);
     
     // El backend devuelve ApiResponse<List<UsuarioResponse>>

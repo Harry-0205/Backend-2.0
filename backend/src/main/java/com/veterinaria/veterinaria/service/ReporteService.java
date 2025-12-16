@@ -69,7 +69,7 @@ public class ReporteService {
         reporteRepository.deleteById(id);
     }
     
-    public Reporte generarReporteCitas(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+    public Reporte generarReporteCitas(LocalDateTime fechaInicio, LocalDateTime fechaFin, Long veterinariaId) {
         // Obtener usuario actual
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
@@ -81,15 +81,30 @@ public class ReporteService {
         
         Usuario usuario = usuarioOpt.get();
         
-        // Contar citas en el rango de fechas
-        long totalCitas = citaRepository.countByFechaHoraBetween(fechaInicio, fechaFin);
-        long citasConfirmadas = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.CONFIRMADA);
-        long citasCanceladas = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.CANCELADA);
-        long citasPendientes = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.PROGRAMADA);
+        // Contar citas en el rango de fechas (filtrado por veterinaria si se proporciona)
+        long totalCitas;
+        long citasConfirmadas;
+        long citasCanceladas;
+        long citasPendientes;
+        
+        if (veterinariaId != null) {
+            totalCitas = citaRepository.countByFechaHoraBetweenAndMascotaPropietarioVeterinariaId(fechaInicio, fechaFin, veterinariaId);
+            citasConfirmadas = citaRepository.countByFechaHoraBetweenAndEstadoAndMascotaPropietarioVeterinariaId(fechaInicio, fechaFin, Cita.EstadoCita.CONFIRMADA, veterinariaId);
+            citasCanceladas = citaRepository.countByFechaHoraBetweenAndEstadoAndMascotaPropietarioVeterinariaId(fechaInicio, fechaFin, Cita.EstadoCita.CANCELADA, veterinariaId);
+            citasPendientes = citaRepository.countByFechaHoraBetweenAndEstadoAndMascotaPropietarioVeterinariaId(fechaInicio, fechaFin, Cita.EstadoCita.PROGRAMADA, veterinariaId);
+        } else {
+            totalCitas = citaRepository.countByFechaHoraBetween(fechaInicio, fechaFin);
+            citasConfirmadas = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.CONFIRMADA);
+            citasCanceladas = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.CANCELADA);
+            citasPendientes = citaRepository.countByFechaHoraBetweenAndEstado(fechaInicio, fechaFin, Cita.EstadoCita.PROGRAMADA);
+        }
         
         // Crear contenido del reporte
         StringBuilder contenido = new StringBuilder();
-        contenido.append("=== REPORTE DE CITAS ===\n");
+        contenido.append("=== REPORTE DE CITAS ===").append("\n");
+        if (veterinariaId != null) {
+            contenido.append("Veterinaria ID: ").append(veterinariaId).append("\n");
+        }
         contenido.append("Período: ").append(fechaInicio).append(" - ").append(fechaFin).append("\n\n");
         contenido.append("Total de citas: ").append(totalCitas).append("\n");
         contenido.append("Citas confirmadas: ").append(citasConfirmadas).append("\n");
@@ -98,7 +113,11 @@ public class ReporteService {
         
         // Crear y guardar el reporte
         Reporte reporte = new Reporte();
-        reporte.setTitulo("Reporte de Citas - " + fechaInicio.toLocalDate() + " a " + fechaFin.toLocalDate());
+        String titulo = "Reporte de Citas - " + fechaInicio.toLocalDate() + " a " + fechaFin.toLocalDate();
+        if (veterinariaId != null) {
+            titulo += " (Veterinaria ID: " + veterinariaId + ")";
+        }
+        reporte.setTitulo(titulo);
         reporte.setTipo(Reporte.TipoReporte.CITAS_DIARIAS);
         reporte.setDescripcion("Reporte generado automáticamente con estadísticas de citas");
         reporte.setFechaInicio(fechaInicio.toLocalDate());
@@ -109,7 +128,7 @@ public class ReporteService {
         return reporteRepository.save(reporte);
     }
     
-    public Reporte generarReporteMascotas() {
+    public Reporte generarReporteMascotas(Long veterinariaId) {
         // Obtener usuario actual
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
@@ -121,14 +140,26 @@ public class ReporteService {
         
         Usuario usuario = usuarioOpt.get();
         
-        // Estadísticas de mascotas
-        long totalMascotas = mascotaRepository.count();
-        long mascotasActivas = mascotaRepository.countByActivoTrue();
+        // Estadísticas de mascotas (filtrado por veterinaria si se proporciona)
+        long totalMascotas;
+        long mascotasActivas;
+        
+        if (veterinariaId != null) {
+            totalMascotas = mascotaRepository.countByPropietarioVeterinariaId(veterinariaId);
+            mascotasActivas = mascotaRepository.countByActivoTrueAndPropietarioVeterinariaId(veterinariaId);
+        } else {
+            totalMascotas = mascotaRepository.count();
+            mascotasActivas = mascotaRepository.countByActivoTrue();
+        }
+        
         long mascotasInactivas = totalMascotas - mascotasActivas;
         
         // Crear contenido del reporte
         StringBuilder contenido = new StringBuilder();
-        contenido.append("=== REPORTE DE MASCOTAS ===\n");
+        contenido.append("=== REPORTE DE MASCOTAS ===").append("\n");
+        if (veterinariaId != null) {
+            contenido.append("Veterinaria ID: ").append(veterinariaId).append("\n");
+        }
         contenido.append("Fecha de generación: ").append(LocalDateTime.now()).append("\n\n");
         contenido.append("Total de mascotas registradas: ").append(totalMascotas).append("\n");
         contenido.append("Mascotas activas: ").append(mascotasActivas).append("\n");
@@ -136,7 +167,11 @@ public class ReporteService {
         
         // Crear y guardar el reporte
         Reporte reporte = new Reporte();
-        reporte.setTitulo("Reporte de Mascotas Registradas - " + LocalDateTime.now().toLocalDate());
+        String titulo = "Reporte de Mascotas Registradas - " + LocalDateTime.now().toLocalDate();
+        if (veterinariaId != null) {
+            titulo += " (Veterinaria ID: " + veterinariaId + ")";
+        }
+        reporte.setTitulo(titulo);
         reporte.setTipo(Reporte.TipoReporte.MASCOTAS_REGISTRADAS);
         reporte.setDescripcion("Reporte general de mascotas registradas en el sistema");
         reporte.setContenido(contenido.toString());
@@ -145,7 +180,7 @@ public class ReporteService {
         return reporteRepository.save(reporte);
     }
     
-    public Reporte generarReporteUsuarios() {
+    public Reporte generarReporteUsuarios(Long veterinariaId) {
         // Obtener usuario actual
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
@@ -157,14 +192,26 @@ public class ReporteService {
         
         Usuario usuario = usuarioOpt.get();
         
-        // Estadísticas de usuarios
-        long totalUsuarios = usuarioRepository.count();
-        long usuariosActivos = usuarioRepository.countByActivoTrue();
+        // Estadísticas de usuarios (filtrado por veterinaria si se proporciona)
+        long totalUsuarios;
+        long usuariosActivos;
+        
+        if (veterinariaId != null) {
+            totalUsuarios = usuarioRepository.countByVeterinariaId(veterinariaId);
+            usuariosActivos = usuarioRepository.countByActivoTrueAndVeterinariaId(veterinariaId);
+        } else {
+            totalUsuarios = usuarioRepository.count();
+            usuariosActivos = usuarioRepository.countByActivoTrue();
+        }
+        
         long usuariosInactivos = totalUsuarios - usuariosActivos;
         
         // Crear contenido del reporte
         StringBuilder contenido = new StringBuilder();
-        contenido.append("=== REPORTE DE USUARIOS ===\n");
+        contenido.append("=== REPORTE DE USUARIOS ===").append("\n");
+        if (veterinariaId != null) {
+            contenido.append("Veterinaria ID: ").append(veterinariaId).append("\n");
+        }
         contenido.append("Fecha de generación: ").append(LocalDateTime.now()).append("\n\n");
         contenido.append("Total de usuarios registrados: ").append(totalUsuarios).append("\n");
         contenido.append("Usuarios activos: ").append(usuariosActivos).append("\n");
@@ -172,7 +219,11 @@ public class ReporteService {
         
         // Crear y guardar el reporte
         Reporte reporte = new Reporte();
-        reporte.setTitulo("Reporte de Usuarios - " + LocalDateTime.now().toLocalDate());
+        String titulo = "Reporte de Usuarios - " + LocalDateTime.now().toLocalDate();
+        if (veterinariaId != null) {
+            titulo += " (Veterinaria ID: " + veterinariaId + ")";
+        }
+        reporte.setTitulo(titulo);
         reporte.setTipo(Reporte.TipoReporte.USUARIOS_ACTIVOS);
         reporte.setDescripcion("Reporte general de usuarios registrados en el sistema");
         reporte.setContenido(contenido.toString());

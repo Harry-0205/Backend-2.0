@@ -15,6 +15,7 @@ import {
 } from 'react-bootstrap';
 import { Veterinaria } from '../types';
 import veterinariaService from '../services/veterinariaService';
+import SearchableSelect from './SearchableSelect';
 
 const VeterinariaManagement: React.FC = () => {
   const [veterinarias, setVeterinarias] = useState<Veterinaria[]>([]);
@@ -372,7 +373,7 @@ const VeterinariaManagement: React.FC = () => {
               
               {/* Filtros */}
               <Row className="mb-3">
-                <Col md={6}>
+                <Col md={5}>
                   <InputGroup>
                     <InputGroup.Text>
                       <i className="fas fa-search"></i>
@@ -385,15 +386,31 @@ const VeterinariaManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={6}>
-                  <Form.Select
+                <Col md={5}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todas las veterinarias' },
+                      { value: 'true', label: 'Solo activas' },
+                      { value: 'false', label: 'Solo inactivas' }
+                    ]}
                     value={showActives === null ? '' : showActives.toString()}
-                    onChange={(e) => setShowActives(e.target.value === '' ? null : e.target.value === 'true')}
+                    onChange={(value) => setShowActives(value === '' ? null : value === 'true')}
+                    placeholder="Todas las veterinarias"
+                  />
+                </Col>
+                <Col md={2}>
+                  <Button
+                    variant="outline-secondary"
+                    className="w-100"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setShowActives(null);
+                    }}
+                    title="Limpiar filtros"
                   >
-                    <option value="">Todas las veterinarias</option>
-                    <option value="true">Solo activas</option>
-                    <option value="false">Solo inactivas</option>
-                  </Form.Select>
+                    <i className="fas fa-eraser me-2"></i>
+                    Limpiar
+                  </Button>
                 </Col>
               </Row>
 

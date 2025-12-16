@@ -17,14 +17,16 @@ public class UserPrincipal implements UserDetails {
     private String username;
     private String email;
     private String password;
+    private boolean activo;
     private Collection<? extends GrantedAuthority> authorities;
     
     public UserPrincipal(String documento, String username, String email, String password,
-                        Collection<? extends GrantedAuthority> authorities) {
+                        boolean activo, Collection<? extends GrantedAuthority> authorities) {
         this.documento = documento;
         this.username = username;
         this.email = email;
         this.password = password;
+        this.activo = activo;
         this.authorities = authorities;
     }
     
@@ -38,6 +40,7 @@ public class UserPrincipal implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
+                user.isActivo(),
                 authorities
         );
     }
@@ -82,7 +85,11 @@ public class UserPrincipal implements UserDetails {
     
     @Override
     public boolean isEnabled() {
-        return true;
+        return activo;
+    }
+    
+    public boolean isActivo() {
+        return activo;
     }
     
     @Override

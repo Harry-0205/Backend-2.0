@@ -1,13 +1,18 @@
 package com.veterinaria.veterinaria.controller;
 
 import com.veterinaria.veterinaria.entity.Reporte;
+import com.veterinaria.veterinaria.entity.Usuario;
+import com.veterinaria.veterinaria.entity.Veterinaria;
 import com.veterinaria.veterinaria.service.ReporteService;
+import com.veterinaria.veterinaria.service.UsuarioService;
+import com.veterinaria.veterinaria.service.VeterinariaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -21,6 +26,12 @@ public class ReporteController {
     
     @Autowired
     private ReporteService reporteService;
+    
+    @Autowired
+    private UsuarioService usuarioService;
+    
+    @Autowired
+    private VeterinariaService veterinariaService;
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -88,9 +99,16 @@ public class ReporteController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Reporte> generarReporteCitas(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @RequestParam(required = false) Long veterinariaId,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
-            Reporte reporte = reporteService.generarReporteCitas(fechaInicio, fechaFin);
+            // Validar permisos sobre la veterinaria
+            if (veterinariaId != null && !validarAccesoVeterinaria(userDetails, veterinariaId)) {
+                return ResponseEntity.status(403).build();
+            }
+            
+            Reporte reporte = reporteService.generarReporteCitas(fechaInicio, fechaFin, veterinariaId);
             return ResponseEntity.ok(reporte);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -99,9 +117,16 @@ public class ReporteController {
     
     @PostMapping("/generar-mascotas")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Reporte> generarReporteMascotas() {
+    public ResponseEntity<Reporte> generarReporteMascotas(
+            @RequestParam(required = false) Long veterinariaId,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
-            Reporte reporte = reporteService.generarReporteMascotas();
+            // Validar permisos sobre la veterinaria
+            if (veterinariaId != null && !validarAccesoVeterinaria(userDetails, veterinariaId)) {
+                return ResponseEntity.status(403).build();
+            }
+            
+            Reporte reporte = reporteService.generarReporteMascotas(veterinariaId);
             return ResponseEntity.ok(reporte);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -110,9 +135,16 @@ public class ReporteController {
     
     @PostMapping("/generar-usuarios")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Reporte> generarReporteUsuarios() {
+    public ResponseEntity<Reporte> generarReporteUsuarios(
+            @RequestParam(required = false) Long veterinariaId,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         try {
-            Reporte reporte = reporteService.generarReporteUsuarios();
+            // Validar permisos sobre la veterinaria
+            if (veterinariaId != null && !validarAccesoVeterinaria(userDetails, veterinariaId)) {
+                return ResponseEntity.status(403).build();
+            }
+            
+            Reporte reporte = reporteService.generarReporteUsuarios(veterinariaId);
             return ResponseEntity.ok(reporte);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -148,5 +180,44 @@ public class ReporteController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+    
+    // Método auxiliar para validar acceso a veterinaria
+    private boolean validarAccesoVeterinaria(org.springframework.security.core.userdetails.UserDetails userDetails, Long veterinariaId) {
+        Optional<Usuario> usuarioOpt = usuarioService.findByUsername(userDetails.getUsername());
+        if (!usuarioOpt.isPresent()) {
+            return false;
+        }
+        
+        Usuario usuario = usuarioOpt.get();
+        
+        // Obtener todas las veterinarias accesibles por el admin (cadena completa)
+        List<Long> veterinariaIds = new java.util.ArrayList<>();
+        
+        // Veterinarias creadas directamente por este admin
+        List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuario.getDocumento());
+        veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+        
+        // Recorrer cadena de creadores
+        String documentoCreador = usuario.getCreadoPorDocumento();
+        int nivel = 1;
+        while (documentoCreador != null && nivel <= 10) {
+            List<Veterinaria> veterinariasDelCreador = veterinariaService.findByCreadoPorDocumento(documentoCreador);
+            for (Veterinaria vet : veterinariasDelCreador) {
+                if (!veterinariaIds.contains(vet.getId())) {
+                    veterinariaIds.add(vet.getId());
+                }
+            }
+            
+            Optional<Usuario> creadorOpt = usuarioService.findByDocumento(documentoCreador);
+            if (creadorOpt.isPresent()) {
+                documentoCreador = creadorOpt.get().getCreadoPorDocumento();
+                nivel++;
+            } else {
+                documentoCreador = null;
+            }
+        }
+        
+        return veterinariaIds.contains(veterinariaId);
     }
 }

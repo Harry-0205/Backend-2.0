@@ -2,6 +2,7 @@ package com.veterinaria.veterinaria.controller;
 
 import com.veterinaria.veterinaria.dto.CitaRequest;
 import com.veterinaria.veterinaria.dto.CitaResponse;
+import com.veterinaria.veterinaria.dto.ApiResponse;
 import com.veterinaria.veterinaria.entity.Cita;
 import com.veterinaria.veterinaria.entity.Cita.EstadoCita;
 import com.veterinaria.veterinaria.entity.Usuario;
@@ -22,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -77,17 +79,34 @@ public class CitaController {
                 // Si es veterinario, obtener solo sus citas
                 citas = citaService.findByVeterinarioDocumento(usuarioAutenticado.getDocumento());
                 System.out.println("=== DEBUG: Veterinario " + username + " consultando sus citas: " + citas.size());
-            } else if (isAdmin || isRecepcionista) {
-                // Admin y Recepcionista ven solo citas de su veterinaria
+            } else if (isAdmin) {
+                // Admin ve citas de todas las veterinarias que creó
+                List<Long> veterinariaIds = new ArrayList<>();
+                List<Veterinaria> veterinariasDelAdmin = veterinariaService.findByCreadoPorDocumento(usuarioAutenticado.getDocumento());
+                veterinariasDelAdmin.forEach(v -> veterinariaIds.add(v.getId()));
+                
+                citas = new ArrayList<>();
+                for (Long vetId : veterinariaIds) {
+                    List<Cita> citasDeVet = citaService.findByVeterinariaId(vetId);
+                    for (Cita c : citasDeVet) {
+                        if (!citas.contains(c)) {
+                            citas.add(c);
+                        }
+                    }
+                }
+                System.out.println("=== DEBUG: Admin " + username + 
+                    " consultando citas de " + veterinariaIds.size() + " veterinarias: " + citas.size() + " citas");
+            } else if (isRecepcionista) {
+                // Recepcionista ve solo citas de su veterinaria
                 if (usuarioAutenticado.getVeterinaria() != null) {
                     Long veterinariaId = usuarioAutenticado.getVeterinaria().getId();
                     citas = citaService.findByVeterinariaId(veterinariaId);
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG: Recepcionista " + username + 
                         " consultando citas de veterinaria ID " + veterinariaId + ": " + citas.size() + " citas");
                 } else {
                     // Si no tiene veterinaria asignada, no puede ver ninguna cita
                     citas = List.of();
-                    System.out.println("=== DEBUG: " + (isAdmin ? "Admin" : "Recepcionista") + " " + username + 
+                    System.out.println("=== DEBUG: Recepcionista " + username + 
                         " sin veterinaria asignada, no puede ver citas");
                 }
             } else {
@@ -113,16 +132,64 @@ public class CitaController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO') or @citaService.findById(#id).orElse(null)?.cliente?.username == authentication.name")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CitaResponse> getCitaById(@PathVariable Long id) {
-    Optional<Cita> cita = citaService.findByIdWithRelations(id);
-    return cita.map(c -> ResponseEntity.ok(new CitaResponse(c)))
-        .orElse(ResponseEntity.notFound().build());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        Optional<Cita> cita = citaService.findByIdWithRelations(id);
+        if (!cita.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        // Verificar roles
+        boolean isCliente = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        // Si es cliente, verificar que sea su propia cita
+        if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+            if (cita.get().getCliente() == null || 
+                !cita.get().getCliente().getUsername().equals(username)) {
+                System.out.println("❌ Cliente " + username + " intentó ver cita de otro cliente");
+                return ResponseEntity.status(403).build();
+            }
+        }
+        
+        return ResponseEntity.ok(new CitaResponse(cita.get()));
     }
     
     @GetMapping("/cliente/{clienteDocumento}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO') or @usuarioService.findById(#clienteDocumento).orElse(null)?.username == authentication.name")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CitaResponse>> getCitasByCliente(@PathVariable String clienteDocumento) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Verificar roles
+        boolean isCliente = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        // Si es cliente, verificar que esté consultando sus propias citas
+        if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+            Optional<Usuario> clienteOpt = usuarioService.findById(clienteDocumento);
+            if (!clienteOpt.isPresent() || !clienteOpt.get().getUsername().equals(username)) {
+                System.out.println("❌ Cliente " + username + " intentó consultar citas de otro cliente: " + clienteDocumento);
+                return ResponseEntity.status(403).build();
+            }
+            System.out.println("✅ Cliente " + username + " consultando sus propias citas");
+        }
+        
         List<Cita> citas = citaService.findByClienteDocumento(clienteDocumento);
         List<CitaResponse> response = citas.stream()
                 .map(CitaResponse::new)
@@ -141,8 +208,32 @@ public class CitaController {
     }
     
     @GetMapping("/mascota/{mascotaId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPCIONISTA') or hasRole('VETERINARIO') or @mascotaService.findById(#mascotaId).orElse(null)?.propietario?.username == authentication.name")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CitaResponse>> getCitasByMascota(@PathVariable Long mascotaId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        // Verificar roles
+        boolean isCliente = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_CLIENTE"));
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        boolean isRecepcionista = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
+        boolean isVeterinario = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_VETERINARIO"));
+        
+        // Si es cliente, verificar que la mascota sea suya
+        if (isCliente && !isAdmin && !isRecepcionista && !isVeterinario) {
+            Optional<Mascota> mascotaOpt = mascotaService.findById(mascotaId);
+            if (!mascotaOpt.isPresent() || mascotaOpt.get().getPropietario() == null ||
+                !mascotaOpt.get().getPropietario().getUsername().equals(username)) {
+                System.out.println("❌ Cliente " + username + " intentó ver citas de mascota de otro propietario");
+                return ResponseEntity.status(403).build();
+            }
+            System.out.println("✅ Cliente " + username + " consultando citas de su mascota");
+        }
+        
         List<Cita> citas = citaService.findByMascotaId(mascotaId);
         List<CitaResponse> response = citas.stream()
                 .map(CitaResponse::new)
@@ -295,9 +386,17 @@ public class CitaController {
     
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteCita(@PathVariable Long id) {
-        citaService.deleteById(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ApiResponse<Void>> deleteCita(@PathVariable Long id) {
+        Optional<Cita> cita = citaService.findById(id);
+        if (cita.isPresent()) {
+            citaService.deleteById(id);
+            return ResponseEntity.ok(
+                ApiResponse.success("Cita eliminada exitosamente")
+            );
+        }
+        return ResponseEntity.status(404).body(
+            ApiResponse.error("Cita no encontrada", "No existe una cita con el ID: " + id)
+        );
     }
     
     @PatchMapping("/{id}/cancelar")

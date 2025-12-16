@@ -17,9 +17,17 @@ public class AuthController {
     AuthService authService;
     
     @PostMapping("/signin")
-    public ResponseEntity<JwtResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        JwtResponse jwtResponse = authService.authenticateUser(loginRequest);
-        return ResponseEntity.ok(jwtResponse);
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            JwtResponse jwtResponse = authService.authenticateUser(loginRequest);
+            return ResponseEntity.ok(jwtResponse);
+        } catch (org.springframework.security.authentication.DisabledException ex) {
+            // Propagar la excepción para que sea manejada por GlobalExceptionHandler
+            throw ex;
+        } catch (Exception ex) {
+            // Propagar otras excepciones
+            throw ex;
+        }
     }
     
     @PostMapping("/signup")

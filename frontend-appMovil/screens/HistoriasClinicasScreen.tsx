@@ -80,6 +80,10 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
     return currentUser?.roles?.includes('ROLE_CLIENTE') || currentUser?.roles?.includes('CLIENTE');
   };
 
+  const isVeterinario = () => {
+    return currentUser?.roles?.includes('ROLE_VETERINARIO') || currentUser?.roles?.includes('VETERINARIO');
+  };
+
   const canCreateHistoria = () => {
     const roles = currentUser?.roles || [];
     return roles.includes('ROLE_ADMIN') || 
@@ -173,8 +177,32 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
   };
 
   const handleSave = async () => {
-    if (!formData.fechaConsulta || !formData.mascotaId || !formData.veterinarioId) {
-      Alert.alert('Error', 'Fecha de consulta, mascota y veterinario son obligatorios');
+    console.log('💾 Intentando guardar historia clínica...');
+    console.log('📋 FormData actual:', formData);
+    
+    // Validar campos obligatorios básicos
+    if (!formData.fechaConsulta || !formData.mascotaId) {
+      console.log('❌ Validación falló: Faltan campos obligatorios');
+      Alert.alert('Error', 'Fecha de consulta y mascota son obligatorios');
+      return;
+    }
+
+    // Determinar el veterinario
+    let veterinarioDocumento = formData.veterinarioId;
+    
+    // Si es veterinario y no hay veterinario seleccionado, usar el usuario actual
+    const roles = currentUser?.roles || [];
+    const esVeterinario = roles.includes('ROLE_VETERINARIO') || roles.includes('VETERINARIO');
+    
+    if (!editingHistoria && !veterinarioDocumento && esVeterinario && currentUser?.documento) {
+      veterinarioDocumento = currentUser.documento;
+      console.log('👨‍⚕️ Veterinario: Auto-asignando documento:', veterinarioDocumento);
+    }
+
+    // Validar que haya veterinario
+    if (!veterinarioDocumento) {
+      console.log('❌ Validación falló: No hay veterinario asignado');
+      Alert.alert('Error', 'Debe seleccionar un veterinario');
       return;
     }
 
@@ -197,13 +225,17 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
         observaciones: formData.observaciones || null,
         recomendaciones: formData.recomendaciones || null,
         mascotaId: parseInt(formData.mascotaId),
-        veterinarioDocumento: formData.veterinarioId,
+        veterinarioDocumento: veterinarioDocumento,
       };
 
+      console.log('📦 Datos a enviar:', historiaData);
+
       if (editingHistoria) {
+        console.log('📝 Actualizando historia:', editingHistoria.id);
         await apiClient.put(`/historias-clinicas/${editingHistoria.id}`, historiaData);
         Alert.alert('Éxito', 'Historia clínica actualizada correctamente');
       } else {
+        console.log('✨ Creando nueva historia clínica');
         await apiClient.post('/historias-clinicas', historiaData);
         Alert.alert('Éxito', 'Historia clínica creada correctamente');
       }
@@ -211,6 +243,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
       resetForm();
       loadHistorias();
     } catch (error: any) {
+      console.error('❌ Error al guardar historia:', error.response?.data || error);
       Alert.alert('Error', error.response?.data?.message || 'Error al guardar historia clínica');
     }
   };
@@ -244,6 +277,15 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
   const resetForm = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    
+    // Si es veterinario, pre-seleccionar su documento
+    const roles = currentUser?.roles || [];
+    const esVeterinario = roles.includes('ROLE_VETERINARIO') || roles.includes('VETERINARIO');
+    const defaultVeterinarioId = esVeterinario && currentUser?.documento ? currentUser.documento : '';
+    
+    console.log('🔄 Reseteando formulario');
+    console.log('👨‍⚕️ Es veterinario:', esVeterinario, '- Documento:', defaultVeterinarioId);
+    
     setFormData({
       fechaConsulta: now.toISOString().slice(0, 16),
       motivoConsulta: '',
@@ -260,7 +302,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
       proximaCita: '',
       propietarioId: '',
       mascotaId: '',
-      veterinarioId: '',
+      veterinarioId: defaultVeterinarioId,
     });
     setEditingHistoria(null);
   };
@@ -379,6 +421,12 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
         {canCreateHistoria() ? (
           <TouchableOpacity
             onPress={() => {
+              console.log('➕ Abriendo formulario nueva historia clínica');
+              console.log('👤 Usuario actual:', currentUser?.username, '- Roles:', currentUser?.roles);
+              console.log('🐾 Mascotas disponibles:', mascotas.length);
+              console.log('👥 Propietarios disponibles:', propietarios.length);
+              console.log('👨‍⚕️ Veterinarios disponibles:', veterinarios.length);
+              console.log('🔐 Es veterinario:', isVeterinario());
               resetForm();
               setShowForm(true);
             }}
@@ -470,10 +518,16 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
               />
 
               <Text style={styles.label}>Propietario *</Text>
+              {propietarios.length === 0 && (
+                <Text style={styles.warningText}>⚠️ No hay propietarios disponibles</Text>
+              )}
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.propietarioId}
                   onValueChange={(value) => {
+                    console.log('👤 Propietario seleccionado:', value);
+                    const propietarioSeleccionado = propietarios.find(p => p.documento === value);
+                    console.log('📋 Datos del propietario:', propietarioSeleccionado);
                     setFormData({ ...formData, propietarioId: value, mascotaId: '' });
                     filterMascotasByPropietario(value);
                   }}
@@ -491,10 +545,18 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
               </View>
 
               <Text style={styles.label}>Mascota *</Text>
+              {formData.propietarioId && filteredMascotas.length === 0 && (
+                <Text style={styles.warningText}>⚠️ Este propietario no tiene mascotas registradas</Text>
+              )}
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.mascotaId}
-                  onValueChange={(value) => setFormData({ ...formData, mascotaId: value })}
+                  onValueChange={(value) => {
+                    console.log('🐾 Mascota seleccionada:', value);
+                    const mascotaSeleccionada = filteredMascotas.find(m => m.id.toString() === value);
+                    console.log('📋 Datos de la mascota:', mascotaSeleccionada);
+                    setFormData({ ...formData, mascotaId: value });
+                  }}
                   style={styles.picker}
                   enabled={!!formData.propietarioId}
                 >
@@ -517,22 +579,39 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
               </View>
 
               <Text style={styles.label}>Veterinario *</Text>
+              {veterinarios.length === 0 && !isVeterinario() && (
+                <Text style={styles.warningText}>⚠️ No hay veterinarios disponibles</Text>
+              )}
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.veterinarioId}
-                  onValueChange={(value) => setFormData({ ...formData, veterinarioId: value })}
+                  onValueChange={(value) => {
+                    console.log('🩺 Veterinario seleccionado:', value);
+                    const vetSeleccionado = veterinarios.find(v => v.documento === value);
+                    console.log('👨‍⚕️ Datos del veterinario:', vetSeleccionado);
+                    setFormData({ ...formData, veterinarioId: value });
+                  }}
                   style={styles.picker}
+                  enabled={!isVeterinario() && !editingHistoria}
                 >
-                  <Picker.Item label="Seleccione un veterinario" value="" />
+                  {!isVeterinario() && <Picker.Item label="Seleccione un veterinario" value="" />}
                   {veterinarios.map((vet) => (
                     <Picker.Item
                       key={vet.documento}
-                      label={`Dr. ${vet.nombres || ''} ${vet.apellidos || ''}`}
+                      label={isVeterinario() && vet.documento === currentUser?.documento
+                        ? '👨‍⚕️ Mi Perfil (Veterinario)'
+                        : `Dr(a). ${vet.nombres || ''} ${vet.apellidos || ''}`}
                       value={vet.documento}
                     />
                   ))}
                 </Picker>
               </View>
+              {isVeterinario() && !editingHistoria && (
+                <Text style={styles.helperText}>🔒 Asignado automáticamente a tu perfil</Text>
+              )}
+              {editingHistoria && (
+                <Text style={styles.helperText}>El veterinario no se puede modificar</Text>
+              )}
 
               <Text style={styles.label}>Motivo de Consulta</Text>
               <TextInput
@@ -866,6 +945,22 @@ const styles = StyleSheet.create({
   picker: {
     height: 50,
     color: '#1e293b',
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: -10,
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#f59e0b',
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
   },
   formButtons: { 
     flexDirection: 'row', 

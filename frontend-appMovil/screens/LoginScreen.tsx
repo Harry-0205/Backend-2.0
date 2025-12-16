@@ -33,7 +33,32 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       await authService.login({ username, password });
       onLoginSuccess();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Error al iniciar sesión');
+      console.error('💥 Error en login:', error);
+      
+      // Extraer el mensaje de error del backend
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Verificar si es un error de usuario desactivado
+      if (errorMessage.toLowerCase().includes('desactivado') || 
+          errorMessage.toLowerCase().includes('no se permite el acceso')) {
+        Alert.alert(
+          '🚫 Acceso Denegado', 
+          'Tu cuenta ha sido desactivada. No se permite el acceso a la plataforma.',
+          [{ text: 'Entendido', style: 'cancel' }]
+        );
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }

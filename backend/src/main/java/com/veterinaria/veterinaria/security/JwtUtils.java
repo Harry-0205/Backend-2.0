@@ -58,4 +58,34 @@ public class JwtUtils {
         
         return false;
     }
+    
+    /**
+     * Valida el token JWT y retorna un mensaje de error descriptivo si falla
+     * @param authToken Token JWT a validar
+     * @return null si el token es válido, mensaje de error si es inválido
+     */
+    public String validateJwtTokenWithMessage(String authToken) {
+        try {
+            Jwts.parser().verifyWith(key()).build().parseSignedClaims(authToken);
+            return null; // Token válido
+        } catch (MalformedJwtException e) {
+            logger.error("Invalid JWT token: {}", e.getMessage());
+            return "Token JWT malformado o inválido. Por favor, inicie sesión nuevamente.";
+        } catch (ExpiredJwtException e) {
+            logger.error("JWT token is expired: {}", e.getMessage());
+            return "El token JWT ha expirado. Por favor, inicie sesión nuevamente.";
+        } catch (UnsupportedJwtException e) {
+            logger.error("JWT token is unsupported: {}", e.getMessage());
+            return "Token JWT no soportado. Por favor, inicie sesión nuevamente.";
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT claims string is empty: {}", e.getMessage());
+            return "Token JWT vacío o nulo. Por favor, proporcione un token válido.";
+        } catch (io.jsonwebtoken.security.SignatureException e) {
+            logger.error("JWT signature validation failed: {}", e.getMessage());
+            return "Firma del token JWT inválida. El token ha sido modificado o es incorrecto.";
+        } catch (Exception e) {
+            logger.error("JWT token validation error: {}", e.getMessage());
+            return "Error al validar el token: " + e.getMessage();
+        }
+    }
 }

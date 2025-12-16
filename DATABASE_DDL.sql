@@ -67,19 +67,27 @@ CREATE TABLE usuarios (
     fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     activo BOOLEAN DEFAULT TRUE NOT NULL,
     veterinaria_id BIGINT NULL COMMENT 'ID de la veterinaria a la que pertenece el veterinario',
+    creado_por_documento VARCHAR(20) NULL COMMENT 'Documento del usuario que creó este usuario',
     INDEX idx_usuarios_username (username),
     INDEX idx_usuarios_email (email),
     INDEX idx_usuarios_activo (activo),
     INDEX idx_usuarios_veterinaria_id (veterinaria_id),
+    INDEX idx_usuarios_creado_por (creado_por_documento),
     CONSTRAINT fk_usuario_veterinaria 
         FOREIGN KEY (veterinaria_id) 
         REFERENCES veterinarias(id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Usuarios del sistema (Admin, Veterinarios, Clientes, Recepcionistas)';
 
--- Agregar constraint para creado_por_documento después de crear usuarios
+-- Agregar constraints para creado_por_documento después de crear usuarios
 ALTER TABLE veterinarias
 ADD CONSTRAINT fk_veterinaria_creado_por
+    FOREIGN KEY (creado_por_documento)
+    REFERENCES usuarios(documento)
+    ON DELETE SET NULL;
+
+ALTER TABLE usuarios
+ADD CONSTRAINT fk_usuario_creado_por
     FOREIGN KEY (creado_por_documento)
     REFERENCES usuarios(documento)
     ON DELETE SET NULL;

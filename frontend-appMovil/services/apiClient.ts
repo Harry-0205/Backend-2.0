@@ -59,6 +59,20 @@ class ApiClient {
           console.error('❌ Response Error:', error.response?.status, error.response?.data);
         }
         
+        // Verificar si el usuario está desactivado
+        const errorMessage = error.response?.data?.message || error.response?.data || '';
+        const isDeactivatedUser = typeof errorMessage === 'string' && 
+                                 (errorMessage.toLowerCase().includes('desactivado') || 
+                                  errorMessage.toLowerCase().includes('no se permite el acceso'));
+        
+        if (isDeactivatedUser) {
+          console.warn('🚫 Usuario desactivado detectado');
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('currentUser');
+          // El error se propagará para que el componente de login lo maneje
+          return Promise.reject(error);
+        }
+        
         if (error.response?.status === 401 || error.response?.status === 403) {
           await AsyncStorage.removeItem('token');
           await AsyncStorage.removeItem('currentUser');

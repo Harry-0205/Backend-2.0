@@ -64,4 +64,18 @@ public class HistoriaClinicaService {
     public List<HistoriaClinica> findByVeterinariaId(Long veterinariaId) {
         return historiaClinicaRepository.findByVeterinariaId(veterinariaId);
     }
+    
+    public HistoriaClinica activate(Long id) {
+        HistoriaClinica historiaClinica = findById(id)
+            .orElseThrow(() -> new RuntimeException("Historia clínica no encontrada"));
+        historiaClinica.setActivo(true);
+        return historiaClinicaRepository.save(historiaClinica);
+    }
+    
+    public HistoriaClinica deactivate(Long id) {
+        HistoriaClinica historiaClinica = findById(id)
+            .orElseThrow(() -> new RuntimeException("Historia clínica no encontrada"));
+        historiaClinica.setActivo(false);
+        return historiaClinicaRepository.save(historiaClinica);
+    }
 }

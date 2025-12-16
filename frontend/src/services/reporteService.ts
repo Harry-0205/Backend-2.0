@@ -80,9 +80,10 @@ export interface EstadisticasCitas {
 }
 
 // Servicios de reportes de usuarios
-export const getReporteUsuarios = async (): Promise<ReporteUsuario[]> => {
+export const getReporteUsuarios = async (veterinariaId?: number): Promise<ReporteUsuario[]> => {
   try {
-    const res = await apiClient.get('/reportes/usuarios');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/usuarios', { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de usuarios:', error);
@@ -90,9 +91,10 @@ export const getReporteUsuarios = async (): Promise<ReporteUsuario[]> => {
   }
 };
 
-export const getEstadisticasUsuarios = async (): Promise<EstadisticasUsuarios> => {
+export const getEstadisticasUsuarios = async (veterinariaId?: number): Promise<EstadisticasUsuarios> => {
   try {
-    const res = await apiClient.get('/reportes/usuarios/estadisticas');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/usuarios/estadisticas', { params });
     return res.data;
   } catch (error) {
     console.error('Error al obtener estadísticas de usuarios:', error);
@@ -100,9 +102,13 @@ export const getEstadisticasUsuarios = async (): Promise<EstadisticasUsuarios> =
   }
 };
 
-export const getReporteUsuariosPorRol = async (rol: string): Promise<ReporteUsuario[]> => {
+export const getReporteUsuariosPorRol = async (rol: string, veterinariaId?: number): Promise<ReporteUsuario[]> => {
   try {
-    const res = await apiClient.get(`/reportes/usuarios/rol/${rol}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/usuarios/rol/${rol}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de usuarios por rol:', error);
@@ -111,9 +117,10 @@ export const getReporteUsuariosPorRol = async (rol: string): Promise<ReporteUsua
 };
 
 // Servicios de reportes de mascotas
-export const getReporteMascotas = async (): Promise<ReporteMascota[]> => {
+export const getReporteMascotas = async (veterinariaId?: number): Promise<ReporteMascota[]> => {
   try {
-    const res = await apiClient.get('/reportes/mascotas');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/mascotas', { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de mascotas:', error);
@@ -121,9 +128,10 @@ export const getReporteMascotas = async (): Promise<ReporteMascota[]> => {
   }
 };
 
-export const getEstadisticasMascotas = async (): Promise<EstadisticasMascotas> => {
+export const getEstadisticasMascotas = async (veterinariaId?: number): Promise<EstadisticasMascotas> => {
   try {
-    const res = await apiClient.get('/reportes/mascotas/estadisticas');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/mascotas/estadisticas', { params });
     return res.data;
   } catch (error) {
     console.error('Error al obtener estadísticas de mascotas:', error);
@@ -131,9 +139,13 @@ export const getEstadisticasMascotas = async (): Promise<EstadisticasMascotas> =
   }
 };
 
-export const getReporteMascotasPorEspecie = async (especie: string): Promise<ReporteMascota[]> => {
+export const getReporteMascotasPorEspecie = async (especie: string, veterinariaId?: number): Promise<ReporteMascota[]> => {
   try {
-    const res = await apiClient.get(`/reportes/mascotas/especie/${especie}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/mascotas/especie/${especie}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de mascotas por especie:', error);
@@ -142,9 +154,10 @@ export const getReporteMascotasPorEspecie = async (especie: string): Promise<Rep
 };
 
 // Servicios de reportes de citas
-export const getReporteCitas = async (): Promise<ReporteCita[]> => {
+export const getReporteCitas = async (veterinariaId?: number): Promise<ReporteCita[]> => {
   try {
-    const res = await apiClient.get('/reportes/citas');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/citas', { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de citas:', error);
@@ -152,9 +165,10 @@ export const getReporteCitas = async (): Promise<ReporteCita[]> => {
   }
 };
 
-export const getEstadisticasCitas = async (): Promise<EstadisticasCitas> => {
+export const getEstadisticasCitas = async (veterinariaId?: number): Promise<EstadisticasCitas> => {
   try {
-    const res = await apiClient.get('/reportes/citas/estadisticas');
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.get('/reportes/citas/estadisticas', { params });
     return res.data;
   } catch (error) {
     console.error('Error al obtener estadísticas de citas:', error);
@@ -162,9 +176,13 @@ export const getEstadisticasCitas = async (): Promise<EstadisticasCitas> => {
   }
 };
 
-export const getReporteCitasPorEstado = async (estado: string): Promise<ReporteCita[]> => {
+export const getReporteCitasPorEstado = async (estado: string, veterinariaId?: number): Promise<ReporteCita[]> => {
   try {
-    const res = await apiClient.get(`/reportes/citas/estado/${estado}`);
+    const params: any = {};
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.get(`/reportes/citas/estado/${estado}`, { params });
     return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Error al obtener reporte de citas por estado:', error);
@@ -185,9 +203,21 @@ export const getReporteCitasPorFecha = async (fechaInicio: string, fechaFin: str
 };
 
 // Exportar reportes a CSV
-export const exportarReporteCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas'): Promise<void> => {
+export const exportarReporteCSV = async (
+  tipo: 'usuarios' | 'mascotas' | 'citas', 
+  veterinariaId?: number,
+  filtros?: any
+): Promise<void> => {
   try {
+    const params: any = {};
+    if (veterinariaId) params.veterinariaId = veterinariaId;
+    if (filtros) {
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key]) params[key] = filtros[key];
+      });
+    }
     const res = await apiClient.get(`/reportes/${tipo}/export/csv`, {
+      params,
       responseType: 'blob'
     });
     
@@ -206,14 +236,26 @@ export const exportarReporteCSV = async (tipo: 'usuarios' | 'mascotas' | 'citas'
 };
 
 // Exportar reportes a PDF
-export const exportarReportePDF = async (tipo: 'usuarios' | 'mascotas' | 'citas'): Promise<void> => {
+export const exportarReportePDF = async (
+  tipo: 'usuarios' | 'mascotas' | 'citas', 
+  veterinariaId?: number,
+  filtros?: any
+): Promise<void> => {
   try {
+    const params: any = {};
+    if (veterinariaId) params.veterinariaId = veterinariaId;
+    if (filtros) {
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key]) params[key] = filtros[key];
+      });
+    }
     const res = await apiClient.get(`/reportes/${tipo}/export/pdf`, {
+      params,
       responseType: 'blob'
     });
     
     // Crear un enlace de descarga
-    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `reporte_${tipo}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -222,6 +264,47 @@ export const exportarReportePDF = async (tipo: 'usuarios' | 'mascotas' | 'citas'
     link.remove();
   } catch (error) {
     console.error('Error al exportar reporte PDF:', error);
+    throw error;
+  }
+};
+
+// Generar reportes por veterinaria (solo para admins)
+export const generarReporteCitasPorVeterinaria = async (
+  fechaInicio: string, 
+  fechaFin: string, 
+  veterinariaId?: number
+): Promise<any> => {
+  try {
+    const params: any = { fechaInicio, fechaFin };
+    if (veterinariaId) {
+      params.veterinariaId = veterinariaId;
+    }
+    const res = await apiClient.post('/reportes/generar-citas', null, { params });
+    return res.data;
+  } catch (error) {
+    console.error('Error al generar reporte de citas:', error);
+    throw error;
+  }
+};
+
+export const generarReporteMascotasPorVeterinaria = async (veterinariaId?: number): Promise<any> => {
+  try {
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.post('/reportes/generar-mascotas', null, { params });
+    return res.data;
+  } catch (error) {
+    console.error('Error al generar reporte de mascotas:', error);
+    throw error;
+  }
+};
+
+export const generarReporteUsuariosPorVeterinaria = async (veterinariaId?: number): Promise<any> => {
+  try {
+    const params = veterinariaId ? { veterinariaId } : {};
+    const res = await apiClient.post('/reportes/generar-usuarios', null, { params });
+    return res.data;
+  } catch (error) {
+    console.error('Error al generar reporte de usuarios:', error);
     throw error;
   }
 };

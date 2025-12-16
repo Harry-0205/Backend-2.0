@@ -36,7 +36,7 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findByVeterinariaId(@Param("veterinariaId") Long veterinariaId);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
-    @Query("SELECT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")
+    @Query("SELECT DISTINCT c FROM Cita c WHERE c.cliente.documento = :clienteDocumento")
     List<Cita> findByClienteDocumentoWithRelations(@Param("clienteDocumento") String clienteDocumento);
 
     @EntityGraph(attributePaths = {"cliente", "mascota", "veterinario", "veterinaria"})
@@ -61,6 +61,18 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     long countByEstado(Cita.EstadoCita estado);
     long countByCliente(Usuario cliente);
     long countByMascota(Mascota mascota);
+    
+    // Métodos de conteo filtrados por veterinaria
+    @Query("SELECT COUNT(c) FROM Cita c WHERE c.fechaHora BETWEEN :inicio AND :fin AND c.mascota.propietario.veterinaria.id = :veterinariaId")
+    long countByFechaHoraBetweenAndMascotaPropietarioVeterinariaId(@Param("inicio") LocalDateTime inicio, 
+                                                                     @Param("fin") LocalDateTime fin, 
+                                                                     @Param("veterinariaId") Long veterinariaId);
+    
+    @Query("SELECT COUNT(c) FROM Cita c WHERE c.fechaHora BETWEEN :inicio AND :fin AND c.estado = :estado AND c.mascota.propietario.veterinaria.id = :veterinariaId")
+    long countByFechaHoraBetweenAndEstadoAndMascotaPropietarioVeterinariaId(@Param("inicio") LocalDateTime inicio, 
+                                                                              @Param("fin") LocalDateTime fin, 
+                                                                              @Param("estado") Cita.EstadoCita estado,
+                                                                              @Param("veterinariaId") Long veterinariaId);
     
     // Métodos para reportes
     Optional<Cita> findFirstByMascotaOrderByFechaHoraDesc(Mascota mascota);

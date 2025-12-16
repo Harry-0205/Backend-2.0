@@ -33,7 +33,38 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     } catch (err: any) {
       console.error('💥 Error en handleSubmit:', err);
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
+      console.error('💥 Error response:', err.response);
+      console.error('💥 Error response data:', err.response?.data);
+      
+      // Extraer el mensaje de error del backend
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (err.response?.data) {
+        // Prioridad 1: Verificar estructura ApiResponse del backend
+        if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } 
+        // Prioridad 2: Verificar si viene como string directo
+        else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+        // Prioridad 3: Verificar mensaje de error genérico
+        else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      console.log('💬 Mensaje de error extraído:', errorMessage);
+      
+      // Verificar si es un error de usuario desactivado
+      if (errorMessage.toLowerCase().includes('desactivado') || 
+          errorMessage.toLowerCase().includes('no se permite el acceso')) {
+        errorMessage = '🚫 Tu cuenta ha sido desactivada. No se permite el acceso a la plataforma.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

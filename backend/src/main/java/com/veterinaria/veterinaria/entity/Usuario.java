@@ -57,6 +57,9 @@ public class Usuario {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
     private Boolean activo = true;
     
+    @Column(name = "creado_por_documento", length = 20)
+    private String creadoPorDocumento;
+    
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "usuarios_roles",
@@ -187,6 +190,10 @@ public class Usuario {
         return activo;
     }
     
+    public boolean isActivo() {
+        return activo != null && activo;
+    }
+    
     public void setActivo(Boolean activo) {
         this.activo = activo;
     }
@@ -229,6 +236,14 @@ public class Usuario {
     
     public void setVeterinaria(Veterinaria veterinaria) {
         this.veterinaria = veterinaria;
+    }
+    
+    public String getCreadoPorDocumento() {
+        return creadoPorDocumento;
+    }
+    
+    public void setCreadoPorDocumento(String creadoPorDocumento) {
+        this.creadoPorDocumento = creadoPorDocumento;
     }
     
     // Método helper para obtener nombre completo

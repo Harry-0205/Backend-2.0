@@ -34,14 +34,21 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   });
 
   useEffect(() => {
-    loadCurrentUser();
-    loadMascotas();
-    loadPropietarios();
+    const initialize = async () => {
+      const user = await loadCurrentUser();
+      loadMascotas();
+      if (user) {
+        loadPropietarios(user);
+      }
+    };
+    initialize();
   }, []);
 
   const loadCurrentUser = async () => {
     const user = await authService.getCurrentUser();
+    console.log('👤 Usuario cargado:', user?.username, '- Roles:', user?.roles);
     setCurrentUser(user);
+    return user;
   };
 
   const isCliente = () => {
@@ -80,13 +87,19 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const loadPropietarios = async () => {
+  const loadPropietarios = async (userParam?: any) => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user) return;
+      const user = userParam || currentUser || await authService.getCurrentUser();
+      if (!user) {
+        console.log('⚠️ No hay usuario disponible para cargar propietarios');
+        return;
+      }
 
+      console.log('🔍 Verificando rol del usuario:', user.username);
       const roles = user.roles || [];
+      console.log('🎭 Roles:', roles);
       const esCliente = roles.includes('ROLE_CLIENTE') || roles.includes('CLIENTE');
+      console.log('👤 ¿Es cliente?', esCliente);
 
       if (esCliente) {
         // Si es cliente, solo mostrar al usuario actual como propietario
@@ -104,18 +117,40 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
       }
 
       // Para admin/recepcionista, cargar todos los usuarios
+      console.log('📡 Cargando usuarios para propietarios...');
       const response = await apiClient.get('/usuarios');
+      console.log('📦 Respuesta usuarios:', response.data);
       const usuariosData = response.data?.data || response.data;
+      console.log('👤 Total usuarios recibidos:', Array.isArray(usuariosData) ? usuariosData.length : 0);
+      
       const clientes = Array.isArray(usuariosData)
         ? usuariosData.filter(
-            (usuario) =>
-              usuario.roles?.some((role: string) => role === 'CLIENTE' || role === 'ROLE_CLIENTE')
+            (usuario) => {
+              const tieneRolCliente = usuario.roles?.some((role: string) => role === 'CLIENTE' || role === 'ROLE_CLIENTE');
+              if (tieneRolCliente) {
+                console.log('✅ Cliente encontrado:', usuario.nombres, usuario.apellidos, '-', usuario.documento);
+              }
+              return tieneRolCliente;
+            }
           )
         : [];
       setPropietarios(clientes);
-      console.log('👥 Propietarios cargados:', clientes.length);
-    } catch (error) {
+      console.log('👥 Total propietarios/clientes cargados:', clientes.length);
+      
+      if (clientes.length === 0) {
+        console.warn('⚠️ No se encontraron usuarios con rol CLIENTE en el sistema');
+        console.warn('📋 Total usuarios en el sistema:', Array.isArray(usuariosData) ? usuariosData.length : 0);
+        if (Array.isArray(usuariosData) && usuariosData.length > 0) {
+          console.warn('👥 Roles de los primeros 5 usuarios:');
+          usuariosData.slice(0, 5).forEach(u => {
+            console.warn(`   - ${u.username}: ${u.roles?.join(', ') || 'Sin roles'}`);
+          });
+        }
+      }
+    } catch (error: any) {
       console.error('❌ Error al cargar propietarios:', error);
+      console.error('❌ Response:', error.response?.data);
+      console.error('❌ Status:', error.response?.status);
       // Si hay error y es cliente, al menos mostrar usuario actual
       const user = await authService.getCurrentUser();
       if (user) {
@@ -142,11 +177,26 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    if (!editingMascota && !formData.propietarioId) {
+    // Determinar el propietario
+    let propietarioDocumento = formData.propietarioId;
+    
+    // Si es cliente y no hay propietario seleccionado, usar el usuario actual
+    if (!editingMascota && !propietarioDocumento && isCliente() && currentUser?.documento) {
+      propietarioDocumento = currentUser.documento;
+      console.log('🔐 Cliente: Auto-asignando propietario:', propietarioDocumento);
+    }
+
+    // Validar que haya propietario
+    if (!editingMascota && !propietarioDocumento) {
+      console.log('❌ Validación falló: No hay propietario seleccionado');
+      console.log('📋 Estado actual formData:', formData);
+      console.log('👥 Propietarios disponibles:', propietarios.length);
       Alert.alert('Error', 'Debe seleccionar un propietario');
       return;
     }
 
+    console.log('✅ Validación exitosa, propietario:', propietarioDocumento);
+    
     try {
       if (editingMascota) {
         // Para edición, NO incluir propietario
@@ -162,6 +212,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
           color: formData.color || null,
           observaciones: formData.observaciones || null,
         };
+        console.log('📝 Actualizando mascota:', mascotaData);
         await apiClient.put(`/mascotas/${editingMascota.id}`, mascotaData);
         Alert.alert('Éxito', 'Mascota actualizada correctamente');
       } else {
@@ -178,9 +229,10 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
           color: formData.color || null,
           observaciones: formData.observaciones || null,
           propietario: {
-            documento: formData.propietarioId,
+            documento: propietarioDocumento,
           },
         };
+        console.log('✨ Creando mascota:', mascotaData);
         await apiClient.post('/mascotas', mascotaData);
         Alert.alert('Éxito', 'Mascota creada correctamente');
       }
@@ -188,6 +240,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
       resetForm();
       loadMascotas();
     } catch (error: any) {
+      console.error('❌ Error al guardar mascota:', error.response?.data || error);
       Alert.alert('Error', error.response?.data?.message || 'Error al guardar mascota');
     }
   };
@@ -231,6 +284,9 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   };
 
   const resetForm = () => {
+    // Si es cliente, pre-seleccionar su documento como propietario
+    const defaultPropietarioId = isCliente() && currentUser?.documento ? currentUser.documento : '';
+    
     setFormData({
       nombre: '',
       especie: '',
@@ -240,7 +296,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
       peso: '',
       color: '',
       observaciones: '',
-      propietarioId: '',
+      propietarioId: defaultPropietarioId,
     });
     setEditingMascota(null);
   };
@@ -254,7 +310,24 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
         </TouchableOpacity>
         <Text style={styles.title}>🐾 Gestión de Mascotas</Text>
         <TouchableOpacity
-          onPress={() => {
+          onPress={async () => {
+            console.log('➕ Abriendo formulario nueva mascota');
+            console.log('👤 Usuario actual:', currentUser?.username, '- Rol:', currentUser?.roles);
+            console.log('👥 Propietarios disponibles ANTES:', propietarios.length);
+            
+            // Forzar recarga de propietarios si la lista está vacía
+            if (propietarios.length === 0 && !isCliente()) {
+              console.log('🔄 Lista de propietarios vacía, recargando...');
+              await loadPropietarios(currentUser);
+            }
+            
+            console.log('👥 Propietarios disponibles DESPUÉS:', propietarios.length);
+            if (propietarios.length > 0) {
+              console.log('📋 Primeros propietarios:', propietarios.slice(0, 3).map(p => `${p.nombres} ${p.apellidos} - ${p.documento}`));
+            } else {
+              console.error('❌ Aún no hay propietarios después de recargar');
+            }
+            
             resetForm();
             setShowForm(true);
           }}
@@ -382,19 +455,32 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
                 onChangeText={(text) => setFormData({ ...formData, color: text })}
               />
 
-              <Text style={styles.label}>Propietario *</Text>
+              <Text style={styles.label}>Propietario * {!isCliente() && `(${propietarios.length} disponibles)`}</Text>
+              {propietarios.length === 0 && !isCliente() && (
+                <Text style={styles.warningText}>
+                  ⚠️ No hay propietarios/clientes registrados en el sistema.{'\n'}
+                  Debe registrar al menos un usuario con rol CLIENTE primero.
+                </Text>
+              )}
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.propietarioId}
-                  onValueChange={(value) => setFormData({ ...formData, propietarioId: value })}
+                  onValueChange={(value) => {
+                    console.log('📝 Propietario seleccionado:', value);
+                    const propietarioSeleccionado = propietarios.find(p => p.documento === value);
+                    console.log('👤 Datos del propietario:', propietarioSeleccionado);
+                    setFormData({ ...formData, propietarioId: value });
+                  }}
                   style={styles.picker}
-                  enabled={!editingMascota}
+                  enabled={!editingMascota && !isCliente()}
                 >
-                  <Picker.Item label="Seleccione un propietario" value="" />
+                  {!isCliente() && <Picker.Item label="Seleccione un propietario" value="" />}
                   {propietarios.map((prop) => (
                     <Picker.Item
                       key={prop.documento}
-                      label={`${prop.nombres || ''} ${prop.apellidos || ''} - ${prop.documento}`}
+                      label={isCliente() && prop.documento === currentUser?.documento 
+                        ? '👤 Mi Perfil (Propietario)' 
+                        : `${prop.nombres || ''} ${prop.apellidos || ''} - ${prop.documento}`}
                       value={prop.documento}
                     />
                   ))}
@@ -402,6 +488,9 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
               </View>
               {editingMascota && (
                 <Text style={styles.helperText}>El propietario no se puede modificar</Text>
+              )}
+              {isCliente() && !editingMascota && (
+                <Text style={styles.helperText}>🔒 Asignado automáticamente a tu perfil</Text>
               )}
 
               <Text style={styles.label}>Observaciones</Text>
@@ -602,6 +691,15 @@ const styles = StyleSheet.create({
     marginTop: -12,
     marginBottom: 18,
     fontWeight: '500',
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#f59e0b',
+    marginBottom: 12,
+    fontWeight: '600',
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
   },
   formButtons: { flexDirection: 'row', gap: 12, marginTop: 12 },
   button: { 

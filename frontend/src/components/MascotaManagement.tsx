@@ -18,6 +18,7 @@ import mascotaService from '../services/mascotaService';
 import { getAllUsuarios } from '../services/userService';
 import authService from '../services/authService';
 import historiaClinicaService from '../services/historiaClinicaService';
+import SearchableSelect from './SearchableSelect';
 
 const MascotaManagement: React.FC = () => {
   const [mascotas, setMascotas] = useState<Mascota[]>([]);
@@ -193,6 +194,10 @@ const MascotaManagement: React.FC = () => {
   };
 
   const resetForm = () => {
+    // Si es cliente, auto-asignar su documento como propietario
+    const currentUser = authService.getCurrentUser();
+    const propietarioIdDefault = authService.isCliente() && currentUser ? currentUser.documento : '';
+    
     setFormData({
       nombre: '',
       especie: '',
@@ -202,7 +207,7 @@ const MascotaManagement: React.FC = () => {
       peso: '',
       color: '',
       observaciones: '',
-      propietarioId: ''
+      propietarioId: propietarioIdDefault
     });
   };
 
@@ -461,7 +466,7 @@ const MascotaManagement: React.FC = () => {
               
               {/* Filtros */}
               <Row className="mb-3">
-                <Col md={4}>
+                <Col md={3}>
                   <InputGroup>
                     <InputGroup.Text>
                       <i className="fas fa-search"></i>
@@ -474,29 +479,48 @@ const MascotaManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={4}>
-                  <Form.Select
+                <Col md={3}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todas las mascotas' },
+                      { value: 'true', label: 'Solo activas' },
+                      { value: 'false', label: 'Solo inactivas' }
+                    ]}
                     value={showActives === null ? '' : showActives.toString()}
-                    onChange={(e) => setShowActives(e.target.value === '' ? null : e.target.value === 'true')}
-                  >
-                    <option value="">Todas las mascotas</option>
-                    <option value="true">Solo activas</option>
-                    <option value="false">Solo inactivas</option>
-                  </Form.Select>
+                    onChange={(value) => setShowActives(value === '' ? null : value === 'true')}
+                    placeholder="Todas las mascotas"
+                  />
                 </Col>
-                <Col md={4}>
-                  <Form.Select
+                <Col md={3}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todas las especies' },
+                      { value: 'perro', label: 'Perro' },
+                      { value: 'gato', label: 'Gato' },
+                      { value: 'ave', label: 'Ave' },
+                      { value: 'conejo', label: 'Conejo' },
+                      { value: 'hamster', label: 'Hamster' },
+                      { value: 'reptil', label: 'Reptil' }
+                    ]}
                     value={filterByEspecie}
-                    onChange={(e) => setFilterByEspecie(e.target.value)}
+                    onChange={setFilterByEspecie}
+                    placeholder="Todas las especies"
+                  />
+                </Col>
+                <Col md={3}>
+                  <Button
+                    variant="outline-secondary"
+                    className="w-100"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setShowActives(null);
+                      setFilterByEspecie('');
+                    }}
+                    title="Limpiar filtros"
                   >
-                    <option value="">Todas las especies</option>
-                    <option value="perro">Perro</option>
-                    <option value="gato">Gato</option>
-                    <option value="ave">Ave</option>
-                    <option value="conejo">Conejo</option>
-                    <option value="hamster">Hamster</option>
-                    <option value="reptil">Reptil</option>
-                  </Form.Select>
+                    <i className="fas fa-eraser me-2"></i>
+                    Limpiar
+                  </Button>
                 </Col>
               </Row>
 
@@ -663,21 +687,21 @@ const MascotaManagement: React.FC = () => {
                           disabled
                         />
                       ) : (
-                        <Form.Select
-                          name="especie"
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Seleccione una especie' },
+                            { value: 'Perro', label: '🐕 Perro' },
+                            { value: 'Gato', label: '🐈 Gato' },
+                            { value: 'Ave', label: '🦜 Ave' },
+                            { value: 'Conejo', label: '🐰 Conejo' },
+                            { value: 'Hamster', label: '🐹 Hamster' },
+                            { value: 'Reptil', label: '🦎 Reptil' },
+                            { value: 'Otro', label: '🐾 Otro' }
+                          ]}
                           value={formData.especie}
-                          onChange={handleInputChange}
+                          onChange={(value) => handleInputChange({ target: { name: 'especie', value } } as any)}
                           required
-                        >
-                          <option value="">Seleccione una especie</option>
-                          <option value="Perro">🐕 Perro</option>
-                          <option value="Gato">🐈 Gato</option>
-                          <option value="Ave">🦜 Ave</option>
-                          <option value="Conejo">🐰 Conejo</option>
-                          <option value="Hamster">🐹 Hamster</option>
-                          <option value="Reptil">🦎 Reptil</option>
-                          <option value="Otro">🐾 Otro</option>
-                        </Form.Select>
+                        />
                       )}
                     </Form.Group>
                   </Col>
@@ -706,15 +730,15 @@ const MascotaManagement: React.FC = () => {
                           disabled
                         />
                       ) : (
-                        <Form.Select
-                          name="sexo"
+                        <SearchableSelect
+                          options={[
+                            { value: '', label: 'Seleccione el sexo' },
+                            { value: 'Macho', label: '♂ Macho' },
+                            { value: 'Hembra', label: '♀ Hembra' }
+                          ]}
                           value={formData.sexo}
-                          onChange={handleInputChange}
-                        >
-                          <option value="">Seleccione el sexo</option>
-                          <option value="Macho">♂ Macho</option>
-                          <option value="Hembra">♀ Hembra</option>
-                        </Form.Select>
+                          onChange={(value) => handleInputChange({ target: { name: 'sexo', value } } as any)}
+                        />
                       )}
                     </Form.Group>
                   </Col>
@@ -804,20 +828,19 @@ const MascotaManagement: React.FC = () => {
                       disabled
                     />
                   ) : (
-                    <Form.Select
-                      name="propietarioId"
+                    <SearchableSelect
+                      options={[
+                        { value: '', label: 'Seleccione un propietario' },
+                        ...propietarios.map(propietario => ({
+                          value: propietario.documento,
+                          label: `${propietario.nombres || ''} ${propietario.apellidos || ''} - ${propietario.documento}`
+                        }))
+                      ]}
                       value={formData.propietarioId}
-                      onChange={handleInputChange}
+                      onChange={(value) => handleInputChange({ target: { name: 'propietarioId', value } } as any)}
                       required
                       disabled={authService.isCliente()}
-                    >
-                      <option value="">Seleccione un propietario</option>
-                      {propietarios.map(propietario => (
-                        <option key={propietario.documento} value={propietario.documento}>
-                          {`${propietario.nombres || ''} ${propietario.apellidos || ''} - ${propietario.documento}`}
-                        </option>
-                      ))}
-                    </Form.Select>
+                    />
                   )}
                   {authService.isCliente() && modalMode !== 'view' && (
                     <Form.Text className="text-muted">

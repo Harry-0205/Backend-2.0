@@ -24,6 +24,7 @@ import {
 } from '../services/userService';
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
+import SearchableSelect from './SearchableSelect';
 
 const UserManagement: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -38,6 +39,7 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showActives, setShowActives] = useState<boolean | null>(null);
   const [filterByRole, setFilterByRole] = useState<string>('');
+  const [filterByVeterinaria, setFilterByVeterinaria] = useState<string>('');
 
   // Función para normalizar roles (quitar prefijo ROLE_)
   const normalizeRole = (role: string): string => {
@@ -62,19 +64,23 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     loadUsuarios();
     loadVeterinarias();
-  }, []);
+  }, [filterByVeterinaria]); // Recargar cuando cambie el filtro de veterinaria
 
   useEffect(() => {
     filterUsuarios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usuarios, searchTerm, showActives, filterByRole]);
+  }, [usuarios, searchTerm, showActives, filterByRole, filterByVeterinaria]);
 
   const loadUsuarios = async () => {
     try {
       setLoading(true);
       setError('');
       console.log('🔄 Iniciando carga de usuarios...');
-      const data = await getAllUsuarios();
+      
+      // Si hay filtro de veterinaria, pasar como parámetro
+      const veterinariaIdParam = filterByVeterinaria ? parseInt(filterByVeterinaria) : undefined;
+      const data = await getAllUsuarios(veterinariaIdParam);
+      
       console.log('📥 Usuarios recibidos:', data);
       console.log('📊 Total de usuarios:', data?.length || 0);
       
@@ -241,9 +247,9 @@ const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       
-      // Validar que recepcionista no pueda crear/editar administradores
-      if (authService.isRecepcionista() && (formData.rol === 'ADMIN' || formData.rol === 'ROLE_ADMIN')) {
-        setError('No tiene permisos para crear o editar usuarios con rol Administrador');
+      // Validar que NO se pueda crear/editar administradores (ni admin ni recepcionista)
+      if (formData.rol === 'ADMIN' || formData.rol === 'ROLE_ADMIN') {
+        setError('No se permite crear o editar usuarios con rol Administrador');
         setLoading(false);
         return;
       }
@@ -425,7 +431,7 @@ const UserManagement: React.FC = () => {
               
               {/* Filtros */}
               <Row className="mb-3">
-                <Col md={4}>
+                <Col md={authService.isAdmin() ? 3 : 3}>
                   <InputGroup>
                     <InputGroup.Text>
                       <i className="fas fa-search"></i>
@@ -438,27 +444,63 @@ const UserManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={4}>
-                  <Form.Select
+                <Col md={authService.isAdmin() ? 2 : 3}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todos los usuarios' },
+                      { value: 'true', label: 'Solo activos' },
+                      { value: 'false', label: 'Solo inactivos' }
+                    ]}
                     value={showActives === null ? '' : showActives.toString()}
-                    onChange={(e) => setShowActives(e.target.value === '' ? null : e.target.value === 'true')}
-                  >
-                    <option value="">Todos los usuarios</option>
-                    <option value="true">Solo activos</option>
-                    <option value="false">Solo inactivos</option>
-                  </Form.Select>
+                    onChange={(value) => setShowActives(value === '' ? null : value === 'true')}
+                    placeholder="Todos los usuarios"
+                  />
                 </Col>
-                <Col md={4}>
-                  <Form.Select
+                <Col md={authService.isAdmin() ? 2 : 3}>
+                  <SearchableSelect
+                    options={[
+                      { value: '', label: 'Todos los roles' },
+                      { value: 'ADMIN', label: 'Administrador (solo vista)' },
+                      { value: 'VETERINARIO', label: 'Veterinario' },
+                      { value: 'RECEPCIONISTA', label: 'Recepcionista' },
+                      { value: 'CLIENTE', label: 'Cliente' }
+                    ]}
                     value={filterByRole}
-                    onChange={(e) => setFilterByRole(e.target.value)}
+                    onChange={setFilterByRole}
+                    placeholder="Todos los roles"
+                  />
+                </Col>
+                {authService.isAdmin() && (
+                  <Col md={3}>
+                    <SearchableSelect
+                      options={[
+                        { value: '', label: 'Todas las veterinarias' },
+                        ...veterinarias.map((vet) => ({
+                          value: vet.id.toString(),
+                          label: vet.nombre
+                        }))
+                      ]}
+                      value={filterByVeterinaria}
+                      onChange={setFilterByVeterinaria}
+                      placeholder="Todas las veterinarias"
+                    />
+                  </Col>
+                )}
+                <Col md={authService.isAdmin() ? 2 : 3}>
+                  <Button
+                    variant="outline-secondary"
+                    className="w-100"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setShowActives(null);
+                      setFilterByRole('');
+                      setFilterByVeterinaria('');
+                    }}
+                    title="Limpiar filtros"
                   >
-                    <option value="">Todos los roles</option>
-                    <option value="ADMIN">Administrador</option>
-                    <option value="VETERINARIO">Veterinario</option>
-                    <option value="RECEPCIONISTA">Recepcionista</option>
-                    <option value="CLIENTE">Cliente</option>
-                  </Form.Select>
+                    <i className="fas fa-eraser me-2"></i>
+                    Limpiar
+                  </Button>
                 </Col>
               </Row>
 
@@ -607,19 +649,19 @@ const UserManagement: React.FC = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Tipo de Documento <span className="text-danger">*</span></Form.Label>
-                      <Form.Select
-                        name="tipoDocumento"
+                      <SearchableSelect
+                        options={[
+                          { value: 'CC', label: 'CC - Cédula de Ciudadanía' },
+                          { value: 'CE', label: 'CE - Cédula de Extranjería' },
+                          { value: 'TI', label: 'TI - Tarjeta de Identidad' },
+                          { value: 'RC', label: 'RC - Registro Civil' },
+                          { value: 'PA', label: 'PA - Pasaporte' }
+                        ]}
                         value={formData.tipoDocumento || 'CC'}
-                        onChange={handleInputChange}
+                        onChange={(value) => handleInputChange({ target: { name: 'tipoDocumento', value } } as any)}
                         required
                         disabled={modalMode === 'view'}
-                      >
-                        <option value="CC">CC - Cédula de Ciudadanía</option>
-                        <option value="CE">CE - Cédula de Extranjería</option>
-                        <option value="TI">TI - Tarjeta de Identidad</option>
-                        <option value="RC">RC - Registro Civil</option>
-                        <option value="PA">PA - Pasaporte</option>
-                      </Form.Select>
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
@@ -771,22 +813,21 @@ const UserManagement: React.FC = () => {
               </Card.Header>
               <Card.Body>
                 <Row>
-                  <Col md={formData.rol === 'VETERINARIO' ? 6 : 12}>
+                  <Col md={(formData.rol === 'VETERINARIO' || formData.rol === 'RECEPCIONISTA' || formData.rol === 'CLIENTE') && authService.isAdmin() ? 6 : 12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Rol del Usuario <span className="text-danger">*</span></Form.Label>
-                      <Form.Select
-                        name="rol"
+                      <SearchableSelect
+                        options={[
+                          { value: '', label: 'Seleccione un rol' },
+                          { value: 'VETERINARIO', label: '👨‍⚕️ Veterinario' },
+                          { value: 'RECEPCIONISTA', label: '📋 Recepcionista' },
+                          { value: 'CLIENTE', label: '👤 Cliente' }
+                        ]}
                         value={formData.rol}
-                        onChange={handleInputChange}
+                        onChange={(value) => handleInputChange({ target: { name: 'rol', value } } as any)}
                         required
                         disabled={modalMode === 'view'}
-                      >
-                        <option value="">Seleccione un rol</option>
-                        {authService.isAdmin() && <option value="ADMIN">👑 Administrador</option>}
-                        <option value="VETERINARIO">👨‍⚕️ Veterinario</option>
-                        <option value="RECEPCIONISTA">📋 Recepcionista</option>
-                        <option value="CLIENTE">👤 Cliente</option>
-                      </Form.Select>
+                      />
                       {modalMode !== 'view' && (
                         <Form.Text className="text-muted">
                           <i className="fas fa-info-circle me-1"></i>
@@ -795,10 +836,14 @@ const UserManagement: React.FC = () => {
                       )}
                     </Form.Group>
                   </Col>
-                  {formData.rol === 'VETERINARIO' && (
+                  {/* Selector de veterinaria: SOLO para admin cuando crea veterinario, recepcionista o cliente */}
+                  {authService.isAdmin() && (formData.rol === 'VETERINARIO' || formData.rol === 'RECEPCIONISTA' || formData.rol === 'CLIENTE') && (
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>Veterinaria Asignada <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Veterinaria Asignada 
+                          {formData.rol === 'VETERINARIO' && <span className="text-danger"> *</span>}
+                        </Form.Label>
                         {modalMode === 'view' ? (
                           <Form.Control
                             type="text"
@@ -806,19 +851,26 @@ const UserManagement: React.FC = () => {
                             disabled
                           />
                         ) : (
-                          <Form.Select
-                            name="veterinariaId"
-                            value={formData.veterinariaId}
-                            onChange={handleInputChange}
-                            required
-                          >
-                            <option value="">Seleccione una veterinaria</option>
-                            {veterinarias.map((vet: any) => (
-                              <option key={vet.id} value={vet.id}>
-                                {vet.nombre}
-                              </option>
-                            ))}
-                          </Form.Select>
+                          <>
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'Seleccione una veterinaria' },
+                                ...veterinarias.map((vet: any) => ({
+                                  value: vet.id.toString(),
+                                  label: vet.nombre
+                                }))
+                              ]}
+                              value={formData.veterinariaId}
+                              onChange={(value) => handleInputChange({ target: { name: 'veterinariaId', value } } as any)}
+                              required={formData.rol === 'VETERINARIO'}
+                            />
+                            {!formData.veterinariaId && (
+                              <Form.Text className="text-muted">
+                                <i className="fas fa-info-circle me-1"></i>
+                                Si no selecciona una, se asignará automáticamente su veterinaria
+                              </Form.Text>
+                            )}
+                          </>
                         )}
                       </Form.Group>
                     </Col>

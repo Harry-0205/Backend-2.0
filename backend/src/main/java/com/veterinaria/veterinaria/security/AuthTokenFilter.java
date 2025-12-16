@@ -31,22 +31,49 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (jwt != null) {
+                String validationError = jwtUtils.validateJwtTokenWithMessage(jwt);
+                if (validationError == null) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    
+                    try {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        
+                        // Verificar si el usuario está activo
+                        if (!userDetails.isEnabled()) {
+                            logger.error("Usuario desactivado intentó acceder: {}", username);
+                            request.setAttribute("jwtError", "Usuario desactivado. No se permite el acceso a la plataforma.");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"message\":\"Usuario desactivado. No se permite el acceso a la plataforma.\"}");
+                            return;
+                        }
+                        
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    } catch (Exception e) {
+                        logger.error("Error loading user details: {}", e.getMessage());
+                        request.setAttribute("jwtError", e.getMessage());
+                    }
+                } else {
+                    logger.error("Token validation failed: {}", validationError);
+                    request.setAttribute("jwtError", validationError);
+                }
+            } else if (request.getHeader("Authorization") != null) {
+                logger.error("Authorization header present but token format is invalid");
+                request.setAttribute("jwtError", "Formato de token inválido. Debe ser: Bearer <token>");
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e);
+            logger.error("Cannot set user authentication: {}", e.getMessage());
+            request.setAttribute("jwtError", "Error al procesar la autenticación: " + e.getMessage());
         }
         
         filterChain.doFilter(request, response);

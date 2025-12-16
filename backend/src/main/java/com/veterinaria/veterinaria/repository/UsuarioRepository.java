@@ -32,4 +32,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
     
     // Métodos de conteo
     long countByActivoTrue();
+    
+    // Métodos de conteo filtrados por veterinaria
+    long countByVeterinariaId(Long veterinariaId);
+    long countByActivoTrueAndVeterinariaId(Long veterinariaId);
 }

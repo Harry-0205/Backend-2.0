@@ -19,6 +19,7 @@ import historiaClinicaService from '../services/historiaClinicaService';
 import mascotaService from '../services/mascotaService';
 import { getAllUsuarios } from '../services/userService';
 import authService from '../services/authService';
+import SearchableSelect from './SearchableSelect';
 
 const HistoriaClinicaManagement: React.FC = () => {
   const [historiasClinicas, setHistoriasClinicas] = useState<HistoriaClinica[]>([]);
@@ -751,18 +752,17 @@ const HistoriaClinicaManagement: React.FC = () => {
                           />
                         ) : (
                           <>
-                            <Form.Select
-                              name="propietarioId"
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'Todos los propietarios' },
+                                ...propietarios.map(propietario => ({
+                                  value: propietario.documento,
+                                  label: `${propietario.nombres} ${propietario.apellidos} - ${propietario.documento}`
+                                }))
+                              ]}
                               value={formData.propietarioId}
-                              onChange={handleInputChange}
-                            >
-                              <option value="">Todos los propietarios</option>
-                              {propietarios.map(propietario => (
-                                <option key={propietario.documento} value={propietario.documento}>
-                                  {`${propietario.nombres} ${propietario.apellidos} - ${propietario.documento}`}
-                                </option>
-                              ))}
-                            </Form.Select>
+                              onChange={(value) => handleInputChange({ target: { name: 'propietarioId', value } } as any)}
+                            />
                             <Form.Text className="text-muted">
                               Filtre las mascotas por propietario
                             </Form.Text>
@@ -775,20 +775,19 @@ const HistoriaClinicaManagement: React.FC = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Mascota *</Form.Label>
-                      <Form.Select
-                        name="mascotaId"
+                      <SearchableSelect
+                        options={[
+                          { value: '', label: 'Seleccione una mascota' },
+                          ...(filteredMascotas.length > 0 ? filteredMascotas : mascotas).map(mascota => ({
+                            value: mascota.id.toString(),
+                            label: `${mascota.nombre} (${mascota.especie}) - ${mascota.propietario?.nombres || ''} ${mascota.propietario?.apellidos || ''}`
+                          }))
+                        ]}
                         value={formData.mascotaId}
-                        onChange={handleInputChange}
+                        onChange={(value) => handleInputChange({ target: { name: 'mascotaId', value } } as any)}
                         required
                         disabled={modalMode === 'view'}
-                      >
-                        <option value="">Seleccione una mascota</option>
-                        {(filteredMascotas.length > 0 ? filteredMascotas : mascotas).map(mascota => (
-                          <option key={mascota.id} value={mascota.id}>
-                            {`${mascota.nombre} (${mascota.especie}) - ${mascota.propietario?.nombres || ''} ${mascota.propietario?.apellidos || ''}`}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
@@ -805,20 +804,19 @@ const HistoriaClinicaManagement: React.FC = () => {
                         />
                       ) : (
                         <>
-                          <Form.Select
-                            name="veterinarioId"
+                          <SearchableSelect
+                            options={[
+                              { value: '', label: 'Seleccione un veterinario' },
+                              ...veterinarios.map(veterinario => ({
+                                value: veterinario.documento,
+                                label: `Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`
+                              }))
+                            ]}
                             value={formData.veterinarioId}
-                            onChange={handleInputChange}
+                            onChange={(value) => handleInputChange({ target: { name: 'veterinarioId', value } } as any)}
                             required
                             disabled={authService.isVeterinario()}
-                          >
-                            <option value="">Seleccione un veterinario</option>
-                            {veterinarios.map(veterinario => (
-                              <option key={veterinario.documento} value={veterinario.documento}>
-                                {`Dr. ${veterinario.nombres || ''} ${veterinario.apellidos || ''}`}
-                              </option>
-                            ))}
-                          </Form.Select>
+                          />
                           {authService.isVeterinario() && (
                             <Form.Text className="text-muted">
                               Como veterinario, solo puede crear historias clínicas a su nombre
