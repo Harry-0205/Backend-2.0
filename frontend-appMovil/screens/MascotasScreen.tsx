@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import apiClient from '../services/apiClient';
@@ -172,9 +174,32 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
   };
 
   const handleSave = async () => {
+    // Validaciones mejoradas
     if (!formData.nombre || !formData.especie) {
       Alert.alert('Error', 'Nombre y especie son obligatorios');
       return;
+    }
+
+    // Validar que el nombre tenga al menos 2 caracteres
+    if (formData.nombre.trim().length < 2) {
+      Alert.alert('Error', 'El nombre debe tener al menos 2 caracteres');
+      return;
+    }
+
+    // Validar peso si se proporciona
+    if (formData.peso && parseFloat(formData.peso) <= 0) {
+      Alert.alert('Error', 'El peso debe ser un número positivo');
+      return;
+    }
+
+    // Validar fecha de nacimiento si se proporciona
+    if (formData.fechaNacimiento) {
+      const fechaNac = new Date(formData.fechaNacimiento);
+      const hoy = new Date();
+      if (fechaNac > hoy) {
+        Alert.alert('Error', 'La fecha de nacimiento no puede ser futura');
+        return;
+      }
     }
 
     // Determinar el propietario
@@ -376,8 +401,14 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
 
       {/* Form Modal */}
       <Modal visible={showForm} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.formContainer}>
               <Text style={styles.formTitle}>
                 {editingMascota ? 'Editar Mascota' : 'Nueva Mascota'}
@@ -390,6 +421,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
                 value={formData.nombre}
                 onChangeText={(text) => setFormData({ ...formData, nombre: text })}
               />
+              <Text style={styles.helperText}>🐾 Ingrese el nombre de la mascota (mínimo 2 caracteres)</Text>
 
               <Text style={styles.label}>Especie *</Text>
               <View style={styles.pickerContainer}>
@@ -437,6 +469,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
                 value={formData.fechaNacimiento}
                 onChangeText={(text) => setFormData({ ...formData, fechaNacimiento: text })}
               />
+              <Text style={styles.helperText}>📅 Formato: Año-Mes-Día (ej: 2020-05-15)</Text>
 
               <Text style={styles.label}>Peso (kg)</Text>
               <TextInput
@@ -446,6 +479,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
                 value={formData.peso}
                 onChangeText={(text) => setFormData({ ...formData, peso: text })}
               />
+              <Text style={styles.helperText}>⚖️ Peso aproximado en kilogramos (ej: 5.5)</Text>
 
               <Text style={styles.label}>Color</Text>
               <TextInput
@@ -502,6 +536,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
                 value={formData.observaciones}
                 onChangeText={(text) => setFormData({ ...formData, observaciones: text })}
               />
+              <Text style={styles.helperText}>📝 Información adicional importante sobre la mascota</Text>
 
               <View style={styles.formButtons}>
                 <TouchableOpacity
@@ -519,7 +554,7 @@ export default function MascotasScreen({ onBack }: { onBack: () => void }) {
               </View>
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

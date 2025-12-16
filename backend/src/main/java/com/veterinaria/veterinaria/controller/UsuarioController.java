@@ -67,9 +67,43 @@ public class UsuarioController {
             .anyMatch(auth -> auth.getAuthority().equals("ROLE_RECEPCIONISTA"));
         
         if (isVeterinario) {
-            // Si es veterinario, solo obtener los clientes que ha atendido
-            usuarios = usuarioService.findClientesAtendidosPorVeterinario(usuarioAutenticado.getDocumento());
-            System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + " consultando sus clientes atendidos: " + usuarios.size());
+            // Si es veterinario, obtener solo los CLIENTES de su veterinaria
+            System.out.println("=== DEBUG DETALLADO: Veterinario " + userDetails.getUsername());
+            System.out.println("=== DEBUG DETALLADO: Documento: " + usuarioAutenticado.getDocumento());
+            System.out.println("=== DEBUG DETALLADO: Veterinaria: " + usuarioAutenticado.getVeterinaria());
+            
+            if (usuarioAutenticado.getVeterinaria() != null) {
+                Long veterinariaIdVeterinario = usuarioAutenticado.getVeterinaria().getId();
+                System.out.println("=== DEBUG DETALLADO: Veterinaria ID: " + veterinariaIdVeterinario);
+                
+                // Obtener todos los usuarios de la veterinaria y filtrar solo CLIENTES
+                List<Usuario> todosUsuarios = usuarioService.findByVeterinariaId(veterinariaIdVeterinario);
+                System.out.println("=== DEBUG: Usuarios de la veterinaria antes de filtrar:");
+                for (Usuario u : todosUsuarios) {
+                    System.out.println("  - Usuario: " + u.getUsername() + " (" + u.getDocumento() + ")");
+                    System.out.println("    Roles: " + u.getRoles().stream()
+                        .map(r -> r.getNombre())
+                        .collect(Collectors.joining(", ")));
+                }
+                
+                usuarios = todosUsuarios.stream()
+                    .filter(u -> u.getRoles() != null && 
+                                 u.getRoles().stream().anyMatch(rol -> rol.getNombre().equals("ROLE_CLIENTE")))
+                    .collect(Collectors.toList());
+                
+                System.out.println("=== DEBUG: Clientes encontrados después de filtrar:");
+                for (Usuario u : usuarios) {
+                    System.out.println("  - Cliente: " + u.getUsername() + " (" + u.getDocumento() + ")");
+                }
+                
+                System.out.println("=== DEBUG: Veterinario " + userDetails.getUsername() + 
+                    " consultando clientes de veterinaria ID " + veterinariaIdVeterinario + 
+                    ": " + usuarios.size() + " clientes de " + todosUsuarios.size() + " usuarios totales");
+            } else {
+                usuarios = List.of();
+                System.out.println("=== DEBUG ALERTA: Veterinario " + userDetails.getUsername() + 
+                    " sin veterinaria asignada, no puede ver usuarios!");
+            }
         } else if (isAdmin) {
             // Admin ve usuarios de todas las veterinarias que creó (cadena completa)
             System.out.println("=== DEBUG: Admin " + userDetails.getUsername() + " consultando usuarios");
@@ -162,9 +196,7 @@ public class UsuarioController {
                 .map(UsuarioResponse::new)
                 .collect(Collectors.toList());
         
-        String message = isVeterinario 
-            ? "Clientes atendidos obtenidos exitosamente" 
-            : "Usuarios de la veterinaria obtenidos exitosamente";
+        String message = "Usuarios de la veterinaria obtenidos exitosamente";
         
         return ResponseEntity.ok(ApiResponse.success(message, response));
     }

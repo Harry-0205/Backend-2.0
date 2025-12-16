@@ -10,6 +10,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Paths, File } from 'expo-file-system';
@@ -97,6 +99,14 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
       console.log('📋 Cargando historias clínicas...');
       const response = await apiClient.get('/historias-clinicas');
       const historiasData = Array.isArray(response.data) ? response.data : [];
+      
+      // Debug: verificar si viene información del propietario
+      if (historiasData.length > 0) {
+        console.log('🔍 Muestra primera historia:', JSON.stringify(historiasData[0], null, 2));
+        console.log('🐾 Mascota:', historiasData[0]?.mascota);
+        console.log('👤 Propietario:', historiasData[0]?.mascota?.propietario);
+      }
+      
       setHistorias(historiasData);
       console.log('✅ Historias cargadas:', historiasData.length);
     } catch (error) {
@@ -180,11 +190,39 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
     console.log('💾 Intentando guardar historia clínica...');
     console.log('📋 FormData actual:', formData);
     
-    // Validar campos obligatorios básicos
+    // Validaciones mejoradas de campos obligatorios
     if (!formData.fechaConsulta || !formData.mascotaId) {
       console.log('❌ Validación falló: Faltan campos obligatorios');
       Alert.alert('Error', 'Fecha de consulta y mascota son obligatorios');
       return;
+    }
+
+    // Validar formato de fecha
+    const fechaConsulta = new Date(formData.fechaConsulta);
+    if (isNaN(fechaConsulta.getTime())) {
+      Alert.alert('Error', 'El formato de fecha no es válido');
+      return;
+    }
+
+    // Validar que la fecha no sea futura
+    const ahora = new Date();
+    if (fechaConsulta > ahora) {
+      Alert.alert('Error', 'La fecha de consulta no puede ser futura');
+      return;
+    }
+
+    // Validar signos vitales si se proporcionan
+    if (formData.peso && parseFloat(formData.peso) <= 0) {
+      Alert.alert('Error', 'El peso debe ser un número positivo');
+      return;
+    }
+
+    if (formData.temperatura) {
+      const temp = parseFloat(formData.temperatura);
+      if (temp < 35 || temp > 45) {
+        Alert.alert('Error', 'La temperatura parece estar fuera del rango normal (35-45°C)');
+        return;
+      }
     }
 
     // Determinar el veterinario
@@ -458,8 +496,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
               🐾 {historia.mascota?.especie || 'N/A'} - {historia.mascota?.raza || 'N/A'}
             </Text>
             <Text style={styles.cardText}>
-              👤 Propietario: {historia.mascota?.propietario?.nombres || 'N/A'}{' '}
-              {historia.mascota?.propietario?.apellidos || ''}
+              👤 Propietario: {historia.mascota?.propietario || 'N/A'}
             </Text>
             <Text style={styles.cardText}>
               👨‍⚕️ Veterinario: Dr. {historia.veterinario?.nombres || 'N/A'}{' '}
@@ -500,8 +537,14 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
 
       {/* Form Modal */}
       <Modal visible={showForm} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.formContainer}>
               <Text style={styles.formTitle}>
                 {editingHistoria ? 'Editar Historia Clínica' : 'Nueva Historia Clínica'}
@@ -516,6 +559,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                   setFormData({ ...formData, fechaConsulta: text.replace(' ', 'T') })
                 }
               />
+              <Text style={styles.helperText}>📅 Formato: Año-Mes-Día Hora:Minuto</Text>
 
               <Text style={styles.label}>Propietario *</Text>
               {propietarios.length === 0 && (
@@ -543,6 +587,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                   ))}
                 </Picker>
               </View>
+              <Text style={styles.helperText}>👤 Seleccione el dueño de la mascota</Text>
 
               <Text style={styles.label}>Mascota *</Text>
               {formData.propietarioId && filteredMascotas.length === 0 && (
@@ -632,6 +677,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                 value={formData.sintomas}
                 onChangeText={(text) => setFormData({ ...formData, sintomas: text })}
               />
+              <Text style={styles.helperText}>🩺 Describa los síntomas que presenta la mascota</Text>
 
               <Text style={styles.label}>Diagnóstico</Text>
               <TextInput
@@ -642,6 +688,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                 value={formData.diagnostico}
                 onChangeText={(text) => setFormData({ ...formData, diagnostico: text })}
               />
+              <Text style={styles.helperText}>🔬 Diagnóstico médico veterinario</Text>
 
               <Text style={styles.label}>Tratamiento</Text>
               <TextInput
@@ -673,6 +720,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                 value={formData.peso}
                 onChangeText={(text) => setFormData({ ...formData, peso: text })}
               />
+              <Text style={styles.helperText}>⚖️ Peso actual de la mascota en kilogramos</Text>
 
               <Text style={styles.label}>Temperatura (°C)</Text>
               <TextInput
@@ -682,6 +730,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                 value={formData.temperatura}
                 onChangeText={(text) => setFormData({ ...formData, temperatura: text })}
               />
+              <Text style={styles.helperText}>🌡️ Temperatura normal: 38-39°C (perros/gatos)</Text>
 
               <Text style={styles.label}>Frecuencia Cardíaca (lpm)</Text>
               <TextInput
@@ -691,6 +740,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                 value={formData.frecuenciaCardiaca}
                 onChangeText={(text) => setFormData({ ...formData, frecuenciaCardiaca: text })}
               />
+              <Text style={styles.helperText}>💓 Latidos por minuto</Text>
 
               <Text style={styles.label}>Frecuencia Respiratoria (rpm)</Text>
               <TextInput
@@ -702,6 +752,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
                   setFormData({ ...formData, frecuenciaRespiratoria: text })
                 }
               />
+              <Text style={styles.helperText}>🫁 Respiraciones por minuto</Text>
 
               <Text style={styles.label}>Observaciones</Text>
               <TextInput
@@ -739,7 +790,7 @@ export default function HistoriasClinicasScreen({ onBack }: { onBack: () => void
               </View>
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
