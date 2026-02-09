@@ -55,7 +55,7 @@ public class Cita {
     
     // Enum para estados de cita
     public enum EstadoCita {
-        PROGRAMADA, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA, NO_ASISTIO
+        PROGRAMADA, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA
     }
     
     // Constructores

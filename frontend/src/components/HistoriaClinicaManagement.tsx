@@ -12,7 +12,8 @@ import {
   Badge,
   InputGroup,
   Spinner,
-  Accordion
+  Accordion,
+  Pagination
 } from 'react-bootstrap';
 import { HistoriaClinica } from '../types';
 import historiaClinicaService from '../services/historiaClinicaService';
@@ -36,6 +37,10 @@ const HistoriaClinicaManagement: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Estados para disponibilidad de horarios de próxima cita - REMOVIDO
 
@@ -68,6 +73,7 @@ const HistoriaClinicaManagement: React.FC = () => {
 
   useEffect(() => {
     filterHistorias();
+    setCurrentPage(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiasClinicas, searchTerm, filterByFecha]);
 
@@ -579,28 +585,31 @@ const HistoriaClinicaManagement: React.FC = () => {
                   </Spinner>
                 </div>
               ) : (
-                <Table responsive striped hover>
-                  <thead>
-                    <tr>
-                      <th>Fecha Consulta</th>
-                      <th>Mascota</th>
-                      <th>Propietario</th>
-                      <th>Veterinario</th>
-                      <th>Motivo</th>
-                      <th>Diagnóstico</th>
-                      {(authService.isAdmin() || authService.isRecepcionista()) && <th>Estado</th>}
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredHistorias.length === 0 ? (
+                <>
+                  <Table responsive striped hover>
+                    <thead>
                       <tr>
-                        <td colSpan={(authService.isAdmin() || authService.isRecepcionista()) ? 8 : 7} className="text-center py-4">
-                          No se encontraron historias clínicas
-                        </td>
+                        <th>Fecha Consulta</th>
+                        <th>Mascota</th>
+                        <th>Propietario</th>
+                        <th>Veterinario</th>
+                        <th>Motivo</th>
+                        <th>Diagnóstico</th>
+                        {(authService.isAdmin() || authService.isRecepcionista()) && <th>Estado</th>}
+                        <th>Acciones</th>
                       </tr>
-                    ) : (
-                      filteredHistorias.map((historia) => (
+                    </thead>
+                    <tbody>
+                      {filteredHistorias.length === 0 ? (
+                        <tr>
+                          <td colSpan={(authService.isAdmin() || authService.isRecepcionista()) ? 8 : 7} className="text-center py-4">
+                            No se encontraron historias clínicas
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredHistorias
+                          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          .map((historia) => (
                         <tr key={historia.id}>
                           <td>
                             <strong>{formatFecha(historia.fechaConsulta)}</strong>
@@ -689,6 +698,60 @@ const HistoriaClinicaManagement: React.FC = () => {
                     )}
                   </tbody>
                 </Table>
+                
+                {/* Paginación */}
+                {filteredHistorias.length > itemsPerPage && (
+                  <div className="d-flex justify-content-center align-items-center mt-3">
+                    <Pagination>
+                      <Pagination.First 
+                        onClick={() => setCurrentPage(1)} 
+                        disabled={currentPage === 1}
+                      />
+                      <Pagination.Prev 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                        disabled={currentPage === 1}
+                      />
+                      
+                      {[...Array(Math.ceil(filteredHistorias.length / itemsPerPage))].map((_, index) => {
+                        const pageNumber = index + 1;
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === Math.ceil(filteredHistorias.length / itemsPerPage) ||
+                          (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                        ) {
+                          return (
+                            <Pagination.Item
+                              key={pageNumber}
+                              active={pageNumber === currentPage}
+                              onClick={() => setCurrentPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Pagination.Item>
+                          );
+                        } else if (
+                          pageNumber === currentPage - 2 ||
+                          pageNumber === currentPage + 2
+                        ) {
+                          return <Pagination.Ellipsis key={pageNumber} disabled />;
+                        }
+                        return null;
+                      })}
+                      
+                      <Pagination.Next 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredHistorias.length / itemsPerPage)))} 
+                        disabled={currentPage === Math.ceil(filteredHistorias.length / itemsPerPage)}
+                      />
+                      <Pagination.Last 
+                        onClick={() => setCurrentPage(Math.ceil(filteredHistorias.length / itemsPerPage))} 
+                        disabled={currentPage === Math.ceil(filteredHistorias.length / itemsPerPage)}
+                      />
+                    </Pagination>
+                    <span className="ms-3 text-muted">
+                      Página {currentPage} de {Math.ceil(filteredHistorias.length / itemsPerPage)} | Total: {filteredHistorias.length} historias
+                    </span>
+                  </div>
+                )}
+              </>
               )}
             </Card.Body>
           </Card>

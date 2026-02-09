@@ -1,0 +1,232 @@
+/* Contenedor de pestañas de citas */
+.citas-tabs-container {
+  margin-bottom: 2rem;
+  padding: 0;
+  background: transparent;
+}
+
+/* Pestañas de navegación - estilo horizontal con colores */
+.citas-tabs-container .nav-tabs {
+  border: none;
+  border-bottom: 3px solid #dee2e6;
+  background: transparent;
+  gap: 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #dee2e6 transparent;
+}
+
+/* Scrollbar personalizado para Chrome/Safari */
+.citas-tabs-container .nav-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.citas-tabs-container .nav-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.citas-tabs-container .nav-tabs::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 3px;
+}
+
+.citas-tabs-container .nav-tabs::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* Items de navegación */
+.citas-tabs-container .nav-item {
+  flex: 0 0 auto;
+  margin: 0;
+  min-width: 150px;
+  max-width: 200px;
+}
+
+/* Enlaces de pestañas base */
+.citas-tabs-container .nav-link {
+  color: #495057;
+  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 0.875rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: -3px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.citas-tabs-container .nav-link i {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Efecto hover */
+.citas-tabs-container .nav-link:hover:not(.active) {
+  color: #212529;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
+  border-color: #adb5bd;
+}
+
+/* Pestaña activa - TODAS (gris) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="todas"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  border-color: #495057;
+  border-bottom: 3px solid #6c757d;
+  box-shadow: 0 -4px 16px rgba(108, 117, 125, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Pestaña activa - PROGRAMADA (amarillo) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="programada"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  border-color: #ff9800;
+  border-bottom: 3px solid #ffc107;
+  box-shadow: 0 -4px 16px rgba(255, 193, 7, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Pestaña activa - CONFIRMADA (azul) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="confirmada"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0dcaf0 0%, #0891b2 100%);
+  border-color: #0891b2;
+  border-bottom: 3px solid #0dcaf0;
+  box-shadow: 0 -4px 16px rgba(13, 202, 240, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Pestaña activa - EN CURSO (púrpura) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="en_curso"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+  border-color: #5a32a3;
+  border-bottom: 3px solid #6f42c1;
+  box-shadow: 0 -4px 16px rgba(111, 66, 193, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Pestaña activa - COMPLETADA (verde) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="completada"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+  border-color: #146c43;
+  border-bottom: 3px solid #198754;
+  box-shadow: 0 -4px 16px rgba(25, 135, 84, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Pestaña activa - CANCELADA (rojo) */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="cancelada"].active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);
+  border-color: #bb2d3b;
+  border-bottom: 3px solid #dc3545;
+  box-shadow: 0 -4px 16px rgba(220, 53, 69, 0.4), 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Colores de hover según el estado */
+.citas-tabs-container .nav-link[data-rr-ui-event-key="todas"]:hover:not(.active) {
+  border-color: #6c757d;
+  background: linear-gradient(180deg, #fafafa 0%, #f1f3f5 100%);
+}
+
+.citas-tabs-container .nav-link[data-rr-ui-event-key="programada"]:hover:not(.active) {
+  border-color: #ffc107;
+  background: linear-gradient(180deg, #fff9e6 0%, #fff3cd 100%);
+}
+
+.citas-tabs-container .nav-link[data-rr-ui-event-key="confirmada"]:hover:not(.active) {
+  border-color: #0dcaf0;
+  background: linear-gradient(180deg, #e6f7ff 0%, #cff4fc 100%);
+}
+
+.citas-tabs-container .nav-link[data-rr-ui-event-key="en_curso"]:hover:not(.active) {
+  border-color: #6f42c1;
+  background: linear-gradient(180deg, #f3e8ff 0%, #e9d5ff 100%);
+}
+
+.citas-tabs-container .nav-link[data-rr-ui-event-key="completada"]:hover:not(.active) {
+  border-color: #198754;
+  background: linear-gradient(180deg, #e6f4ea 0%, #d1e7dd 100%);
+}
+
+.citas-tabs-container .nav-link[data-rr-ui-event-key="cancelada"]:hover:not(.active) {
+  border-color: #dc3545;
+  background: linear-gradient(180deg, #ffe6e9 0%, #f8d7da 100%);
+}
+
+/* Animación suave */
+.citas-tabs-container .nav-link {
+  transition: all 0.3s ease, transform 0.2s ease;
+}
+
+/* Contenido de las pestañas */
+.citas-tabs-container .tab-content {
+  padding: 0;
+  background: transparent;
+}
+
+.citas-tabs-container .tab-pane {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive - móviles */
+@media (max-width: 768px) {
+  .citas-tabs-container .nav-tabs {
+    overflow-x: auto;
+  }
+  
+  .citas-tabs-container .nav-item {
+    min-width: 120px;
+    max-width: 150px;
+  }
+  
+  .citas-tabs-container .nav-link {
+    padding: 0.75rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  
+  .citas-tabs-container .nav-link i {
+    font-size: 0.9rem;
+  }
+}
+
+/* Tablet */
+@media (max-width: 992px) and (min-width: 769px) {
+  .citas-tabs-container .nav-item {
+    min-width: 140px;
+    max-width: 180px;
+  }
+}

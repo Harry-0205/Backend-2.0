@@ -11,7 +11,8 @@ import {
   Alert,
   Badge,
   InputGroup,
-  Spinner
+  Spinner,
+  Pagination
 } from 'react-bootstrap';
 import { Veterinaria } from '../types';
 import veterinariaService from '../services/veterinariaService';
@@ -28,6 +29,10 @@ const VeterinariaManagement: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showActives, setShowActives] = useState<boolean | null>(null);
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -53,6 +58,7 @@ const VeterinariaManagement: React.FC = () => {
 
   useEffect(() => {
     filterVeterinarias();
+    setCurrentPage(1); // Resetear a la primera página cuando cambien los filtros
   }, [veterinarias, searchTerm, showActives]);
 
   const loadVeterinarias = async () => {
@@ -462,21 +468,24 @@ const VeterinariaManagement: React.FC = () => {
                   </div>
                 )
               ) : (
-                <Table responsive striped hover>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Nombre</th>
-                      <th>Ciudad</th>
-                      <th>Teléfono</th>
-                      <th>Email</th>
-                      <th>Estado</th>
-                      <th>Fecha Registro</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredVeterinarias.map((veterinaria) => (
+                <>
+                  <Table responsive striped hover>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Ciudad</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Estado</th>
+                        <th>Fecha Registro</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredVeterinarias
+                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                        .map((veterinaria) => (
                       <tr key={veterinaria.id}>
                         <td>{veterinaria.id}</td>
                         <td>{veterinaria.nombre}</td>
@@ -522,10 +531,64 @@ const VeterinariaManagement: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ))
+                      ))
                     }
                   </tbody>
                 </Table>
+                
+                {/* Paginación */}
+                {filteredVeterinarias.length > itemsPerPage && (
+                  <div className="d-flex justify-content-center align-items-center mt-3">
+                    <Pagination>
+                      <Pagination.First 
+                        onClick={() => setCurrentPage(1)} 
+                        disabled={currentPage === 1}
+                      />
+                      <Pagination.Prev 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                        disabled={currentPage === 1}
+                      />
+                      
+                      {[...Array(Math.ceil(filteredVeterinarias.length / itemsPerPage))].map((_, index) => {
+                        const pageNumber = index + 1;
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === Math.ceil(filteredVeterinarias.length / itemsPerPage) ||
+                          (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                        ) {
+                          return (
+                            <Pagination.Item
+                              key={pageNumber}
+                              active={pageNumber === currentPage}
+                              onClick={() => setCurrentPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Pagination.Item>
+                          );
+                        } else if (
+                          pageNumber === currentPage - 2 ||
+                          pageNumber === currentPage + 2
+                        ) {
+                          return <Pagination.Ellipsis key={pageNumber} disabled />;
+                        }
+                        return null;
+                      })}
+                      
+                      <Pagination.Next 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredVeterinarias.length / itemsPerPage)))} 
+                        disabled={currentPage === Math.ceil(filteredVeterinarias.length / itemsPerPage)}
+                      />
+                      <Pagination.Last 
+                        onClick={() => setCurrentPage(Math.ceil(filteredVeterinarias.length / itemsPerPage))} 
+                        disabled={currentPage === Math.ceil(filteredVeterinarias.length / itemsPerPage)}
+                      />
+                    </Pagination>
+                    <span className="ms-3 text-muted">
+                      Página {currentPage} de {Math.ceil(filteredVeterinarias.length / itemsPerPage)} | Total: {filteredVeterinarias.length} veterinarias
+                    </span>
+                  </div>
+                )}
+              </>
               )}
             </Card.Body>
           </Card>

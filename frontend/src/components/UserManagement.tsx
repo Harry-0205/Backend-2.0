@@ -11,7 +11,8 @@ import {
   Alert,
   Badge,
   InputGroup,
-  Spinner
+  Spinner,
+  Pagination
 } from 'react-bootstrap';
 import { Usuario } from '../types';
 import { 
@@ -40,6 +41,10 @@ const UserManagement: React.FC = () => {
   const [showActives, setShowActives] = useState<boolean | null>(null);
   const [filterByRole, setFilterByRole] = useState<string>('');
   const [filterByVeterinaria, setFilterByVeterinaria] = useState<string>('');
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Función para normalizar roles (quitar prefijo ROLE_)
   const normalizeRole = (role: string): string => {
@@ -68,6 +73,7 @@ const UserManagement: React.FC = () => {
 
   useEffect(() => {
     filterUsuarios();
+    setCurrentPage(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuarios, searchTerm, showActives, filterByRole, filterByVeterinaria]);
 
@@ -533,21 +539,24 @@ const UserManagement: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <Table responsive striped hover>
-                  <thead>
-                    <tr>
-                      <th>Documento</th>
-                      <th>Usuario</th>
-                      <th>Nombre Completo</th>
-                      <th>Email</th>
-                      <th>Teléfono</th>
-                      <th>Rol</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsuarios.map((usuario) => (
+                <>
+                  <Table responsive striped hover>
+                    <thead>
+                      <tr>
+                        <th>Documento</th>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsuarios
+                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                        .map((usuario) => (
                       <tr key={usuario.documento}>
                         <td>{usuario.documento}</td>
                         <td><strong>{usuario.username}</strong></td>
@@ -617,6 +626,60 @@ const UserManagement: React.FC = () => {
                     }
                   </tbody>
                 </Table>
+                
+                {/* Paginación */}
+                {filteredUsuarios.length > itemsPerPage && (
+                  <div className="d-flex justify-content-center align-items-center mt-3">
+                    <Pagination>
+                      <Pagination.First 
+                        onClick={() => setCurrentPage(1)} 
+                        disabled={currentPage === 1}
+                      />
+                      <Pagination.Prev 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                        disabled={currentPage === 1}
+                      />
+                      
+                      {[...Array(Math.ceil(filteredUsuarios.length / itemsPerPage))].map((_, index) => {
+                        const pageNumber = index + 1;
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === Math.ceil(filteredUsuarios.length / itemsPerPage) ||
+                          (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                        ) {
+                          return (
+                            <Pagination.Item
+                              key={pageNumber}
+                              active={pageNumber === currentPage}
+                              onClick={() => setCurrentPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Pagination.Item>
+                          );
+                        } else if (
+                          pageNumber === currentPage - 2 ||
+                          pageNumber === currentPage + 2
+                        ) {
+                          return <Pagination.Ellipsis key={pageNumber} disabled />;
+                        }
+                        return null;
+                      })}
+                      
+                      <Pagination.Next 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredUsuarios.length / itemsPerPage)))} 
+                        disabled={currentPage === Math.ceil(filteredUsuarios.length / itemsPerPage)}
+                      />
+                      <Pagination.Last 
+                        onClick={() => setCurrentPage(Math.ceil(filteredUsuarios.length / itemsPerPage))} 
+                        disabled={currentPage === Math.ceil(filteredUsuarios.length / itemsPerPage)}
+                      />
+                    </Pagination>
+                    <span className="ms-3 text-muted">
+                      Página {currentPage} de {Math.ceil(filteredUsuarios.length / itemsPerPage)} | Total: {filteredUsuarios.length} usuarios
+                    </span>
+                  </div>
+                )}
+              </>
               )}
             </Card.Body>
           </Card>

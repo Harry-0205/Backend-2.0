@@ -96,12 +96,12 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findCitasDeHoyWithRelations();
     
     // Verificar disponibilidad de horario
-    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA')")
     boolean existsCitaEnHorario(@Param("fechaHora") LocalDateTime fechaHora, @Param("veterinariaId") Long veterinariaId);
     
-    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinario.documento = :veterinarioDocumento AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.fechaHora = :fechaHora AND c.veterinario.documento = :veterinarioDocumento AND c.estado NOT IN ('CANCELADA')")
     boolean existsCitaEnHorarioParaVeterinario(@Param("fechaHora") LocalDateTime fechaHora, @Param("veterinarioDocumento") String veterinarioDocumento);
     
-    @Query("SELECT c FROM Cita c WHERE DATE(c.fechaHora) = DATE(:fecha) AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA', 'NO_ASISTIO')")
+    @Query("SELECT c FROM Cita c WHERE DATE(c.fechaHora) = DATE(:fecha) AND c.veterinaria.id = :veterinariaId AND c.estado NOT IN ('CANCELADA')")
     List<Cita> findCitasDelDia(@Param("fecha") LocalDateTime fecha, @Param("veterinariaId") Long veterinariaId);
 }

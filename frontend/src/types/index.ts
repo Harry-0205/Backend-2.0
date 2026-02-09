@@ -91,8 +91,7 @@ export enum EstadoCita {
   CONFIRMADA = 'CONFIRMADA',
   EN_CURSO = 'EN_CURSO',
   COMPLETADA = 'COMPLETADA',
-  CANCELADA = 'CANCELADA',
-  NO_ASISTIO = 'NO_ASISTIO'
+  CANCELADA = 'CANCELADA'
 }
 
 export interface HistoriaClinica {

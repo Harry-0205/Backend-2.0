@@ -1,9 +1,9 @@
 -- ============================================================================
 -- DATABASE DML (Data Manipulation Language) - VETERINARIA
--- Fecha: 5 de diciembre de 2025
+-- Fecha: 9 de febrero de 2026
 -- Descripción: Datos iniciales y de ejemplo para la base de datos
 -- Incluye: Roles, usuarios, veterinarias, mascotas, citas, historias clínicas y reportes
--- Estándar: 10 registros por cada gestión principal
+-- Estándar: 15 registros por cada gestión principal
 -- ============================================================================
 
 USE veterinaria;
@@ -36,7 +36,7 @@ INSERT INTO roles (id, nombre, descripcion, activo) VALUES
 (3, 'ROLE_CLIENTE', 'Cliente/propietario de mascotas', true),
 (4, 'ROLE_RECEPCIONISTA', 'Personal de recepción y programación de citas', true);
 
--- Insertar veterinarias (10 registros)
+-- Insertar veterinarias (15 registros)
 INSERT INTO veterinarias (nombre, direccion, telefono, email, ciudad, descripcion, servicios, horario_atencion, activo, fecha_registro) VALUES 
 ('Veterinaria Pet Care', 'Calle Principal 123, Ciudad', '+57 1 234-5678', 'info@petcare.com', 'Bogotá',
  'Clínica veterinaria especializada en cuidado integral de mascotas', 
@@ -77,7 +77,27 @@ INSERT INTO veterinarias (nombre, direccion, telefono, email, ciudad, descripcio
 ('Veterinaria Vida Animal', 'Avenida 6 #20-45, Centro', '+57 2 123-4567', 'contacto@vidaanimal.com', 'Cali',
  'Comprometidos con la salud y bienestar de tus mascotas',
  'Consulta especializada, Ecografía, Laboratorio clínico, Cirugía, Hospitalización',
- 'Lunes a Sábado: 8:00 AM - 7:00 PM', true, NOW());
+ 'Lunes a Sábado: 8:00 AM - 7:00 PM', true, NOW()),
+('Veterinaria Los Ángeles', 'Diagonal 40 #15-30, Occidente', '+57 1 234-5670', 'info@losangeles.com', 'Bogotá',
+ 'Centro veterinario familiar con atención 24/7',
+ 'Urgencias 24h, UCI veterinaria, Hospitalización, Cirugía de emergencia',
+ 'Lunes a Domingo: 24 horas', true, NOW()),
+('Clínica Veterinaria San Martín', 'Calle 80 #25-15, Norte', '+57 4 345-6781', 'contacto@sanmartin.com', 'Medellín',
+ 'Especialistas en medicina interna y diagnóstico',
+ 'Cardiología, Neurología, Endoscopía, Ecografía Doppler',
+ 'Lunes a Viernes: 8:00 AM - 6:00 PM, Sábados: 9:00 AM - 2:00 PM', true, NOW()),
+('Veterinaria Huellitas', 'Avenida 15 #50-20, Centro', '+57 2 456-7892', 'info@huellitas.com', 'Cali',
+ 'Cuidado integral para tu mejor amigo',
+ 'Medicina general, Vacunación, Microchip, Pasaporte para mascotas',
+ 'Lunes a Viernes: 9:00 AM - 7:00 PM, Sábados: 10:00 AM - 4:00 PM', true, NOW()),
+('Clínica Veterinaria El Refugio', 'Carrera 50 #30-10, Sur', '+57 1 567-8903', 'contacto@elrefugio.com', 'Bogotá',
+ 'Tu veterinaria de confianza desde 2005',
+ 'Medicina preventiva, Geriatría, Rehabilitación, Fisioterapia animal',
+ 'Lunes a Sábado: 8:00 AM - 6:00 PM', true, NOW()),
+('Veterinaria Arca de Noé', 'Transversal 20 #45-30, Oriental', '+57 4 678-9014', 'info@arcadenoe.com', 'Medellín',
+ 'Especialistas en animales exóticos y convencionales',
+ 'Consulta para reptiles, aves, mamíferos exóticos, Cirugía especializada',
+ 'Lunes a Domingo: 9:00 AM - 8:00 PM', true, NOW());
 
 -- Obtener IDs de veterinarias para asignar a veterinarios
 SET @vet1_id = (SELECT id FROM veterinarias WHERE nombre = 'Veterinaria Pet Care' LIMIT 1);
@@ -85,8 +105,10 @@ SET @vet2_id = (SELECT id FROM veterinarias WHERE nombre = 'Veterinaria Central'
 SET @vet3_id = (SELECT id FROM veterinarias WHERE nombre = 'Clínica Veterinaria Amigos Peludos' LIMIT 1);
 SET @vet4_id = (SELECT id FROM veterinarias WHERE nombre = 'Veterinaria San Francisco' LIMIT 1);
 SET @vet5_id = (SELECT id FROM veterinarias WHERE nombre = 'Clínica Veterinaria El Bosque' LIMIT 1);
+SET @vet6_id = (SELECT id FROM veterinarias WHERE nombre = 'Veterinaria Mascotas Felices' LIMIT 1);
+SET @vet7_id = (SELECT id FROM veterinarias WHERE nombre = 'Veterinaria Los Ángeles' LIMIT 1);
 
--- Insertar usuarios de ejemplo (10 registros)
+-- Insertar usuarios de ejemplo (15 registros)
 -- Contraseña para todos: admin123 (hash BCrypt)
 
 -- PASO 1: Insertar Administrador (creado por el sistema, sin creador)
@@ -119,26 +141,47 @@ INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, ap
 ('44444444', 'CC', 'cliente2', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
  'Laura', 'Gómez Ramírez', 'laura.gomez@email.com', '3009999999', 'Zona Norte #456', true, @vet1_id, '22222222', NOW()),
 ('55555555', 'CC', 'cliente3', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
- 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, @vet2_id, '12345678', NOW());
+ 'Juan', 'Ramírez López', 'juan.ramirez@email.com', '3006666666', 'Sector Sur #789', true, @vet2_id, '12345678', NOW()),
+('66666666', 'CC', 'cliente4', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
+ 'Sofía', 'Moreno Castro', 'sofia.moreno@email.com', '3001111111', 'Avenida Principal #100', true, @vet3_id, '22222222', NOW()),
+('10101010', 'CC', 'cliente5', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
+ 'Diego', 'Herrera Ruiz', 'diego.herrera@email.com', '3003334444', 'Calle 50 #40-20', true, @vet1_id, '22222222', NOW());
+
+-- PASO 5: Insertar más veterinarios (creados por el admin)
+INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, apellidos, email, telefono, direccion, activo, veterinaria_id, creado_por_documento, fecha_registro) VALUES
+('20202020', 'CC', 'dr.lopez', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
+ 'Dr. Andrés', 'López Méndez', 'andres.lopez@veterinaria.com', '3004445555', 'Consultorio 5', true, @vet5_id, '12345678', NOW()),
+('30303030', 'CC', 'dra.santos', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
+ 'Dra. Isabel', 'Santos Duarte', 'isabel.santos@veterinaria.com', '3005556666', 'Consultorio 6', true, @vet6_id, '12345678', NOW());
+
+-- PASO 6: Insertar más recepcionista (creado por el admin)
+INSERT INTO usuarios (documento, tipo_documento, username, password, nombres, apellidos, email, telefono, direccion, activo, veterinaria_id, creado_por_documento, fecha_registro) VALUES
+('40404040', 'CC', 'recepcion3', '$2a$10$Cda6MdESFq1Iv94lGg9lwumKaKtzwh4TuT7OEdT7h68nxy3dlrcgy', 
+ 'Valentina', 'Ortiz Peña', 'valentina.ortiz@veterinaria.com', '3006667777', 'Recepción', true, @vet3_id, '12345678', NOW());
 
 -- Actualizar creado_por_documento en veterinarias (asignar al admin)
 UPDATE veterinarias SET creado_por_documento = '12345678';
 
--- Asignar roles a usuarios (10 usuarios)
+-- Asignar roles a usuarios (15 usuarios)
 INSERT INTO usuarios_roles (usuario_documento, rol_id) VALUES
 ('12345678', 1),  -- Admin -> ROLE_ADMIN
 ('87654321', 2),  -- Dr. García -> ROLE_VETERINARIO
 ('11111111', 2),  -- Dra. Martínez -> ROLE_VETERINARIO
 ('99999999', 2),  -- Dr. Rodríguez -> ROLE_VETERINARIO
 ('77777777', 2),  -- Dra. Fernández -> ROLE_VETERINARIO
+('20202020', 2),  -- Dr. López -> ROLE_VETERINARIO
+('30303030', 2),  -- Dra. Santos -> ROLE_VETERINARIO
 ('33333333', 3),  -- Cliente1 -> ROLE_CLIENTE
 ('44444444', 3),  -- Cliente2 -> ROLE_CLIENTE
 ('55555555', 3),  -- Cliente3 -> ROLE_CLIENTE
+('66666666', 3),  -- Cliente4 -> ROLE_CLIENTE
+('10101010', 3),  -- Cliente5 -> ROLE_CLIENTE
 ('22222222', 4),  -- Recepcionista1 -> ROLE_RECEPCIONISTA
-('88888888', 4);  -- Recepcionista2 -> ROLE_RECEPCIONISTA
+('88888888', 4),  -- Recepcionista2 -> ROLE_RECEPCIONISTA
+('40404040', 4);  -- Recepcionista3 -> ROLE_RECEPCIONISTA
 
 -- ============================================================================
--- INSERCIÓN DE MASCOTAS (10 registros)
+-- INSERCIÓN DE MASCOTAS (15 registros)
 -- ============================================================================
 
 INSERT INTO mascotas (nombre, especie, raza, color, sexo, fecha_nacimiento, peso, observaciones, activo, propietario_documento, fecha_registro) VALUES
@@ -166,7 +209,21 @@ INSERT INTO mascotas (nombre, especie, raza, color, sexo, fecha_nacimiento, peso
 ('Kira', 'Gato', 'Angora', 'Blanco con manchas grises', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 3 YEAR), 3.8, 
  'Muy cariñosa y sociable.', true, '55555555', NOW()),
 ('Simba', 'Gato', 'Maine Coon', 'Naranja atigrado', 'Macho', DATE_SUB(CURDATE(), INTERVAL 4 YEAR), 7.2, 
- 'Gato de gran tamaño. Muy amigable con otros animales.', true, '55555555', NOW());
+ 'Gato de gran tamaño. Muy amigable con otros animales.', true, '55555555', NOW()),
+
+-- Mascotas de Sofía Moreno (Cliente4 - 66666666)
+('Nala', 'Gato', 'Bengala', 'Dorado con manchas', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 2 YEAR), 4.5, 
+ 'Muy activa y juguetona. Le gusta trepar.', true, '66666666', NOW()),
+('Bruno', 'Perro', 'Boxer', 'Atigrado', 'Macho', DATE_SUB(CURDATE(), INTERVAL 3 YEAR), 30.0, 
+ 'Energético y protector. Excelente con niños.', true, '66666666', NOW()),
+
+-- Mascotas de Diego Herrera (Cliente5 - 10101010)
+('Lola', 'Perro', 'Beagle', 'Tricolor', 'Hembra', DATE_SUB(CURDATE(), INTERVAL 2 YEAR), 12.0, 
+ 'Muy curiosa y olfateadora. Le encanta explorar.', true, '10101010', NOW()),
+('Manchas', 'Gato', 'Común Europeo', 'Blanco y negro', 'Macho', DATE_SUB(CURDATE(), INTERVAL 1 YEAR), 4.0, 
+ 'Gato callejero rescatado. Muy cariñoso.', true, '10101010', NOW()),
+('Thor', 'Perro', 'Husky Siberiano', 'Gris y blanco', 'Macho', DATE_SUB(CURDATE(), INTERVAL 4 YEAR), 25.0, 
+ 'Muy energético. Necesita mucho ejercicio diario.', true, '10101010', NOW());
 
 -- ============================================================================
 -- INSERCIÓN DE CITAS
@@ -183,8 +240,13 @@ SET @toby_id = (SELECT id FROM mascotas WHERE nombre = 'Toby' AND propietario_do
 SET @zeus_id = (SELECT id FROM mascotas WHERE nombre = 'Zeus' AND propietario_documento = '55555555' LIMIT 1);
 SET @kira_id = (SELECT id FROM mascotas WHERE nombre = 'Kira' AND propietario_documento = '55555555' LIMIT 1);
 SET @simba_id = (SELECT id FROM mascotas WHERE nombre = 'Simba' AND propietario_documento = '55555555' LIMIT 1);
+SET @nala_id = (SELECT id FROM mascotas WHERE nombre = 'Nala' AND propietario_documento = '66666666' LIMIT 1);
+SET @bruno_id = (SELECT id FROM mascotas WHERE nombre = 'Bruno' AND propietario_documento = '66666666' LIMIT 1);
+SET @lola_id = (SELECT id FROM mascotas WHERE nombre = 'Lola' AND propietario_documento = '10101010' LIMIT 1);
+SET @manchas_id = (SELECT id FROM mascotas WHERE nombre = 'Manchas' AND propietario_documento = '10101010' LIMIT 1);
+SET @thor_id = (SELECT id FROM mascotas WHERE nombre = 'Thor' AND propietario_documento = '10101010' LIMIT 1);
 
--- Insertar citas programadas y completadas (10 registros)
+-- Insertar citas programadas y completadas (15 registros)
 INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_documento, mascota_id, veterinario_documento, veterinaria_id, fecha_creacion) VALUES
 -- Citas completadas (pasadas)
 (DATE_SUB(NOW(), INTERVAL 30 DAY), 'Vacunación anual y control', 'Primera vacuna del año', 'COMPLETADA', 
@@ -208,10 +270,22 @@ INSERT INTO citas (fecha_hora, motivo, observaciones, estado, cliente_documento,
 (DATE_ADD(NOW(), INTERVAL 5 DAY), 'Peluquería y baño', 'Servicio de grooming completo', 'PROGRAMADA', 
  '44444444', @mimi_id, '99999999', @vet3_id, NOW()),
 (DATE_ADD(NOW(), INTERVAL 7 DAY), 'Control de peso', 'Seguimiento de dieta', 'CONFIRMADA', 
- '55555555', @zeus_id, '77777777', @vet4_id, NOW());
+ '55555555', @zeus_id, '77777777', @vet4_id, NOW()),
+
+-- Citas adicionales
+(DATE_ADD(NOW(), INTERVAL 10 DAY), 'Primera consulta', 'Revisión general de nueva mascota', 'PROGRAMADA', 
+ '66666666', @nala_id, '20202020', @vet5_id, NOW()),
+(DATE_ADD(NOW(), INTERVAL 12 DAY), 'Vacunación múltiple', 'Refuerzo de vacunas', 'PROGRAMADA', 
+ '66666666', @bruno_id, '30303030', @vet6_id, NOW()),
+(DATE_ADD(NOW(), INTERVAL 14 DAY), 'Control de rutina', 'Examen general de salud', 'CONFIRMADA', 
+ '10101010', @lola_id, '87654321', @vet1_id, NOW()),
+(DATE_SUB(NOW(), INTERVAL 10 DAY), 'Consulta por herida', 'Lesión en pata trasera', 'COMPLETADA', 
+ '10101010', @manchas_id, '11111111', @vet2_id, DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(DATE_ADD(NOW(), INTERVAL 20 DAY), 'Baño y corte de uñas', 'Servicio de grooming', 'PROGRAMADA', 
+ '10101010', @thor_id, '99999999', @vet3_id, NOW());
 
 -- ============================================================================
--- INSERCIÓN DE HISTORIAS CLÍNICAS (10 registros)
+-- INSERCIÓN DE HISTORIAS CLÍNICAS (15 registros)
 -- ============================================================================
 
 INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consulta, motivo_consulta, diagnostico, tratamiento, medicamentos, observaciones, recomendaciones, peso, temperatura, frecuencia_cardiaca, frecuencia_respiratoria, activo, fecha_creacion) VALUES
@@ -313,10 +387,60 @@ INSERT INTO historias_clinicas (mascota_id, veterinario_documento, fecha_consult
  'Ivermectina oral',
  'Gato de gran tamaño en excelente condición. Temperamento dócil.', 
  'Cepillado diario por su pelaje largo. Control en 6 meses.',
- 7.2, 38.3, 135, 33, true, DATE_SUB(NOW(), INTERVAL 50 DAY));
+ 7.2, 38.3, 135, 33, true, DATE_SUB(NOW(), INTERVAL 50 DAY)),
+
+-- Historias clínicas de Nala
+(@nala_id, '20202020', DATE_SUB(NOW(), INTERVAL 5 DAY), 
+ 'Primera consulta', 
+ 'Gata joven en excelente estado de salud', 
+ 'Vacunación inicial y desparasitación', 
+ 'Vacuna triple felina, Praziquantel',
+ 'Gata muy activa y saludable. Peso ideal para su edad.', 
+ 'Completar esquema de vacunación. Próxima cita en 21 días.',
+ 4.5, 38.5, 145, 35, true, DATE_SUB(NOW(), INTERVAL 5 DAY)),
+
+-- Historias clínicas de Bruno
+(@bruno_id, '30303030', DATE_SUB(NOW(), INTERVAL 12 DAY), 
+ 'Control anual', 
+ 'Estado general excelente', 
+ 'Vacunación anual y examen físico completo', 
+ 'Vacuna séxtuple canina',
+ 'Perro en óptimas condiciones. Musculatura bien desarrollada.', 
+ 'Continuar con ejercicio regular. Control en 1 año.',
+ 30.0, 38.6, 85, 26, true, DATE_SUB(NOW(), INTERVAL 12 DAY)),
+
+-- Historias clínicas de Lola
+(@lola_id, '87654321', DATE_SUB(NOW(), INTERVAL 8 DAY), 
+ 'Consulta por otitis', 
+ 'Otitis externa leve', 
+ 'Limpieza auricular y antibiótico tópico', 
+ 'Gotas óticas con neomicina, Limpiador auricular',
+ 'Oreja derecha con leve inflamación. Buena respuesta al tratamiento.', 
+ 'Aplicar gotas 2 veces al día por 7 días. Evitar baños. Control en 1 semana.',
+ 12.0, 38.5, 95, 28, true, DATE_SUB(NOW(), INTERVAL 8 DAY)),
+
+-- Historias clínicas de Manchas
+(@manchas_id, '11111111', DATE_SUB(NOW(), INTERVAL 10 DAY), 
+ 'Herida en pata trasera', 
+ 'Lesión superficial por traumatismo', 
+ 'Limpieza, desinfección y vendaje', 
+ 'Amoxicilina 10mg cada 12h por 5 días, Analgésico',
+ 'Herida limpia, sin signos de infección. Buena cicatrización.', 
+ 'Mantener vendaje limpio y seco. Cambio de vendaje cada 2 días. Control en 5 días.',
+ 4.0, 38.4, 140, 32, true, DATE_SUB(NOW(), INTERVAL 10 DAY)),
+
+-- Historias clínicas de Thor
+(@thor_id, '99999999', DATE_SUB(NOW(), INTERVAL 18 DAY), 
+ 'Vacunación y control', 
+ 'Perro joven sano y activo', 
+ 'Vacunación anual y examen general', 
+ 'Vacuna antirrábica, Desparasitante',
+ 'Perro de raza grande en excelente condición física.', 
+ 'Ejercicio diario intenso recomendado. Dieta balanceada para razas grandes. Control en 1 año.',
+ 25.0, 38.7, 82, 24, true, DATE_SUB(NOW(), INTERVAL 18 DAY));
 
 -- ============================================================================
--- INSERCIÓN DE REPORTES DE EJEMPLO (10 registros)
+-- INSERCIÓN DE REPORTES DE EJEMPLO (15 registros)
 -- ============================================================================
 
 INSERT INTO reportes (tipo, titulo, descripcion, fecha_inicio, fecha_fin, contenido_json, fecha_generacion, generado_por) VALUES
@@ -378,7 +502,37 @@ INSERT INTO reportes (tipo, titulo, descripcion, fecha_inicio, fecha_fin, conten
  'Análisis de servicios más demandados', 
  '2025-11-01', '2025-11-30', 
  '{"consulta_general": 35, "vacunacion": 28, "cirugia": 8, "grooming": 12, "laboratorio": 6}', 
- NOW(), '22222222');
+ NOW(), '22222222'),
+
+('CITAS_MENSUALES', 'Reporte de Citas - Octubre 2025', 
+ 'Reporte mensual de citas programadas y atendidas', 
+ '2025-10-01', '2025-10-31', 
+ '{"total_citas": 52, "completadas": 45, "canceladas": 5, "programadas": 2}', 
+ NOW(), '12345678'),
+
+('HISTORIAS_CLINICAS', 'Reporte de Historias Clínicas - Noviembre 2025', 
+ 'Resumen de historias clínicas registradas en el mes', 
+ '2025-11-01', '2025-11-30', 
+ '{"total_historias": 48, "consultas_generales": 25, "vacunaciones": 15, "cirugias": 5, "emergencias": 3}', 
+ NOW(), '87654321'),
+
+('INGRESOS_MENSUALES', 'Reporte de Ingresos - Octubre 2025', 
+ 'Reporte financiero de ingresos por servicios', 
+ '2025-10-01', '2025-10-31', 
+ '{"total_ingresos": 18200000, "consultas": 9500000, "vacunaciones": 4200000, "cirugias": 3500000, "otros": 1000000}', 
+ NOW(), '12345678'),
+
+('MASCOTAS_REGISTRADAS', 'Reporte de Mascotas por Especie - Noviembre 2025', 
+ 'Estadísticas detalladas de mascotas por especie', 
+ '2025-11-01', '2025-11-30', 
+ '{"total_mascotas": 15, "perros": 9, "gatos": 6, "otros": 0, "nuevos_registros": 5}', 
+ NOW(), '22222222'),
+
+('OCUPACION_VETERINARIOS', 'Reporte de Ocupación de Veterinarios - Diciembre 2025', 
+ 'Análisis de carga de trabajo por veterinario', 
+ '2025-12-01', '2025-12-31', 
+ '{"dr_garcia": 18, "dra_martinez": 15, "dr_rodriguez": 12, "dra_fernandez": 10, "dr_lopez": 8, "dra_santos": 7}', 
+ NOW(), '12345678');
 
 -- ============================================================================
 -- VERIFICACIÓN Y RESUMEN
@@ -469,7 +623,7 @@ GROUP BY v.id, v.nombre
 ORDER BY v.nombre;
 
 SELECT '================================' as '';
-SELECT '🔑 CREDENCIALES DE ACCESO (10 usuarios)' as '';
+SELECT '🔑 CREDENCIALES DE ACCESO (15 usuarios)' as '';
 SELECT '================================' as '';
 SELECT 'Usuario: admin | Contraseña: admin123 | Rol: ADMIN | Veterinaria: Pet Care' as Credencial
 UNION ALL
@@ -481,15 +635,25 @@ SELECT 'Usuario: dr.rodriguez | Contraseña: admin123 | Rol: VETERINARIO | Veter
 UNION ALL
 SELECT 'Usuario: dra.fernandez | Contraseña: admin123 | Rol: VETERINARIO | Veterinaria: San Francisco'
 UNION ALL
+SELECT 'Usuario: dr.lopez | Contraseña: admin123 | Rol: VETERINARIO | Veterinaria: El Bosque'
+UNION ALL
+SELECT 'Usuario: dra.santos | Contraseña: admin123 | Rol: VETERINARIO | Veterinaria: Mascotas Felices'
+UNION ALL
 SELECT 'Usuario: recepcion1 | Contraseña: admin123 | Rol: RECEPCIONISTA | Veterinaria: Pet Care'
 UNION ALL
 SELECT 'Usuario: recepcion2 | Contraseña: admin123 | Rol: RECEPCIONISTA | Veterinaria: Central'
+UNION ALL
+SELECT 'Usuario: recepcion3 | Contraseña: admin123 | Rol: RECEPCIONISTA | Veterinaria: Amigos Peludos'
 UNION ALL
 SELECT 'Usuario: cliente1 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Pet Care'
 UNION ALL
 SELECT 'Usuario: cliente2 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Pet Care'
 UNION ALL
-SELECT 'Usuario: cliente3 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Central';
+SELECT 'Usuario: cliente3 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Central'
+UNION ALL
+SELECT 'Usuario: cliente4 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Amigos Peludos'
+UNION ALL
+SELECT 'Usuario: cliente5 | Contraseña: admin123 | Rol: CLIENTE | Veterinaria: Pet Care';
 
 SELECT '================================' as '';
 SELECT '🎉 SISTEMA LISTO PARA USAR' as '';

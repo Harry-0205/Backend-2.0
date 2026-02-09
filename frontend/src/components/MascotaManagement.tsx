@@ -11,7 +11,8 @@ import {
   Alert,
   Badge,
   InputGroup,
-  Spinner
+  Spinner,
+  Pagination
 } from 'react-bootstrap';
 import { Mascota } from '../types';
 import mascotaService from '../services/mascotaService';
@@ -33,6 +34,10 @@ const MascotaManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showActives, setShowActives] = useState<boolean | null>(null);
   const [filterByEspecie, setFilterByEspecie] = useState<string>('');
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -54,6 +59,7 @@ const MascotaManagement: React.FC = () => {
 
   useEffect(() => {
     filterMascotas();
+    setCurrentPage(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mascotas, searchTerm, showActives, filterByEspecie]);
 
@@ -532,29 +538,32 @@ const MascotaManagement: React.FC = () => {
                   </Spinner>
                 </div>
               ) : (
-                <Table responsive striped hover>
-                  <thead>
-                    <tr>
-                      <th>Nombre</th>
-                      <th>Especie</th>
-                      <th>Raza</th>
-                      <th>Sexo</th>
-                      <th>Edad</th>
-                      <th>Peso (kg)</th>
-                      <th>Propietario</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMascotas.length === 0 ? (
+                <>
+                  <Table responsive striped hover>
+                    <thead>
                       <tr>
-                        <td colSpan={9} className="text-center py-4">
-                          No se encontraron mascotas
-                        </td>
+                        <th>Nombre</th>
+                        <th>Especie</th>
+                        <th>Raza</th>
+                        <th>Sexo</th>
+                        <th>Edad</th>
+                        <th>Peso (kg)</th>
+                        <th>Propietario</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
                       </tr>
-                    ) : (
-                      filteredMascotas.map((mascota) => (
+                    </thead>
+                    <tbody>
+                      {filteredMascotas.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="text-center py-4">
+                            No se encontraron mascotas
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredMascotas
+                          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          .map((mascota) => (
                         <tr key={mascota.id}>
                           <td><strong>{mascota.nombre}</strong></td>
                           <td>
@@ -634,6 +643,60 @@ const MascotaManagement: React.FC = () => {
                     )}
                   </tbody>
                 </Table>
+                
+                {/* Paginación */}
+                {filteredMascotas.length > itemsPerPage && (
+                  <div className="d-flex justify-content-center align-items-center mt-3">
+                    <Pagination>
+                      <Pagination.First 
+                        onClick={() => setCurrentPage(1)} 
+                        disabled={currentPage === 1}
+                      />
+                      <Pagination.Prev 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                        disabled={currentPage === 1}
+                      />
+                      
+                      {[...Array(Math.ceil(filteredMascotas.length / itemsPerPage))].map((_, index) => {
+                        const pageNumber = index + 1;
+                        if (
+                          pageNumber === 1 ||
+                          pageNumber === Math.ceil(filteredMascotas.length / itemsPerPage) ||
+                          (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                        ) {
+                          return (
+                            <Pagination.Item
+                              key={pageNumber}
+                              active={pageNumber === currentPage}
+                              onClick={() => setCurrentPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Pagination.Item>
+                          );
+                        } else if (
+                          pageNumber === currentPage - 2 ||
+                          pageNumber === currentPage + 2
+                        ) {
+                          return <Pagination.Ellipsis key={pageNumber} disabled />;
+                        }
+                        return null;
+                      })}
+                      
+                      <Pagination.Next 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredMascotas.length / itemsPerPage)))} 
+                        disabled={currentPage === Math.ceil(filteredMascotas.length / itemsPerPage)}
+                      />
+                      <Pagination.Last 
+                        onClick={() => setCurrentPage(Math.ceil(filteredMascotas.length / itemsPerPage))} 
+                        disabled={currentPage === Math.ceil(filteredMascotas.length / itemsPerPage)}
+                      />
+                    </Pagination>
+                    <span className="ms-3 text-muted">
+                      Página {currentPage} de {Math.ceil(filteredMascotas.length / itemsPerPage)} | Total: {filteredMascotas.length} mascotas
+                    </span>
+                  </div>
+                )}
+              </>
               )}
             </Card.Body>
           </Card>

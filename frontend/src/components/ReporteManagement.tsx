@@ -13,7 +13,8 @@ import {
   Spinner,
   Nav,
   Tab,
-  ButtonGroup
+  ButtonGroup,
+  Pagination
 } from 'react-bootstrap';
 import {
   ReporteUsuario,
@@ -48,6 +49,7 @@ const ReporteManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('usuarios');
   const [veterinarias, setVeterinarias] = useState<any[]>([]);
   const [selectedVeterinaria, setSelectedVeterinaria] = useState<string>('');
+  const [userVeterinariaName, setUserVeterinariaName] = useState<string>('');  
 
   // Estados para reportes de usuarios
   const [reporteUsuarios, setReporteUsuarios] = useState<ReporteUsuario[]>([]);
@@ -71,6 +73,12 @@ const ReporteManagement: React.FC = () => {
   const [filterEstado, setFilterEstado] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+
+  // Paginación
+  const [currentPageUsuarios, setCurrentPageUsuarios] = useState(1);
+  const [currentPageMascotas, setCurrentPageMascotas] = useState(1);
+  const [currentPageCitas, setCurrentPageCitas] = useState(1);
+  const itemsPerPage = 10;
 
   // Cargar datos según la pestaña activa
   useEffect(() => {
@@ -127,6 +135,10 @@ const ReporteManagement: React.FC = () => {
   const loadVeterinarias = async () => {
     if (authService.isAdmin()) {
       try {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser && currentUser.veterinaria?.nombre) {
+          setUserVeterinariaName(currentUser.veterinaria.nombre);
+        }
         const data = await getAllVeterinarias();
         setVeterinarias(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -145,6 +157,7 @@ const ReporteManagement: React.FC = () => {
     } else {
       setFilteredUsuarios(reporteUsuarios);
     }
+    setCurrentPageUsuarios(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reporteUsuarios, searchUsuarios]);
 
@@ -157,6 +170,7 @@ const ReporteManagement: React.FC = () => {
     } else {
       setFilteredMascotas(reporteMascotas);
     }
+    setCurrentPageMascotas(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reporteMascotas, searchMascotas]);
 
@@ -169,6 +183,7 @@ const ReporteManagement: React.FC = () => {
     } else {
       setFilteredCitas(reporteCitas);
     }
+    setCurrentPageCitas(1); // Resetear a la primera página cuando cambien los filtros
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reporteCitas, searchCitas]);
 
@@ -177,7 +192,8 @@ const ReporteManagement: React.FC = () => {
   const loadReporteUsuarios = async () => {
     try {
       setLoading(true);
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteUsuarios(veterinariaId),
         getEstadisticasUsuarios(veterinariaId)
@@ -197,7 +213,8 @@ const ReporteManagement: React.FC = () => {
   const loadReporteMascotas = async () => {
     try {
       setLoading(true);
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteMascotas(veterinariaId),
         getEstadisticasMascotas(veterinariaId)
@@ -217,7 +234,8 @@ const ReporteManagement: React.FC = () => {
   const loadReporteCitas = async () => {
     try {
       setLoading(true);
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteCitas(veterinariaId),
         getEstadisticasCitas(veterinariaId)
@@ -292,8 +310,8 @@ const ReporteManagement: React.FC = () => {
     
     try {
       setLoading(true);
-      // Obtener todos los usuarios y filtrar localmente por rol
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteUsuarios(veterinariaId),
         getEstadisticasUsuarios(veterinariaId)
@@ -322,8 +340,8 @@ const ReporteManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      // Obtener todas las mascotas y filtrar localmente por especie
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteMascotas(veterinariaId),
         getEstadisticasMascotas(veterinariaId)
@@ -352,8 +370,8 @@ const ReporteManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      // Obtener todas las citas y filtrar localmente por estado
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // Pasar el ID de la veterinaria seleccionada (undefined = todas las veterinarias del admin)
+      const veterinariaId = selectedVeterinaria ? Number(selectedVeterinaria) : undefined;
       const [reporte, stats] = await Promise.all([
         getReporteCitas(veterinariaId),
         getEstadisticasCitas(veterinariaId)
@@ -453,7 +471,7 @@ const ReporteManagement: React.FC = () => {
   const handleExportPDF = async (tipo: 'usuarios' | 'mascotas' | 'citas') => {
     try {
       setLoading(true);
-      const veterinariaId = selectedVeterinaria ? parseInt(selectedVeterinaria) : undefined;
+      // El backend ahora siempre filtra por la veterinaria del usuario autenticado
       
       // Construir parámetros de filtros según el tipo de reporte
       const filtros: any = {};
@@ -471,7 +489,7 @@ const ReporteManagement: React.FC = () => {
         if (fechaFin) filtros.fechaFin = fechaFin;
       }
       
-      await exportarReportePDF(tipo, veterinariaId, filtros);
+      await exportarReportePDF(tipo, undefined, filtros);
       setSuccess('Reporte PDF exportado exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -508,7 +526,6 @@ const ReporteManagement: React.FC = () => {
       case 'EN_CURSO': return 'primary';
       case 'COMPLETADA': return 'success';
       case 'CANCELADA': return 'danger';
-      case 'NO_ASISTIO': return 'secondary';
       default: return 'secondary';
     }
   };
@@ -723,6 +740,27 @@ const ReporteManagement: React.FC = () => {
                   <Tab.Content>
                     {/* TAB DE USUARIOS */}
                     <Tab.Pane eventKey="usuarios">
+                    {authService.isAdmin() && (
+                      <Row className="mb-3">
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label><strong>Filtrar por Veterinaria</strong></Form.Label>
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'Todas mis veterinarias' },
+                                ...veterinarias.map(v => ({
+                                  value: v.id.toString(),
+                                  label: v.nombre
+                                }))
+                              ]}
+                              value={selectedVeterinaria}
+                              onChange={setSelectedVeterinaria}
+                              placeholder="Seleccionar veterinaria"
+                            />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                    )}
                     <EstadisticasUsuariosCard />
 
                     <Row className="mb-3">
@@ -756,22 +794,6 @@ const ReporteManagement: React.FC = () => {
                           placeholder="Todos los roles"
                         />
                       </Col>
-                      {authService.isAdmin() && (
-                        <Col md={2}>
-                          <SearchableSelect
-                            options={[
-                              { value: '', label: 'Todas las veterinarias' },
-                              ...veterinarias.map((vet) => ({
-                                value: vet.id.toString(),
-                                label: vet.nombre
-                              }))
-                            ]}
-                            value={selectedVeterinaria}
-                            onChange={setSelectedVeterinaria}
-                            placeholder="Todas las veterinarias"
-                          />
-                        </Col>
-                      )}
                       <Col md={1}>
                         <Button
                           variant="outline-secondary"
@@ -779,7 +801,6 @@ const ReporteManagement: React.FC = () => {
                           onClick={async () => {
                             setSearchUsuarios('');
                             setFilterRol('');
-                            setSelectedVeterinaria('');
                             await loadReporteUsuarios();
                           }}
                           title="Limpiar filtros"
@@ -826,29 +847,32 @@ const ReporteManagement: React.FC = () => {
                         </Spinner>
                       </div>
                     ) : (
-                      <Table responsive striped hover>
-                        <thead>
-                          <tr>
-                            <th>Documento</th>
-                            <th>Usuario</th>
-                            <th>Nombre Completo</th>
-                            <th>Email</th>
-                            <th>Rol</th>
-                            <th>Estado</th>
-                            <th>Mascotas</th>
-                            <th>Citas</th>
-                            <th>Fecha Registro</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredUsuarios.length === 0 ? (
+                      <>
+                        <Table responsive striped hover>
+                          <thead>
                             <tr>
-                              <td colSpan={9} className="text-center py-4">
-                                No se encontraron usuarios
-                              </td>
+                              <th>Documento</th>
+                              <th>Usuario</th>
+                              <th>Nombre Completo</th>
+                              <th>Email</th>
+                              <th>Rol</th>
+                              <th>Estado</th>
+                              <th>Mascotas</th>
+                              <th>Citas</th>
+                              <th>Fecha Registro</th>
                             </tr>
-                          ) : (
-                            filteredUsuarios.map((usuario) => (
+                          </thead>
+                          <tbody>
+                            {filteredUsuarios.length === 0 ? (
+                              <tr>
+                                <td colSpan={9} className="text-center py-4">
+                                  No se encontraron usuarios
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredUsuarios
+                                .slice((currentPageUsuarios - 1) * itemsPerPage, currentPageUsuarios * itemsPerPage)
+                                .map((usuario) => (
                               <tr key={usuario.documento}>
                                 <td>{usuario.documento}</td>
                                 <td><strong>{usuario.username}</strong></td>
@@ -872,11 +896,86 @@ const ReporteManagement: React.FC = () => {
                           )}
                         </tbody>
                       </Table>
+                      
+                      {/* Paginación */}
+                      {filteredUsuarios.length > itemsPerPage && (
+                        <div className="d-flex justify-content-center align-items-center mt-3">
+                          <Pagination>
+                            <Pagination.First 
+                              onClick={() => setCurrentPageUsuarios(1)} 
+                              disabled={currentPageUsuarios === 1}
+                            />
+                            <Pagination.Prev 
+                              onClick={() => setCurrentPageUsuarios(prev => Math.max(prev - 1, 1))} 
+                              disabled={currentPageUsuarios === 1}
+                            />
+                            
+                            {[...Array(Math.ceil(filteredUsuarios.length / itemsPerPage))].map((_, index) => {
+                              const pageNumber = index + 1;
+                              if (
+                                pageNumber === 1 ||
+                                pageNumber === Math.ceil(filteredUsuarios.length / itemsPerPage) ||
+                                (pageNumber >= currentPageUsuarios - 1 && pageNumber <= currentPageUsuarios + 1)
+                              ) {
+                                return (
+                                  <Pagination.Item
+                                    key={pageNumber}
+                                    active={pageNumber === currentPageUsuarios}
+                                    onClick={() => setCurrentPageUsuarios(pageNumber)}
+                                  >
+                                    {pageNumber}
+                                  </Pagination.Item>
+                                );
+                              } else if (
+                                pageNumber === currentPageUsuarios - 2 ||
+                                pageNumber === currentPageUsuarios + 2
+                              ) {
+                                return <Pagination.Ellipsis key={pageNumber} disabled />;
+                              }
+                              return null;
+                            })}
+                            
+                            <Pagination.Next 
+                              onClick={() => setCurrentPageUsuarios(prev => Math.min(prev + 1, Math.ceil(filteredUsuarios.length / itemsPerPage)))} 
+                              disabled={currentPageUsuarios === Math.ceil(filteredUsuarios.length / itemsPerPage)}
+                            />
+                            <Pagination.Last 
+                              onClick={() => setCurrentPageUsuarios(Math.ceil(filteredUsuarios.length / itemsPerPage))} 
+                              disabled={currentPageUsuarios === Math.ceil(filteredUsuarios.length / itemsPerPage)}
+                            />
+                          </Pagination>
+                          <span className="ms-3 text-muted">
+                            Página {currentPageUsuarios} de {Math.ceil(filteredUsuarios.length / itemsPerPage)} | Total: {filteredUsuarios.length} usuarios
+                          </span>
+                        </div>
+                      )}
+                    </>
                     )}
                   </Tab.Pane>
 
                   {/* TAB DE MASCOTAS */}
                   <Tab.Pane eventKey="mascotas">
+                    {authService.isAdmin() && (
+                      <Row className="mb-3">
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label><strong>Filtrar por Veterinaria</strong></Form.Label>
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'Todas mis veterinarias' },
+                                ...veterinarias.map(v => ({
+                                  value: v.id.toString(),
+                                  label: v.nombre
+                                }))
+                              ]}
+                              value={selectedVeterinaria}
+                              onChange={setSelectedVeterinaria}
+                              placeholder="Seleccionar veterinaria"
+                            />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                    )}
                     <EstadisticasMascotasCard />
 
                     <Row className="mb-3">
@@ -912,22 +1011,6 @@ const ReporteManagement: React.FC = () => {
                           placeholder="Todas las especies"
                         />
                       </Col>
-                      {authService.isAdmin() && (
-                        <Col md={2}>
-                          <SearchableSelect
-                            options={[
-                              { value: '', label: 'Todas las veterinarias' },
-                              ...veterinarias.map((vet) => ({
-                                value: vet.id.toString(),
-                                label: vet.nombre
-                              }))
-                            ]}
-                            value={selectedVeterinaria}
-                            onChange={setSelectedVeterinaria}
-                            placeholder="Todas las veterinarias"
-                          />
-                        </Col>
-                      )}
                       <Col md={1}>
                         <Button
                           variant="outline-secondary"
@@ -935,7 +1018,6 @@ const ReporteManagement: React.FC = () => {
                           onClick={async () => {
                             setSearchMascotas('');
                             setFilterEspecie('');
-                            setSelectedVeterinaria('');
                             await loadReporteMascotas();
                           }}
                           title="Limpiar filtros"
@@ -982,30 +1064,33 @@ const ReporteManagement: React.FC = () => {
                         </Spinner>
                       </div>
                     ) : (
-                      <Table responsive striped hover>
-                        <thead>
-                          <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Especie</th>
-                            <th>Raza</th>
-                            <th>Sexo</th>
-                            <th>Edad</th>
-                            <th>Propietario</th>
-                            <th>Citas</th>
-                            <th>Historias</th>
-                            <th>Última Cita</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredMascotas.length === 0 ? (
+                      <>
+                        <Table responsive striped hover>
+                          <thead>
                             <tr>
-                              <td colSpan={10} className="text-center py-4">
-                                No se encontraron mascotas
-                              </td>
+                              <th>ID</th>
+                              <th>Nombre</th>
+                              <th>Especie</th>
+                              <th>Raza</th>
+                              <th>Sexo</th>
+                              <th>Edad</th>
+                              <th>Propietario</th>
+                              <th>Citas</th>
+                              <th>Historias</th>
+                              <th>Última Cita</th>
                             </tr>
-                          ) : (
-                            filteredMascotas.map((mascota) => (
+                          </thead>
+                          <tbody>
+                            {filteredMascotas.length === 0 ? (
+                              <tr>
+                                <td colSpan={10} className="text-center py-4">
+                                  No se encontraron mascotas
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredMascotas
+                                .slice((currentPageMascotas - 1) * itemsPerPage, currentPageMascotas * itemsPerPage)
+                                .map((mascota) => (
                               <tr key={mascota.id}>
                                 <td>{mascota.id}</td>
                                 <td><strong>{mascota.nombre}</strong></td>
@@ -1022,11 +1107,86 @@ const ReporteManagement: React.FC = () => {
                           )}
                         </tbody>
                       </Table>
+                      
+                      {/* Paginación */}
+                      {filteredMascotas.length > itemsPerPage && (
+                        <div className="d-flex justify-content-center align-items-center mt-3">
+                          <Pagination>
+                            <Pagination.First 
+                              onClick={() => setCurrentPageMascotas(1)} 
+                              disabled={currentPageMascotas === 1}
+                            />
+                            <Pagination.Prev 
+                              onClick={() => setCurrentPageMascotas(prev => Math.max(prev - 1, 1))} 
+                              disabled={currentPageMascotas === 1}
+                            />
+                            
+                            {[...Array(Math.ceil(filteredMascotas.length / itemsPerPage))].map((_, index) => {
+                              const pageNumber = index + 1;
+                              if (
+                                pageNumber === 1 ||
+                                pageNumber === Math.ceil(filteredMascotas.length / itemsPerPage) ||
+                                (pageNumber >= currentPageMascotas - 1 && pageNumber <= currentPageMascotas + 1)
+                              ) {
+                                return (
+                                  <Pagination.Item
+                                    key={pageNumber}
+                                    active={pageNumber === currentPageMascotas}
+                                    onClick={() => setCurrentPageMascotas(pageNumber)}
+                                  >
+                                    {pageNumber}
+                                  </Pagination.Item>
+                                );
+                              } else if (
+                                pageNumber === currentPageMascotas - 2 ||
+                                pageNumber === currentPageMascotas + 2
+                              ) {
+                                return <Pagination.Ellipsis key={pageNumber} disabled />;
+                              }
+                              return null;
+                            })}
+                            
+                            <Pagination.Next 
+                              onClick={() => setCurrentPageMascotas(prev => Math.min(prev + 1, Math.ceil(filteredMascotas.length / itemsPerPage)))} 
+                              disabled={currentPageMascotas === Math.ceil(filteredMascotas.length / itemsPerPage)}
+                            />
+                            <Pagination.Last 
+                              onClick={() => setCurrentPageMascotas(Math.ceil(filteredMascotas.length / itemsPerPage))} 
+                              disabled={currentPageMascotas === Math.ceil(filteredMascotas.length / itemsPerPage)}
+                            />
+                          </Pagination>
+                          <span className="ms-3 text-muted">
+                            Página {currentPageMascotas} de {Math.ceil(filteredMascotas.length / itemsPerPage)} | Total: {filteredMascotas.length} mascotas
+                          </span>
+                        </div>
+                      )}
+                    </>
                     )}
                   </Tab.Pane>
 
                   {/* TAB DE CITAS */}
                   <Tab.Pane eventKey="citas">
+                    {authService.isAdmin() && (
+                      <Row className="mb-3">
+                        <Col md={4}>
+                          <Form.Group>
+                            <Form.Label><strong>Filtrar por Veterinaria</strong></Form.Label>
+                            <SearchableSelect
+                              options={[
+                                { value: '', label: 'Todas mis veterinarias' },
+                                ...veterinarias.map(v => ({
+                                  value: v.id.toString(),
+                                  label: v.nombre
+                                }))
+                              ]}
+                              value={selectedVeterinaria}
+                              onChange={setSelectedVeterinaria}
+                              placeholder="Seleccionar veterinaria"
+                            />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                    )}
                     <EstadisticasCitasCard />
 
                     <Row className="mb-3">
@@ -1051,8 +1211,7 @@ const ReporteManagement: React.FC = () => {
                             { value: 'CONFIRMADA', label: 'Confirmada' },
                             { value: 'EN_CURSO', label: 'En Curso' },
                             { value: 'COMPLETADA', label: 'Completada' },
-                            { value: 'CANCELADA', label: 'Cancelada' },
-                            { value: 'NO_ASISTIO', label: 'No Asistió' }
+                            { value: 'CANCELADA', label: 'Cancelada' }
                           ]}
                           value={filterEstado}
                           onChange={(value) => {
@@ -1062,22 +1221,6 @@ const ReporteManagement: React.FC = () => {
                           placeholder="Todos los estados"
                         />
                       </Col>
-                      {authService.isAdmin() && (
-                        <Col md={2}>
-                          <SearchableSelect
-                            options={[
-                              { value: '', label: 'Todas las veterinarias' },
-                              ...veterinarias.map((vet) => ({
-                                value: vet.id.toString(),
-                                label: vet.nombre
-                              }))
-                            ]}
-                            value={selectedVeterinaria}
-                            onChange={setSelectedVeterinaria}
-                            placeholder="Todas las veterinarias"
-                          />
-                        </Col>
-                      )}
                       <Col md={2}>
                         <Form.Control
                           type="date"
@@ -1101,7 +1244,6 @@ const ReporteManagement: React.FC = () => {
                           onClick={async () => {
                             setSearchCitas('');
                             setFilterEstado('');
-                            setSelectedVeterinaria('');
                             setFechaInicio('');
                             setFechaFin('');
                             await loadReporteCitas();
@@ -1162,28 +1304,31 @@ const ReporteManagement: React.FC = () => {
                         </Spinner>
                       </div>
                     ) : (
-                      <Table responsive striped hover>
-                        <thead>
-                          <tr>
-                            <th>ID</th>
-                            <th>Fecha y Hora</th>
-                            <th>Cliente</th>
-                            <th>Mascota</th>
-                            <th>Veterinario</th>
-                            <th>Veterinaria</th>
-                            <th>Motivo</th>
-                            <th>Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredCitas.length === 0 ? (
+                      <>
+                        <Table responsive striped hover>
+                          <thead>
                             <tr>
-                              <td colSpan={8} className="text-center py-4">
-                                No se encontraron citas
-                              </td>
+                              <th>ID</th>
+                              <th>Fecha y Hora</th>
+                              <th>Cliente</th>
+                              <th>Mascota</th>
+                              <th>Veterinario</th>
+                              <th>Veterinaria</th>
+                              <th>Motivo</th>
+                              <th>Estado</th>
                             </tr>
-                          ) : (
-                            filteredCitas.map((cita) => (
+                          </thead>
+                          <tbody>
+                            {filteredCitas.length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="text-center py-4">
+                                  No se encontraron citas
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredCitas
+                                .slice((currentPageCitas - 1) * itemsPerPage, currentPageCitas * itemsPerPage)
+                                .map((cita) => (
                               <tr key={cita.id}>
                                 <td>{cita.id}</td>
                                 <td>{formatFechaHora(cita.fechaHora)}</td>
@@ -1210,6 +1355,60 @@ const ReporteManagement: React.FC = () => {
                           )}
                         </tbody>
                       </Table>
+                      
+                      {/* Paginación */}
+                      {filteredCitas.length > itemsPerPage && (
+                        <div className="d-flex justify-content-center align-items-center mt-3">
+                          <Pagination>
+                            <Pagination.First 
+                              onClick={() => setCurrentPageCitas(1)} 
+                              disabled={currentPageCitas === 1}
+                            />
+                            <Pagination.Prev 
+                              onClick={() => setCurrentPageCitas(prev => Math.max(prev - 1, 1))} 
+                              disabled={currentPageCitas === 1}
+                            />
+                            
+                            {[...Array(Math.ceil(filteredCitas.length / itemsPerPage))].map((_, index) => {
+                              const pageNumber = index + 1;
+                              if (
+                                pageNumber === 1 ||
+                                pageNumber === Math.ceil(filteredCitas.length / itemsPerPage) ||
+                                (pageNumber >= currentPageCitas - 1 && pageNumber <= currentPageCitas + 1)
+                              ) {
+                                return (
+                                  <Pagination.Item
+                                    key={pageNumber}
+                                    active={pageNumber === currentPageCitas}
+                                    onClick={() => setCurrentPageCitas(pageNumber)}
+                                  >
+                                    {pageNumber}
+                                  </Pagination.Item>
+                                );
+                              } else if (
+                                pageNumber === currentPageCitas - 2 ||
+                                pageNumber === currentPageCitas + 2
+                              ) {
+                                return <Pagination.Ellipsis key={pageNumber} disabled />;
+                              }
+                              return null;
+                            })}
+                            
+                            <Pagination.Next 
+                              onClick={() => setCurrentPageCitas(prev => Math.min(prev + 1, Math.ceil(filteredCitas.length / itemsPerPage)))} 
+                              disabled={currentPageCitas === Math.ceil(filteredCitas.length / itemsPerPage)}
+                            />
+                            <Pagination.Last 
+                              onClick={() => setCurrentPageCitas(Math.ceil(filteredCitas.length / itemsPerPage))} 
+                              disabled={currentPageCitas === Math.ceil(filteredCitas.length / itemsPerPage)}
+                            />
+                          </Pagination>
+                          <span className="ms-3 text-muted">
+                            Página {currentPageCitas} de {Math.ceil(filteredCitas.length / itemsPerPage)} | Total: {filteredCitas.length} citas
+                          </span>
+                        </div>
+                      )}
+                    </>
                     )}
                   </Tab.Pane>
                 </Tab.Content>

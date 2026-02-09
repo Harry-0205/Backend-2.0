@@ -91,10 +91,6 @@ class CitaService {
     return this.cambiarEstado(id, EstadoCita.CANCELADA);
   }
 
-  marcarNoAsistio(id: number): Promise<Cita> {
-    return this.cambiarEstado(id, EstadoCita.NO_ASISTIO);
-  }
-
   // Nuevos métodos para gestión de disponibilidad
   getHorariosDisponibles(fecha: string, veterinariaId: number): Promise<HorarioDisponible[]> {
     return apiClient.get('/citas/disponibilidad', {

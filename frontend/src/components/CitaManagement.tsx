@@ -12,7 +12,9 @@ import {
   Badge,
   InputGroup,
   Spinner,
-  ListGroup
+  Nav,
+  Tab,
+  Pagination
 } from 'react-bootstrap';
 import { Cita, EstadoCita } from '../types';
 import citaService, { HorarioDisponible } from '../services/citaService';
@@ -21,6 +23,7 @@ import { getAllUsuarios, getVeterinarios, getVeterinariosByVeterinaria } from '.
 import { getAllVeterinarias } from '../services/veterinariaService';
 import authService from '../services/authService';
 import SearchableSelect from './SearchableSelect';
+import './CitaManagement.css';
 
 const CitaManagement: React.FC = () => {
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -37,8 +40,12 @@ const CitaManagement: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterByEstado, setFilterByEstado] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('todas');
   const [filterByFecha, setFilterByFecha] = useState<string>('');
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [citasPerPage] = useState(10);
   
   // Estados para disponibilidad de horarios
   const [horariosDisponibles, setHorariosDisponibles] = useState<HorarioDisponible[]>([]);
@@ -67,7 +74,7 @@ const CitaManagement: React.FC = () => {
   useEffect(() => {
     filterCitas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [citas, searchTerm, filterByEstado, filterByFecha]);
+  }, [citas, searchTerm, activeTab, filterByFecha]);
 
   const loadCitas = async () => {
     try {
@@ -254,9 +261,9 @@ const CitaManagement: React.FC = () => {
       );
     }
 
-    // Filtrar por estado
-    if (filterByEstado) {
-      filtered = filtered.filter(cita => cita.estado === filterByEstado);
+    // Filtrar por pestaña activa (estado)
+    if (activeTab !== 'todas') {
+      filtered = filtered.filter(cita => cita.estado === activeTab.toUpperCase());
     }
 
     // Filtrar por fecha
@@ -593,8 +600,7 @@ const CitaManagement: React.FC = () => {
       CONFIRMADA: 'Confirmada',
       EN_CURSO: 'En Curso',
       COMPLETADA: 'Completada',
-      CANCELADA: 'Cancelada',
-      NO_ASISTIO: 'No Asistió'
+      CANCELADA: 'Cancelada'
     };
 
     if (!window.confirm(`¿Está seguro de cambiar el estado a "${estadoNombres[nuevoEstado]}"?`)) return;
@@ -637,7 +643,6 @@ const CitaManagement: React.FC = () => {
       case EstadoCita.EN_CURSO: return 'warning';
       case EstadoCita.COMPLETADA: return 'success';
       case EstadoCita.CANCELADA: return 'danger';
-      case EstadoCita.NO_ASISTIO: return 'secondary';
       default: return 'secondary';
     }
   };
@@ -649,8 +654,18 @@ const CitaManagement: React.FC = () => {
       case EstadoCita.EN_CURSO: return 'En Curso';
       case EstadoCita.COMPLETADA: return 'Completada';
       case EstadoCita.CANCELADA: return 'Cancelada';
-      case EstadoCita.NO_ASISTIO: return 'No Asistió';
       default: return estado;
+    }
+  };
+
+  const getEstadoIcon = (estado: EstadoCita) => {
+    switch(estado) {
+      case EstadoCita.PROGRAMADA: return 'fa-calendar-check';
+      case EstadoCita.CONFIRMADA: return 'fa-check-circle';
+      case EstadoCita.EN_CURSO: return 'fa-spinner';
+      case EstadoCita.COMPLETADA: return 'fa-check-double';
+      case EstadoCita.CANCELADA: return 'fa-times-circle';
+      default: return 'fa-question-circle';
     }
   };
 
@@ -671,6 +686,24 @@ const CitaManagement: React.FC = () => {
       mascota.propietario?.documento === formData.clienteId
     );
   };
+
+  // Funciones de paginación
+  const indexOfLastCita = currentPage * citasPerPage;
+  const indexOfFirstCita = indexOfLastCita - citasPerPage;
+  const currentCitas = filteredCitas.slice(indexOfFirstCita, indexOfLastCita);
+  const totalPages = Math.ceil(filteredCitas.length / citasPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToPreviousPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const goToNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  const goToLastPage = () => setCurrentPage(totalPages);
+
+  // Resetear página al filtrar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab, filterByFecha]);
 
   return (
     <Container className="mt-4">
@@ -693,9 +726,53 @@ const CitaManagement: React.FC = () => {
               {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
               {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
               
+              {/* Pestañas de Estados */}
+              <div className="citas-tabs-container">
+                <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'todas')}>
+                  <Nav variant="tabs" className="mb-3">
+                    <Nav.Item>
+                      <Nav.Link eventKey="todas">
+                        <i className="fas fa-list me-2"></i>
+                        Todas
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="programada">
+                        <i className="fas fa-calendar-check me-2"></i>
+                        Programada
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="confirmada">
+                        <i className="fas fa-check-circle me-2"></i>
+                        Confirmada
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="en_curso">
+                        <i className="fas fa-spinner me-2"></i>
+                        En Curso
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="completada">
+                        <i className="fas fa-check-double me-2"></i>
+                        Completada
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="cancelada">
+                        <i className="fas fa-times-circle me-2"></i>
+                        Cancelada
+                      </Nav.Link>
+                    </Nav.Item>
+                  </Nav>
+                </Tab.Container>
+              </div>
+              
               {/* Filtros */}
               <Row className="mb-3">
-                <Col md={4}>
+                <Col md={5}>
                   <InputGroup>
                     <InputGroup.Text>
                       <i className="fas fa-search"></i>
@@ -708,23 +785,7 @@ const CitaManagement: React.FC = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={3}>
-                  <SearchableSelect
-                    options={[
-                      { value: '', label: 'Todos los estados' },
-                      { value: EstadoCita.PROGRAMADA, label: 'Programada' },
-                      { value: EstadoCita.CONFIRMADA, label: 'Confirmada' },
-                      { value: EstadoCita.EN_CURSO, label: 'En Curso' },
-                      { value: EstadoCita.COMPLETADA, label: 'Completada' },
-                      { value: EstadoCita.CANCELADA, label: 'Cancelada' },
-                      { value: EstadoCita.NO_ASISTIO, label: 'No Asistió' }
-                    ]}
-                    value={filterByEstado}
-                    onChange={setFilterByEstado}
-                    placeholder="Todos los estados"
-                  />
-                </Col>
-                <Col md={3}>
+                <Col md={4}>
                   <Form.Control
                     type="date"
                     value={filterByFecha}
@@ -732,13 +793,13 @@ const CitaManagement: React.FC = () => {
                     placeholder="Filtrar por fecha"
                   />
                 </Col>
-                <Col md={2}>
+                <Col md={3}>
                   <Button
                     variant="outline-secondary"
                     className="w-100"
                     onClick={() => {
                       setSearchTerm('');
-                      setFilterByEstado('');
+                      setActiveTab('todas');
                       setFilterByFecha('');
                     }}
                     title="Limpiar filtros"
@@ -770,14 +831,14 @@ const CitaManagement: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCitas.length === 0 ? (
+                    {currentCitas.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="text-center py-4">
                           No se encontraron citas
                         </td>
                       </tr>
                     ) : (
-                      filteredCitas.map((cita) => (
+                      currentCitas.map((cita) => (
                         <tr key={cita.id}>
                           <td>
                             <strong>{formatFechaHora(cita.fechaHora)}</strong>
@@ -804,7 +865,8 @@ const CitaManagement: React.FC = () => {
                           </td>
                           <td>{cita.motivo || '-'}</td>
                           <td>
-                            <Badge bg={getEstadoBadgeColor(cita.estado)}>
+                            <Badge bg={getEstadoBadgeColor(cita.estado)} className="px-3 py-2">
+                              <i className={`fas ${getEstadoIcon(cita.estado)} me-1`}></i>
                               {getEstadoNombre(cita.estado)}
                             </Badge>
                           </td>
@@ -890,6 +952,59 @@ const CitaManagement: React.FC = () => {
                     )}
                   </tbody>
                 </Table>
+              )}
+              
+              {/* Paginación */}
+              {filteredCitas.length > citasPerPage && (
+                <div className="d-flex justify-content-center align-items-center mt-3">
+                  <Pagination>
+                    <Pagination.First 
+                      onClick={goToFirstPage} 
+                      disabled={currentPage === 1}
+                    />
+                    <Pagination.Prev 
+                      onClick={goToPreviousPage} 
+                      disabled={currentPage === 1}
+                    />
+                    
+                    {[...Array(totalPages)].map((_, index) => {
+                      const pageNumber = index + 1;
+                      if (
+                        pageNumber === 1 ||
+                        pageNumber === totalPages ||
+                        (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                      ) {
+                        return (
+                          <Pagination.Item
+                            key={pageNumber}
+                            active={pageNumber === currentPage}
+                            onClick={() => paginate(pageNumber)}
+                          >
+                            {pageNumber}
+                          </Pagination.Item>
+                        );
+                      } else if (
+                        pageNumber === currentPage - 2 ||
+                        pageNumber === currentPage + 2
+                      ) {
+                        return <Pagination.Ellipsis key={pageNumber} disabled />;
+                      }
+                      return null;
+                    })}
+                    
+                    <Pagination.Next 
+                      onClick={goToNextPage} 
+                      disabled={currentPage === totalPages}
+                    />
+                    <Pagination.Last 
+                      onClick={goToLastPage} 
+                      disabled={currentPage === totalPages}
+                    />
+                  </Pagination>
+                  <span className="ms-3 text-muted">
+                    Página {currentPage} de {totalPages} | Total: {filteredCitas.length} citas
+                  </span>
+                </div>
               )}
             </Card.Body>
           </Card>
@@ -1237,7 +1352,8 @@ const CitaManagement: React.FC = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Estado</Form.Label>
                       <div>
-                        <Badge bg={getEstadoBadgeColor(selectedCita.estado)} className="fs-6">
+                        <Badge bg={getEstadoBadgeColor(selectedCita.estado)} className="fs-6 px-3 py-2">
+                          <i className={`fas ${getEstadoIcon(selectedCita.estado)} me-2`}></i>
                           {getEstadoNombre(selectedCita.estado)}
                         </Badge>
                       </div>
