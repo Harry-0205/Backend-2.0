@@ -15,16 +15,10 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOriginPatterns(
-                            "http://localhost:*",
-                            "http://127.0.0.1:*",
-                            "http://10.0.2.2:*",
-                            "http://192.168.*.*:*",
-                            "http://172.*.*.*:*"
-                        )
+                        .allowedOrigins("http://98.90.180.72:3000")
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")
                         .allowedHeaders("*")
-                        .allowCredentials(false)
+                        .allowCredentials(true) // Si usas Cookies o JWT, cámbialo a true
                         .exposedHeaders("Authorization", "Content-Type")
                         .maxAge(3600);
             }

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Usar URL completa directamente
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://98.90.180.72:8080/api';
 
 // Función para obtener el token sin importación circular
 const getAuthToken = (): string | null => {
@@ -20,7 +20,7 @@ const apiClient = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: false, // Cambiar a false para evitar problemas CORS
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Interceptor para añadir el token a todas las peticiones
